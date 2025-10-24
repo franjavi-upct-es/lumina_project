@@ -141,7 +141,7 @@ Abre una terminal y sigue estos pasos:
 cd backend
 
 # 2. Crea un entorno virtual
-python -m venv venv
+python -m venv .venv
 
 # 3. Activa el entorno virtual
 # En macOS/Linux:
@@ -150,7 +150,6 @@ source venv/bin/activate
 .\venv\Scripts\activate
 
 # 4. Instala las dependencias de Python
-# (Asegúrate de tener un archivo 'requirements.txt' con el contenido de abajo)
 pip install -r requirements.txt
 
 # 5. Inicia el servidor
@@ -161,7 +160,7 @@ Tu servidor backend estará corriendo en `http://127.0.0.1:5000`.
 
 ### 2. Configurar el Frontend (Cliente)
 
-Abre una **segunda terminal** (¡deja la primera corriendo el backend\!).
+Abre una **segunda terminal** (¡deja la primera corriendo el backend!).
 
 ```bash
 # 1. Navega a la carpeta del frontend
