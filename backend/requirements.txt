@@ -6,3 +6,9 @@ pandas
 pandas-ta
 yfinance
 vaderSentiment
+newsapi-python
+tensorflow
+scikit-learn
+joblib
+python-dotenv
+requests

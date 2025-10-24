@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import StockChart from './StockChart.js';
 import Portafolio from './Portafolio.js';
+import PortfolioAnalytics from './PortfolioAnalytics.js';
 import PanelOperar from './PanelOperar.js';
+import LSTMPredictor from './LSTMPredictor.js';
+import NewsPanel from './NewsPanel.js';
 
 // --- COMPONENTE DE TOOLTIP ÉTICO ---
 const EthicalTooltip = ({ text }) => {
@@ -144,6 +147,115 @@ const MacdIndicator = ({ macdData }) => {
     );
 };
 
+const BollingerBandsIndicator = ({ bbData, currentPrice }) => {
+    if (!bbData || !currentPrice) {
+        return null;
+    }
+    const { upper, middle, lower, percent } = bbData;
+    let bbClass = 'signal-box';
+    let bbText = 'En el medio';
+    let explanation = `El precio está cerca de la banda media, indicando volatilidad normal.`;
+
+    if (currentPrice > upper) {
+        bbClass += ' signal-overbought';
+        bbText = 'Por encima del límite superior';
+        explanation = `El precio está por encima de la banda superior, lo que puede indicar sobrecompra y una posible corrección a la baja.`;
+    } else if (currentPrice < lower) {
+        bbClass += ' signal-oversold';
+        bbText = 'Por debajo del límite inferior';
+        explanation = `El precio está por debajo de la banda inferior, lo que puede indicar sobreventa y una posible rebote al alza.`;
+    } else if (percent > 0.7) {
+        bbClass += ' signal-positive';
+        bbText = 'Cerca del límite superior';
+        explanation = `El precio está en la parte superior del rango de las bandas (${(percent * 100).toFixed(1)}%), mostrando fuerza alcista.`;
+    } else if (percent < 0.3) {
+        bbClass += ' signal-negative';
+        bbText = 'Cerca del límite inferior';
+        explanation = `El precio está en la parte inferior del rango de las bandas (${(percent * 100).toFixed(1)}%), mostrando debilidad.`;
+    }
+
+    return (
+        <div className={bbClass}>
+            <strong>Volatilidad (Bollinger)</strong>
+            <p>{bbText}</p>
+            <EthicalTooltip
+                text={`${explanation} Las Bandas de Bollinger miden la volatilidad del mercado. Cuando el precio toca las bandas, puede indicar condiciones extremas.`}
+            />
+        </div>
+    );
+};
+
+const EmaIndicator = ({ emaData }) => {
+    if (!emaData) {
+        return null;
+    }
+    const { short: emaShort, long: emaLong } = emaData;
+    let emaClass = 'signal-box';
+    let emaText = 'Neutral';
+    let explanation = `Las EMAs están muy cerca, sin tendencia clara.`;
+
+    const difference = emaShort - emaLong;
+    const percentDiff = (difference / emaLong) * 100;
+
+    if (percentDiff > 1) {
+        emaClass += ' signal-positive';
+        emaText = 'Tendencia Alcista';
+        explanation = `La EMA rápida (12) está ${percentDiff.toFixed(2)}% por encima de la EMA lenta (26), indicando una tendencia alcista fuerte.`;
+    } else if (percentDiff < -1) {
+        emaClass += ' signal-negative';
+        emaText = 'Tendencia Bajista';
+        explanation = `La EMA rápida (12) está ${Math.abs(percentDiff).toFixed(2)}% por debajo de la EMA lenta (26), indicando una tendencia bajista fuerte.`;
+    }
+
+    return (
+        <div className={emaClass}>
+            <strong>Tendencia (EMA)</strong>
+            <p>{emaText}</p>
+            <EthicalTooltip
+                text={`${explanation} Las EMAs dan más peso a los precios recientes. El cruce entre la EMA rápida y lenta puede señalar cambios de tendencia.`}
+            />
+        </div>
+    );
+};
+
+const StochasticIndicator = ({ stochData }) => {
+    if (!stochData) {
+        return null;
+    }
+    const { k, d } = stochData;
+    let stochClass = 'signal-box';
+    let stochText = 'Neutral';
+    let explanation = `El oscilador está en zona neutral (${k.toFixed(1)}).`;
+
+    if (k > 80) {
+        stochClass += ' signal-overbought';
+        stochText = 'Sobrecompra';
+        explanation = `El estocástico está en ${k.toFixed(1)}, por encima de 80, indicando condiciones de sobrecompra.`;
+    } else if (k < 20) {
+        stochClass += ' signal-oversold';
+        stochText = 'Sobreventa';
+        explanation = `El estocástico está en ${k.toFixed(1)}, por debajo de 20, indicando condiciones de sobreventa.`;
+    } else if (k > d) {
+        stochClass += ' signal-positive';
+        stochText = 'Señal Alcista';
+        explanation = `La línea %K (${k.toFixed(1)}) está por encima de %D (${d.toFixed(1)}), sugiriendo impulso alcista.`;
+    } else if (k < d) {
+        stochClass += ' signal-negative';
+        stochText = 'Señal Bajista';
+        explanation = `La línea %K (${k.toFixed(1)}) está por debajo de %D (${d.toFixed(1)}), sugiriendo impulso bajista.`;
+    }
+
+    return (
+        <div className={stochClass}>
+            <strong>Momentum (Estocástico)</strong>
+            <p>{stochText}</p>
+            <EthicalTooltip
+                text={`${explanation} El estocástico compara el precio de cierre actual con su rango de precios durante un período, ideal para identificar puntos de giro.`}
+            />
+        </div>
+    );
+};
+
 function App() {
     // --- ESTADOS DE DATOS ---
     const [companyName, setCompanyName] = useState(null);
@@ -157,13 +269,35 @@ function App() {
     const [sentimentScore, setSentimentScore] = useState(0);
     const [sentimentNewsCount, setSentimentNewsCount] = useState(0);
     const [latestRsi, setLatestRsi] = useState(50); // Empezamos en 50 (neutral)
-    const [latestMacd, setLatestMacd] = useState(0);
+    const [latestMacd, setLatestMacd] = useState(null);
+    const [latestBb, setLatestBb] = useState(null);
+    const [latestEma, setLatestEma] = useState(null);
+    const [latestStoch, setLatestStoch] = useState(null);
+    const [darkMode, setDarkMode] = useState(() => {
+        // Cargar preferencia de localStorage
+        const saved = localStorage.getItem('darkMode');
+        return saved ? JSON.parse(saved) : false;
+    });
 
     // --- ESTADO DEL PORTAFOLIO ---
     const [portafolio, setPortafolio] = useState({
         efectivo: 0, // Se cargará desde la API
         posiciones: {},
     });
+
+    // Efecto para aplicar el modo oscuro
+    useEffect(() => {
+        if (darkMode) {
+            document.body.classList.add('dark-mode');
+        } else {
+            document.body.classList.remove('dark-mode');
+        }
+        localStorage.setItem('darkMode', JSON.stringify(darkMode));
+    }, [darkMode]);
+
+    const toggleDarkMode = () => {
+        setDarkMode(!darkMode);
+    };
 
     // Este useEffect se ejecuta cuando el ticker CAMBIA
     useEffect(() => {
@@ -177,7 +311,10 @@ function App() {
             setSentimentScore(0);
             setSentimentNewsCount(0);
             setLatestRsi(50);
-            setLatestMacd(null)
+            setLatestMacd(null);
+            setLatestBb(null);
+            setLatestEma(null);
+            setLatestStoch(null);
 
             try {
                 const response = await fetch(`http://127.0.0.1:5000/api/stock/${ticker}`);
@@ -194,6 +331,9 @@ function App() {
                 setSentimentNewsCount(data.sentiment_news_count);
                 setLatestRsi(data.latest_rsi);
                 setLatestMacd(data.latest_macd);
+                setLatestBb(data.latest_bb);
+                setLatestEma(data.latest_ema);
+                setLatestStoch(data.latest_stoch);
             } catch (err) {
                 setError(err.message);
             } finally {
@@ -298,8 +438,15 @@ function App() {
     return (
         <div className="App">
             <header className="App-header">
-                <h1>Lumina 📈</h1>
-                <p>Tu herramienta de análisis con datos.</p>
+                <div className="header-content">
+                    <div>
+                        <h1>Lumina 📈</h1>
+                        <p>Tu herramienta de análisis con datos.</p>
+                    </div>
+                    <button className="dark-mode-toggle" onClick={toggleDarkMode} aria-label="Toggle dark mode">
+                        {darkMode ? '☀️' : '🌙'}
+                    </button>
+                </div>
             </header>
             <div className="main-layout">
                 <div className="analysis-column">
@@ -317,12 +464,26 @@ function App() {
                         {!loading && !error && companyName && (
                             <div className="chart-container">
                                 <h3>{companyName} ({ticker})</h3>
-                                <div className="indicators-grid-4">
+                                <div className="indicators-grid-8">
                                     <SignalIndicator event={signalEvent} state={currentState} />
                                     <RsiIndicator rsi={latestRsi} />
                                     <SentimentIndicator score={sentimentScore} count={sentimentNewsCount} />
                                     <MacdIndicator macdData={latestMacd} />
+                                    <BollingerBandsIndicator bbData={latestBb} currentPrice={getCurrentPrice()} />
+                                    <EmaIndicator emaData={latestEma} />
+                                    <StochasticIndicator stochData={latestStoch} />
                                 </div>
+
+                                {/* Panel de Noticias */}
+                                <div className="news-lstm-container">
+                                    <NewsPanel ticker={ticker} />
+                                </div>
+
+                                {/* Predictor LSTM */}
+                                <div className="news-lstm-container">
+                                    <LSTMPredictor ticker={ticker} />
+                                </div>
+
                                 <PanelOperar
                                     ticker={ticker}
                                     currentPrice={getCurrentPrice()}
@@ -341,6 +502,7 @@ function App() {
                 <div className="portfolio-column">
                     {/* El componente Portafolio ahora recibe los datos de la DB */}
                     <Portafolio portafolio={portafolio} />
+                    <PortfolioAnalytics />
                 </div>
             </div>
         </div>

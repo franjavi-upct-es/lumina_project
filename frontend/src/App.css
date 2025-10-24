@@ -36,9 +36,43 @@ body {
     margin-bottom: 20px;
 }
 
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.header-content>div {
+    flex: 1;
+}
+
+.dark-mode-toggle {
+    background-color: transparent;
+    border: 2px solid #ddd;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dark-mode-toggle:hover {
+    transform: scale(1.1);
+    border-color: rgb(75, 192, 192);
+}
+
 .App-header h1 {
     color: #2c3e50;
     margin: 0;
+}
+
+.App-header p {
+    margin: 5px 0 0 0;
 }
 
 .stock-viewer {
@@ -226,8 +260,34 @@ body {
     margin-bottom: 20px;
 }
 
+.indicators-grid-8 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    /* Cuatro columnas de igual tamaño */
+    gap: 15px;
+    /* Espacio entre las cajas */
+    margin-bottom: 20px;
+}
+
+/* Contenedor para noticias y LSTM */
+.news-lstm-container {
+    margin: 20px 0;
+    width: 100%;
+}
+
+@media (max-width: 1200px) {
+    .indicators-grid-8 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
 @media (max-width: 768px) {
     .indicators-grid-4 {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .indicators-grid-8 {
         grid-template-columns: 1fr;
         gap: 15px;
     }
@@ -356,4 +416,166 @@ canvas {
 img {
     max-width: 100%;
     height: auto;
+}
+
+/* ===== MODO OSCURO ===== */
+body.dark-mode {
+    background-color: #1a1a2e;
+    color: #e0e0e0;
+}
+
+body.dark-mode .App-header {
+    background-color: #16213e;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .App-header h1,
+body.dark-mode .App-header p {
+    color: #e0e0e0;
+}
+
+body.dark-mode .dark-mode-toggle {
+    border-color: #4a4a4a;
+    color: #e0e0e0;
+}
+
+body.dark-mode .stock-viewer,
+body.dark-mode .portafolio-widget,
+body.dark-mode .portfolio-analytics {
+    background-color: #16213e;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .stock-viewer h2,
+body.dark-mode .chart-container h3,
+body.dark-mode .portafolio-widget h4,
+body.dark-mode .portfolio-analytics h4 {
+    color: #e0e0e0;
+}
+
+body.dark-mode .search-input {
+    background-color: #0f3460;
+    border-color: #4a4a4a;
+    color: #e0e0e0;
+}
+
+body.dark-mode .search-input:focus {
+    border-color: rgb(75, 192, 192);
+}
+
+body.dark-mode .search-button {
+    background-color: rgb(54, 162, 235);
+}
+
+body.dark-mode .search-button:hover {
+    background-color: rgb(75, 192, 192);
+}
+
+body.dark-mode .signal-box {
+    background-color: #0f3460;
+    border-color: #4a4a4a;
+    color: #e0e0e0;
+}
+
+body.dark-mode .signal-golden {
+    background-color: #1b4332;
+    border-color: #2ecc71;
+    color: #a7f3d0;
+}
+
+body.dark-mode .signal-death {
+    background-color: #4a0e0e;
+    border-color: #e74c3c;
+    color: #fecaca;
+}
+
+body.dark-mode .signal-positive {
+    background-color: #1b4332;
+    border-color: #2ecc71;
+    color: #a7f3d0;
+}
+
+body.dark-mode .signal-negative {
+    background-color: #4a0e0e;
+    border-color: #e74c3c;
+    color: #fecaca;
+}
+
+body.dark-mode .signal-overbought {
+    background-color: #3d2952;
+    border-color: #8e44ad;
+    color: #ddd6fe;
+}
+
+body.dark-mode .signal-oversold {
+    background-color: #5a3a1a;
+    border-color: #f39c12;
+    color: #fed7aa;
+}
+
+body.dark-mode .tooltip-content {
+    background-color: #0f3460;
+    color: #e0e0e0;
+}
+
+body.dark-mode .tooltip-content::after {
+    border-color: #0f3460 transparent transparent transparent;
+}
+
+body.dark-mode .trade-widget {
+    background-color: #0f3460;
+    border-color: #4a4a4a;
+}
+
+body.dark-mode .trade-input {
+    background-color: #16213e;
+    border-color: #4a4a4a;
+    color: #e0e0e0;
+}
+
+body.dark-mode .portafolio-cash strong,
+body.dark-mode .portafolio-holdings strong,
+body.dark-mode .analytics-item .label {
+    color: #b0b0b0;
+}
+
+body.dark-mode .portafolio-cash span,
+body.dark-mode .analytics-item .value {
+    color: #e0e0e0;
+}
+
+body.dark-mode .analytics-summary {
+    border-bottom-color: #4a4a4a;
+}
+
+body.dark-mode .metric-box {
+    background-color: #0f3460;
+    border-color: #4a4a4a;
+}
+
+body.dark-mode .metric-box.good {
+    background-color: #1b4332;
+    border-color: #2ecc71;
+}
+
+body.dark-mode .metric-box.neutral {
+    background-color: #5a3a1a;
+    border-color: #f39c12;
+}
+
+body.dark-mode .metric-box.poor {
+    background-color: #4a0e0e;
+    border-color: #e74c3c;
+}
+
+body.dark-mode .returns-list li.positive {
+    background-color: #1b4332;
+}
+
+body.dark-mode .returns-list li.negative {
+    background-color: #4a0e0e;
+}
+
+body.dark-mode .error-message {
+    color: #ff6b6b;
 }
