@@ -53,9 +53,11 @@
 }
 
 .trade-button.buy {
-    background-color: #2ecc71; /* Verde */
+    background-color: #2ecc71;
+    /* Verde */
 }
 
 .trade-button.sell {
-    background-color: #e74c3c; /* Rojo */
+    background-color: #e74c3c;
+    /* Rojo */
 }

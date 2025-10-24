@@ -180,34 +180,38 @@ body {
 }
 
 .indicators-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr; /* Dos columnas de igual tamaño */
-    gap: 20px; /* Espacio entre las cajas */
-    margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  /* Dos columnas de igual tamaño */
+  gap: 20px;
+  /* Espacio entre las cajas */
+  margin-bottom: 20px;
 }
 
 /* Ajustes para que la caja de señal se adapte */
 .signal-box {
-    margin: 0; /* Quitamos el margen vertical que tenía antes */
+  margin: 0;
+  /* Quitamos el margen vertical que tenía antes */
 }
 
 /* Estado Positivo (verde) */
 .signal-positive {
-    border-color: #2ecc71;
-    background-color: #f0fff4;
-    color: #276749;
+  border-color: #2ecc71;
+  background-color: #f0fff4;
+  color: #276749;
 }
 
 /* Estado negativo (rojo) */
 .signal-negative {
-    border-color: #e74c3c;
-    background-color: #fff5f5;
-    color: #c53030;
+  border-color: #e74c3c;
+  background-color: #fff5f5;
+  color: #c53030;
 }
 
 /* Ajuste para pantallas pequeñas */
 @media (max-width: 700px) {
-    .indicators-grid {
-        grid-template-columns: 1fr; /* Una sola columna */
-    }
+  .indicators-grid {
+    grid-template-columns: 1fr;
+    /* Una sola columna */
+  }
 }

@@ -7,7 +7,7 @@ const currencyFormater = new Intl.NumberFormat('es-ES', {
     currency: 'EUR',
 })
 
-const Portafolio = ({portafolio}) => {
+const Portafolio = ({ portafolio }) => {
     return (
         <div className='portafolio-widget'>
             <h4>Mi Portafolio Virtual</h4>

@@ -105,12 +105,12 @@ function App() {
   const [currentState, setCurrentState] = useState('HOLD'); // Para el estado actual de la señal
   const [sentimentScore, setSentimentScore] = useState(0); // Para el puntaje de sentimiento
   const [sentimentNewsCount, setSentimentNewsCount] = useState(0); // Para el conteo de noticias analizadas
-    
-    const [portafolio, setPortafolio] = useState({
-        efectivo: 100000,   // Empezamos con 100,000 €
-        posiciones: {},     // Un objeto: { 'AAPL': 10, 'MSFT': 5 }
-    });
-    
+
+  const [portafolio, setPortafolio] = useState({
+    efectivo: 100000,   // Empezamos con 100,000 €
+    posiciones: {},     // Un objeto: { 'AAPL': 10, 'MSFT': 5 }
+  });
+
   // useEffect se ejecuta cuando el componente se "monta" (carga por primera vez)
   // o cuando una de sus dependencias (en este caso, 'ticker') cambia.
   useEffect(() => {
@@ -209,7 +209,7 @@ function App() {
 
     setPortafolio((prevPortafolio) => {
       const nuevasAcciones = accionesActuales - cantidad;
-      
+
       // Creamos una copia de las posiciones
       const nuevasPosiciones = { ...prevPortafolio.posiciones };
 
@@ -227,7 +227,7 @@ function App() {
       };
     });
   };
-  
+
   // --- Renderizado (Lo que se ve en HTML) ---
   return (
     <div className="App">
@@ -237,7 +237,7 @@ function App() {
       </header>
 
       <div className="main-layout">
-        
+
         {/* Columna Izquierda: Análisis */}
         <div className="analysis-column">
           <div className="stock-viewer">
@@ -255,7 +255,7 @@ function App() {
 
             {loading && <p>Cargando datos...</p>}
             {error && <p className="error-message">Error: {error}</p>}
-            
+
             {!loading && !error && companyName && (
               <div className="chart-container">
                 <h3>{companyName} ({ticker})</h3>
@@ -264,14 +264,14 @@ function App() {
                   <SignalIndicator event={signalEvent} state={currentState} />
                   <SentimentIndicator score={sentimentScore} count={sentimentNewsCount} />
                 </div>
-                
+
                 <PanelOperar
                   ticker={ticker}
                   currentPrice={getCurrentPrice()}
                   onComprar={handleComprar}
                   onVender={handleVender}
                 />
-                
+
                 {stockData.length > 0 ? (
                   <StockChart chartData={stockData} companyName={companyName} />
                 ) : (
