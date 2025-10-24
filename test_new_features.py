@@ -33,10 +33,10 @@ def test_stock_data():
         print(f"✅ Bollinger Bands: Upper={bb['upper']:.2f}, Middle={bb['middle']:.2f}, Lower={bb['lower']:.2f}")
         
         ema = data['latest_ema']
-        print(f"✅ EMA: Short={ema['ema_short']:.2f}, Long={ema['ema_long']:.2f}")
+        print(f"✅ EMA: Short={ema['short']:.2f}, Long={ema['long']:.2f}")
         
         stoch = data['latest_stoch']
-        print(f"✅ Estocástico: %K={stoch['stoch_k']:.2f}, %D={stoch['stoch_d']:.2f}")
+        print(f"✅ Estocástico: %K={stoch['k']:.2f}, %D={stoch['d']:.2f}")
         
         if 'news_articles' in data and data['news_articles']:
             print(f"\n📰 Noticias recientes:")
@@ -145,7 +145,7 @@ def test_portfolio_analytics():
         data = response.json()
         print(f"✅ Valor total: €{data['total_value']:.2f}")
         print(f"✅ Valor invertido: €{data['invested_value']:.2f}")
-        print(f"✅ Efectivo: {data['cash_percentage']:.2f}%")
+        print(f"✅ Efectivo: {data['cash_percent']:.2f}%")
         print(f"✅ Ratio de Sharpe: {data['sharpe_ratio']:.4f}")
         print(f"✅ Diversificación: {data['diversification_score']:.4f}")
         

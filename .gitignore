@@ -78,6 +78,7 @@ Thumbs.db
 
 # Logs
 *.log
+.pytest_cache/
 
 # ML Models
 *.h5

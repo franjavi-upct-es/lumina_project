@@ -287,8 +287,10 @@ def get_portfolio_analytics():
                 invested_value=0,
                 cash_percent=100,
                 diversification=0,
+                diversification_score=0,
                 sharpe_ratio=0,
                 returns={},
+                positions_count=0,
                 message="No hay posiciones en el portafolio"
             ), 200
         

@@ -66,14 +66,14 @@ const PortfolioAnalytics = () => {
 
                 <div className="analytics-item">
                     <span className="label">Efectivo:</span>
-                    <span className="value">{analytics.cash_percent.toFixed(1)}%</span>
+                    <span className="value">{(analytics.cash_percent ?? 0).toFixed(1)}%</span>
                 </div>
             </div>
 
             <div className="analytics-metrics">
                 <div className={`metric-box ${getSharpeColor(analytics.sharpe_ratio)}`}>
                     <strong>Ratio de Sharpe</strong>
-                    <span className="metric-value">{analytics.sharpe_ratio.toFixed(2)}</span>
+                    <span className="metric-value">{(analytics.sharpe_ratio ?? 0).toFixed(2)}</span>
                     <p className="metric-desc">
                         {analytics.sharpe_ratio > 1 ? "Excelente retorno ajustado al riesgo" :
                             analytics.sharpe_ratio > 0 ? "Retorno aceptable" :
@@ -83,9 +83,9 @@ const PortfolioAnalytics = () => {
 
                 <div className={`metric-box ${getDiversificationColor(analytics.diversification_score)}`}>
                     <strong>Diversificación</strong>
-                    <span className="metric-value">{analytics.diversification_score.toFixed(0)}%</span>
+                    <span className="metric-value">{(analytics.diversification_score ?? 0).toFixed(0)}%</span>
                     <p className="metric-desc">
-                        {analytics.positions_count} posiciones
+                        {analytics.positions_count ?? 0} posiciones
                         {analytics.diversification_score > 70 ? " - Bien diversificado" :
                             analytics.diversification_score > 40 ? " - Diversificación moderada" :
                                 " - Poco diversificado"}
@@ -93,14 +93,14 @@ const PortfolioAnalytics = () => {
                 </div>
             </div>
 
-            {Object.keys(analytics.returns).length > 0 && (
+            {Object.keys(analytics.returns || {}).length > 0 && (
                 <div className="returns-section">
                     <strong>Retornos Anuales:</strong>
                     <ul className="returns-list">
-                        {Object.entries(analytics.returns).map(([ticker, returnPct]) => (
+                        {Object.entries(analytics.returns || {}).map(([ticker, returnPct]) => (
                             <li key={ticker} className={returnPct >= 0 ? "positive" : "negative"}>
                                 <span>{ticker}</span>
-                                <span>{returnPct >= 0 ? "+" : ""}{returnPct.toFixed(2)}%</span>
+                                <span>{returnPct >= 0 ? "+" : ""}{(returnPct ?? 0).toFixed(2)}%</span>
                             </li>
                         ))}
                     </ul>
