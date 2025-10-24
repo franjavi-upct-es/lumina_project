@@ -1,0 +1,213 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  background-color: #f4f7f6;
+  color: #333;
+}
+
+.App {
+  text-align: center;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.App-header {
+  background-color: #ffffff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
+}
+
+.App-header h1 {
+  color: #2c3e50;
+  margin: 0;
+}
+
+.stock-viewer {
+  background-color: #ffffff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.search-form {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  gap: 10px;
+}
+
+.search-input {
+  font-size: 1rem;
+  padding: 10px 15px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  width: 300px;
+  transition: border-color 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: rgb(75, 192, 192);
+}
+
+.search-button {
+  font-size: 1rem;
+  padding: 10px 20px;
+  background-color: rgb(75, 192, 192);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.search-button:hover {
+  background-color: rgb(54, 162, 235);
+}
+
+.error-message {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+.chart-container {
+  margin-top: 20px;
+}
+
+.signal-box {
+  border-radius: 8px;
+  padding: 15px;
+  margin: 20px 0;
+  border: 1px solid #ddd;
+  background-color: #f9f9f9;
+}
+
+.signal-box strong {
+  display: block;
+  font-size: 1.1rem;
+  margin-bottom: 5px;
+}
+
+.signal-box p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Estado Alcista */
+.signal-golden {
+  border-color: #2ecc71;
+  background-color: #f0fff4;
+  color: #276749;
+}
+
+/* Estado Bajista */
+.signal-death {
+  border-color: #e74c3c;
+  background-color: #fff5f5;
+  color: #c53030;
+}
+
+/* Alerta de Cruce */
+.signal-alert {
+  font-weight: bold;
+  animation: blink 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(231, 76, 60, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+  }
+}
+
+/* Estilos para el (i) ético */
+.tooltip-container {
+  position: relative;
+  display: inline-block;
+  margin-left: 10px;
+}
+
+.tooltip-trigger {
+  font-weight: bold;
+  color: #3498db;
+  cursor: pointer;
+  border: 1px solid #3498db;
+  border-radius: 50%;
+  padding: 0px 6px;
+  font-size: 0.8rem;
+}
+
+.tooltip-content {
+  visibility: visible;
+  width: 250px;
+  background-color: #2c3e50;
+  color: #fff;
+  text-align: left;
+  border-radius: 6px;
+  padding: 10px;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%;
+  /* Posicionado encima del (i) */
+  left: 50%;
+  margin-left: -125px;
+  /* Centrar el tooltip */
+  opacity: 1;
+  transition: opacity 0.3s;
+  font-size: 0.9rem;
+  font-weight: normal;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.tooltip-content::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #2c3e50 transparent transparent transparent;
+}
+
+.indicators-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Dos columnas de igual tamaño */
+    gap: 20px; /* Espacio entre las cajas */
+    margin-bottom: 20px;
+}
+
+/* Ajustes para que la caja de señal se adapte */
+.signal-box {
+    margin: 0; /* Quitamos el margen vertical que tenía antes */
+}
+
+/* Estado Positivo (verde) */
+.signal-positive {
+    border-color: #2ecc71;
+    background-color: #f0fff4;
+    color: #276749;
+}
+
+/* Estado negativo (rojo) */
+.signal-negative {
+    border-color: #e74c3c;
+    background-color: #fff5f5;
+    color: #c53030;
+}
+
+/* Ajuste para pantallas pequeñas */
+@media (max-width: 700px) {
+    .indicators-grid {
+        grid-template-columns: 1fr; /* Una sola columna */
+    }
+}
