@@ -1,5 +1,8 @@
 Flask
 flask-cors
+flask-sqlalchemy
+flask-migrate
 pandas
+pandas-ta
 yfinance
 vaderSentiment

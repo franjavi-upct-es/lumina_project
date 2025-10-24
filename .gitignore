@@ -25,3 +25,5 @@ yarn-error.log*
 .venv/
 *-lock.json
 .vscode/
+__pycache__/
+*.pyc

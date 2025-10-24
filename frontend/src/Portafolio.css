@@ -1,55 +1,55 @@
 .portafolio-widget {
-    background-color: #ffffff;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    /* Hacemos que se "fijo" al hacer scroll */
-    position: sticky;
-    top: 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  /* Hacemos que se "fijo" al hacer scroll */
+  position: sticky;
+  top: 20px;
 }
 
 .portafolio-widget h4 {
-    margin-top: 0;
-    border-bottom: 2px solid #f4f7f6;
-    padding-bottom: 10px;
+  margin-top: 0;
+  border-bottom: 2px solid #f4f7f6;
+  padding-bottom: 10px;
 }
 
 .portafolio-cash {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #276749;
-    margin-bottom: 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #276749;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .portafolio-cash span {
-    background-color: #f0fff4;
-    padding: 5px 10px;
-    border-radius: 6px;
+  background-color: #f0fff4;
+  padding: 5px 10px;
+  border-radius: 6px;
 }
 
 .portafolio-holdings ul {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-    max-height: 400px;
-    overflow-y: auto;
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .portafolio-holdings li {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px;
-    border-bottom: 1px solid #f4f7f6;
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  border-bottom: 1px solid #f4f7f6;
 }
 
 .portafolio-holdings li span:first-child {
-    font-weight: bold;
+  font-weight: bold;
 }
 
 .no-holdings {
-    color: #777;
-    font-style: italic;
+  color: #777;
+  font-style: italic;
 }
