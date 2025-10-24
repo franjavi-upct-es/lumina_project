@@ -1,27 +1,27 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import StockChart from './StockChart.js';
 import Portafolio from './Portafolio.js';
 import PanelOperar from './PanelOperar.js';
 
 // --- COMPONENTE DE TOOLTIP ÉTICO ---
-const EthicalTooltip = ({text}) => {
+const EthicalTooltip = ({ text }) => {
     const [visible, setVisible] = useState(false);
     return (
         <span className="tooltip-container">
-      <span className="tooltip-trigger" onMouseEnter={() => setVisible(true)}
-            onMouseLeave={() => setVisible(false)}>(i)</span>
+            <span className="tooltip-trigger" onMouseEnter={() => setVisible(true)}
+                onMouseLeave={() => setVisible(false)}>(i)</span>
             {visible && <div className="tooltip-content">{text}</div>}
-    </span>
+        </span>
     );
 };
 
 // --- COMPONENTE DE SEÑAL TÉCNICA (SMA) ---
-const SignalIndicator = ({event, state}) => {
+const SignalIndicator = ({ event, state }) => {
     let signalClass = 'signal-box';
     let signalText = 'Evaluando...';
     let explanation = '';
-    
+
     if (state === 'GOLDEN') {
         signalClass += ' signal-golden';
         signalText = 'Estado: Alcista (Cruce Dorado)';
@@ -31,7 +31,7 @@ const SignalIndicator = ({event, state}) => {
         signalText = 'Estado: Bajista (Cruce de la Muerte)';
         explanation = 'La media móvil rápida (50 días) está POR DEBAJO de la lenta (200 días). Históricamente, esto se considera una señal bajista a largo plazo.';
     }
-    
+
     if (event === 'GOLDEN_CROSS') {
         signalClass += ' signal-alert';
         signalText = '¡ALERTA: Cruce Dorado Detectado!';
@@ -41,7 +41,7 @@ const SignalIndicator = ({event, state}) => {
         signalText = '¡ALERTA: Cruce de la Muerte Detectado!';
         explanation = '¡Hoy, la media de 50 días ha cruzado POR DEBAJO de la de 200 días! Esta es una señal técnica bajista significativa.';
     }
-    
+
     return (
         <div className={signalClass}>
             <strong>Tendencia (SMA)</strong>
@@ -54,12 +54,12 @@ const SignalIndicator = ({event, state}) => {
 };
 
 // --- COMPONENTE DE SENTIMIENTO (NLP) ---
-const SentimentIndicator = ({score, count}) => {
+const SentimentIndicator = ({ score, count }) => {
     let sentimentClass = 'signal-box';
     let sentimentEmoji = '😐';
     let sentimentText = 'Neutral';
     let explanation = `Análisis de ${count} titulares de noticias recientes. Un puntaje cercano a 0 indica un tono neutral.`;
-    
+
     if (score > 0.05) {
         sentimentClass += ' signal-positive';
         sentimentEmoji = '😊';
@@ -71,12 +71,12 @@ const SentimentIndicator = ({score, count}) => {
         sentimentText = 'Negativo';
         explanation = `Análisis de ${count} titulares. El tono general de las noticias recientes es negativo (Puntaje: ${score.toFixed(2)}).`;
     }
-    
+
     if (count === 0) {
         sentimentText = 'Sin noticias';
         explanation = 'No se encontraron noticias recientes para analizar.';
     }
-    
+
     return (
         <div className={sentimentClass}>
             <strong>Sentimiento (NLP)</strong>
@@ -88,11 +88,11 @@ const SentimentIndicator = ({score, count}) => {
     );
 };
 
-const RsiIndicator = ({rsi}) => {
+const RsiIndicator = ({ rsi }) => {
     let rsiClass = 'signal-box';
     let rsiText = 'Neutral';
     let explanation = `El RSI es un indicador de impulso que mide la velocidad y el cambio de los movimientos de precios. Un valor entre 30 y 70 se considera neutral.`;
-    
+
     if (rsi > 70) {
         rsiClass += ' signal-overbought'; // Sobrecompra
         rsiText = 'Sobrecompra';
@@ -102,7 +102,7 @@ const RsiIndicator = ({rsi}) => {
         rsiText = 'Sobreventa';
         explanation = `Un RSI inferior a 30 sugiere que la acción puede estar infravalorada o "sobrevendida" y podría estar preparada para un rebote al alza.`;
     }
-    
+
     return (
         <div className={rsiClass}>
             <strong>Impulso (RSI)</strong>
@@ -114,6 +114,35 @@ const RsiIndicator = ({rsi}) => {
     );
 };
 
+const MacdIndicator = ({ macdData }) => {
+    if (!macdData) {
+        return null;
+    }
+    const { histogram, macd, signal } = macdData;
+    let macdClass = 'signal-box';
+    let macdText = 'Neutral';
+    let explanation = `El histograma (diferencia entre MACD y Señal) es casi cero, indicando poco impulso.`;
+
+    if (histogram > 0) {
+        macdClass += ' signal-positive';
+        macdText = 'Impulso Alcista';
+        explanation = 'La línea MACD está por encima de su línea de Señal, y el histograma es positivo. Esto sugiere que el impulso alcista está aumentando.';
+    } else if (histogram < 0) {
+        macdClass += ' signal-negative';
+        macdText = 'Impulso Bajista';
+        explanation = 'La línea MACD está por debajo de su línea de Señal, y el histograma es negativo. Esto sugiere que el impulso bajista está aumentando.';
+    }
+
+    return (
+        <div className={macdClass}>
+            <strong>Impulso (MACD)</strong>
+            <p>{macdText}</p>
+            <EthicalTooltip
+                text={`${explanation} El MACD es útil para confirmar la fuerza de una tendencia, pero puede generar señales falsas en mercados laterales.`}
+            />
+        </div>
+    );
+};
 
 function App() {
     // --- ESTADOS DE DATOS ---
@@ -128,13 +157,14 @@ function App() {
     const [sentimentScore, setSentimentScore] = useState(0);
     const [sentimentNewsCount, setSentimentNewsCount] = useState(0);
     const [latestRsi, setLatestRsi] = useState(50); // Empezamos en 50 (neutral)
-    
+    const [latestMacd, setLatestMacd] = useState(0);
+
     // --- ESTADO DEL PORTAFOLIO ---
     const [portafolio, setPortafolio] = useState({
         efectivo: 0, // Se cargará desde la API
         posiciones: {},
     });
-    
+
     // Este useEffect se ejecuta cuando el ticker CAMBIA
     useEffect(() => {
         const fetchStockData = async () => {
@@ -147,7 +177,8 @@ function App() {
             setSentimentScore(0);
             setSentimentNewsCount(0);
             setLatestRsi(50);
-            
+            setLatestMacd(null)
+
             try {
                 const response = await fetch(`http://127.0.0.1:5000/api/stock/${ticker}`);
                 if (!response.ok) {
@@ -162,6 +193,7 @@ function App() {
                 setSentimentScore(data.sentiment_score);
                 setSentimentNewsCount(data.sentiment_news_count);
                 setLatestRsi(data.latest_rsi);
+                setLatestMacd(data.latest_macd);
             } catch (err) {
                 setError(err.message);
             } finally {
@@ -172,7 +204,7 @@ function App() {
             fetchStockData();
         }
     }, [ticker]);
-    
+
     useEffect(() => {
         const fetchPortfolioData = async () => {
             try {
@@ -186,83 +218,83 @@ function App() {
                 setError(err.message); // Mostramos error si la API de portafolio falla
             }
         };
-        
+
         fetchPortfolioData();
     }, []); // El array vacío `[]` significa "ejecutar solo al montar"
-    
+
     const handleSearch = (e) => {
         e.preventDefault();
         setTicker(inputValue.toUpperCase());
     };
-    
+
     // --- LÓGICA DE OPERACIONES (COMPRAR/VENDER) ---
     const getCurrentPrice = () => {
         if (stockData.length === 0) return 0;
         return stockData.at(-1).Close;
     };
-    
+
     const handleComprar = async (cantidad) => {
         const precio = getCurrentPrice();
         if (precio === 0) {
             alert("Error: No se ha podido obtener el precio actual.");
             return;
         }
-        
+
         try {
             const response = await fetch(`http://127.0.0.1:5000/api/trade`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ticker: ticker,
                     cantidad: cantidad,
                     tipo: 'BUY',
                 }),
             });
-            
+
             const data = await response.json();
-            
+
             if (!response.ok) {
                 // Si el backend devuelve un error (ej: fondos insuficientes), lo mostramos
                 throw new Error(data.error || 'Error al procesar la compra.');
             }
-            
+
             // Si la compra es exitosa, el backend nos devuelve el portafolio actualizado
             setPortafolio(data);
             alert(`${cantidad} acciones de ${ticker} compradas!`);
-            
+
         } catch (err) {
             alert(`Error al comprar: ${err.message}`);
         }
     };
-    
+
     const handleVender = async (cantidad) => {
         try {
             const response = await fetch(`http://127.0.0.1:5000/api/trade`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ticker: ticker,
                     cantidad: cantidad,
                     tipo: 'SELL',
                 }),
             });
-            
+
             const data = await response.json();
-            
+
             if (!response.ok) {
                 // Si el backend devuelve un error (ej: no tienes acciones)
                 throw new Error(data.error || 'Error al procesar la venta.');
             }
-            
+
             // Si la venta es exitosa, actualizamos el portafolio
             setPortafolio(data);
             alert(`${cantidad} acciones de ${ticker} vendidas!`);
-            
+
         } catch (err) {
             alert(`Error al vender: ${err.message}`);
         }
     };
-    
+
     return (
         <div className="App">
             <header className="App-header">
@@ -275,20 +307,21 @@ function App() {
                         <h2>Visor de Acciones</h2>
                         <form onSubmit={handleSearch} className="search-form">
                             <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)}
-                                   placeholder="Buscar ticker (ej: MSFT, GOOGL)" className="search-input"/>
+                                placeholder="Buscar ticker (ej: MSFT, GOOGL)" className="search-input" />
                             <button type="submit" className="search-button">Buscar</button>
                         </form>
-                        
+
                         {loading && <p>Cargando datos...</p>}
                         {error && <p className="error-message">Error: {error}</p>}
-                        
+
                         {!loading && !error && companyName && (
                             <div className="chart-container">
                                 <h3>{companyName} ({ticker})</h3>
-                                <div className="indicators-grid-3">
-                                    <SignalIndicator event={signalEvent} state={currentState}/>
-                                    <SentimentIndicator score={sentimentScore} count={sentimentNewsCount}/>
-                                    <RsiIndicator rsi={latestRsi}/>
+                                <div className="indicators-grid-4">
+                                    <SignalIndicator event={signalEvent} state={currentState} />
+                                    <RsiIndicator rsi={latestRsi} />
+                                    <SentimentIndicator score={sentimentScore} count={sentimentNewsCount} />
+                                    <MacdIndicator macdData={latestMacd} />
                                 </div>
                                 <PanelOperar
                                     ticker={ticker}
@@ -297,7 +330,7 @@ function App() {
                                     onVender={handleVender}
                                 />
                                 {stockData.length > 0 ? (
-                                    <StockChart chartData={stockData} companyName={companyName}/>
+                                    <StockChart chartData={stockData} companyName={companyName} />
                                 ) : (
                                     <p>No se encontraron datos históricos para mostrar.</p>
                                 )}
@@ -307,7 +340,7 @@ function App() {
                 </div>
                 <div className="portfolio-column">
                     {/* El componente Portafolio ahora recibe los datos de la DB */}
-                    <Portafolio portafolio={portafolio}/>
+                    <Portafolio portafolio={portafolio} />
                 </div>
             </div>
         </div>

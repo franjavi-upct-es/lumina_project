@@ -84,17 +84,28 @@ def get_sentiment(ticker_obj):
 def get_stock_data(ticker):
     try:
         stock = yf.Ticker(ticker)
-        hist = stock.history(period="5y")
+        hist = stock.history(period="10y")
         if hist.empty:
             return jsonify(error=f"No se encontraron datos históricos para {ticker}"), 404
 
         hist[f'SMA_{SHORT_WINDOW}'] = hist['Close'].rolling(window=SHORT_WINDOW).mean()
         hist[f'SMA_{LONG_WINDOW}'] = hist['Close'].rolling(window=LONG_WINDOW).mean()
+        macd = ta.macd(hist['Close'])
+        hist = pd.concat([hist, macd], axis=1)
         signal_event, current_state = detect_cross_signal(hist)
         sentiment_score, news_count = get_sentiment(stock)
         hist[f'RSI_{RSI_PERIOD}'] = ta.rsi(hist['Close'], length=RSI_PERIOD)
         latest_rsi = hist[f'RSI_{RSI_PERIOD}'].iloc[-1]
         if pd.isna(latest_rsi): latest_rsi = 50
+
+        latest_macd_data = {
+            'macd': hist['MACD_12_26_9'].iloc[-1],
+            'histogram': hist['MACDh_12_26_9'].iloc[-1],
+            'signal': hist['MACDs_12_26_9'].iloc[-1]
+        }
+        for key, value in latest_macd_data.items():
+            if pd.isna(value):
+                latest_macd_data[key] = 0
 
         hist.reset_index(inplace=True)
         hist['Date'] = hist['Date'].dt.strftime('%Y-%m-%d')
@@ -112,7 +123,8 @@ def get_stock_data(ticker):
             current_state=current_state,
             sentiment_score=sentiment_score,
             sentiment_news_count=news_count,
-            latest_rsi=latest_rsi
+            latest_rsi=latest_rsi,
+            latest_macd=latest_macd_data
         ), 200
     except Exception as e:
         return jsonify(error=str(e)), 500

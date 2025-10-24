@@ -1,15 +1,31 @@
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+        "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
     background-color: #f4f7f6;
     color: #333;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: inherit;
 }
 
 .App {
     text-align: center;
-    max-width: 1000px;
+    max-width: 1200px;
+    width: 100%;
     margin: 0 auto;
     padding: 20px;
+}
+
+@media (max-width: 768px) {
+    .App {
+        padding: 10px;
+    }
 }
 
 .App-header {
@@ -37,6 +53,7 @@ body {
     justify-content: center;
     margin-bottom: 20px;
     gap: 10px;
+    flex-wrap: wrap;
 }
 
 .search-input {
@@ -44,8 +61,19 @@ body {
     padding: 10px 15px;
     border: 2px solid #ddd;
     border-radius: 6px;
-    width: 300px;
+    width: 100%;
+    max-width: 300px;
     transition: border-color 0.2s;
+}
+
+@media (max-width: 480px) {
+    .search-input {
+        max-width: 100%;
+    }
+
+    .search-button {
+        width: 100%;
+    }
 }
 
 .search-input:focus {
@@ -150,6 +178,7 @@ body {
 .tooltip-content {
     visibility: visible;
     width: 250px;
+    max-width: 90vw;
     background-color: #2c3e50;
     color: #fff;
     text-align: left;
@@ -169,6 +198,14 @@ body {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
+@media (max-width: 480px) {
+    .tooltip-content {
+        width: 200px;
+        margin-left: -100px;
+        font-size: 0.8rem;
+    }
+}
+
 .tooltip-content::after {
     content: "";
     position: absolute;
@@ -180,13 +217,26 @@ body {
     border-color: #2c3e50 transparent transparent transparent;
 }
 
-.indicators-grid-3 {
+.indicators-grid-4 {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(2, 1fr);
     /* Dos columnas de igual tamaño */
-    gap: 15px;
+    gap: 20px;
     /* Espacio entre las cajas */
     margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+    .indicators-grid-4 {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .indicators-grid-4 {
+        gap: 15px;
+    }
 }
 
 /* Ajustes para que la caja de señal se adapte */
@@ -211,13 +261,40 @@ body {
 
 /* Ajuste para pantallas pequeñas */
 @media (max-width: 700px) {
+
     /* Hacemos que la rejilla de 2 se apile */
     .indicators-grid {
-        grid-template-columns: 1fr; /* Una sola columna */
+        grid-template-columns: 1fr;
+        /* Una sola columna */
     }
 
-    .indicators-grid-3 {
-        grid-template-columns: 1fr; /* Una sola columna */
+    .indicators-grid-4 {
+        grid-template-columns: 1fr;
+        /* Una sola columna */
+    }
+
+    .App-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .App-header p {
+        font-size: 0.9rem;
+    }
+
+    .chart-container h3 {
+        font-size: 1.2rem;
+    }
+
+    .signal-box {
+        padding: 12px;
+    }
+
+    .signal-box strong {
+        font-size: 1rem;
+    }
+
+    .signal-box p {
+        font-size: 0.9rem;
     }
 }
 
@@ -233,4 +310,50 @@ body {
     border-color: #f39c12;
     background-color: #fffaf0;
     color: #d35400;
+}
+
+/* Layout principal de dos columnas */
+.main-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    width: 100%;
+}
+
+@media (min-width: 1024px) {
+    .main-layout {
+        grid-template-columns: 2fr 1fr;
+    }
+}
+
+.analysis-column {
+    width: 100%;
+    min-width: 0;
+}
+
+.portfolio-column {
+    width: 100%;
+    min-width: 0;
+}
+
+@media (max-width: 1023px) {
+    .main-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .portfolio-column {
+        order: -1;
+        /* Muestra el portafolio primero en móvil */
+    }
+}
+
+/* Asegurar que las imágenes y canvas sean responsivos */
+canvas {
+    max-width: 100% !important;
+    height: auto !important;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
 }

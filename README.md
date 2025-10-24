@@ -18,11 +18,12 @@ Lumina es una plataforma de análisis de acciones y _paper trading_ centrada en 
 ## ✨ Características Principales
 
 - **Búsqueda de Acciones:** Obtén datos de cualquier ticker listado en Yahoo Finance.
-- **Gráficos Interactivos:** Visualiza el historial de precios de los últimos 5 años con `Chart.js`.
+- **Gráficos Interactivos:** Visualiza el historial de precios de hasta 10 años con `Chart.js`.
 - **Análisis Técnico (TA):** Cálculo y visualización automática de:
   - Media Móvil Simple de 50 días (SMA 50)
   - Media Móvil Simple de 200 días (SMA 200)
   - **RSI (Índice de Fuerza Relativa):** Indicador de impulso que identifica condiciones de sobrecompra (>70) o sobreventa (<30)
+  - **MACD (Moving Average Convergence Divergence):** Indicador de impulso que muestra la relación entre dos medias móviles exponenciales
 - **Detección de Señales:** Alertas en tiempo real para:
   - **Cruce Dorado (Golden Cross):** (SMA 50 cruza por encima de SMA 200) - Señal alcista.
   - **Cruce de la Muerte (Death Cross):** (SMA 50 cruza por debajo de SMA 200) - Señal bajista.
@@ -31,7 +32,7 @@ Lumina es una plataforma de análisis de acciones y _paper trading_ centrada en 
   - **Base de Datos SQLite:** Todas las operaciones se persisten en una base de datos local.
   - **Validación en el Servidor:** Los precios se verifican en tiempo real en el backend para evitar manipulaciones.
   - **Gestión de Posiciones:** Compra y vende acciones con actualización automática del portafolio.
-- **UI Ética:** Cada indicador incluye un _tooltip_ `(i)` que explica qué significa la señal y, lo más importante, cuáles son sus limitaciones.
+- **UI Ética y Responsiva:** Cada indicador incluye un _tooltip_ `(i)` que explica qué significa la señal y sus limitaciones. Diseño completamente adaptable a móviles, tablets y desktop.
 
 ## 🛠️ Stack Tecnológico
 
@@ -39,13 +40,14 @@ Lumina es una plataforma de análisis de acciones y _paper trading_ centrada en 
   - **React:** Para construir la interfaz de usuario interactiva.
   - **Chart.js (`react-chartjs-2`):** Para la visualización de datos financieros.
   - **Gestión de Estado:** Hooks de React (useState, useEffect) para gestión del estado de la aplicación.
+  - **CSS Responsivo:** Diseño adaptable con media queries y grid layouts para móviles, tablets y desktop.
 - **Backend:**
   - **Python:** Lenguaje principal del servidor.
   - **Flask:** Micro-framework para crear la API REST.
   - **SQLAlchemy:** ORM para la gestión de la base de datos.
   - **Flask-Migrate:** Para las migraciones de base de datos.
   - **Pandas:** Para la manipulación de series temporales y el cálculo de indicadores técnicos (SMAs).
-  - **pandas_ta:** Librería especializada para indicadores técnicos adicionales (RSI).
+  - **pandas_ta:** Librería especializada para indicadores técnicos adicionales (RSI, MACD).
   - **`yfinance`:** Para obtener datos históricos y noticias de Yahoo Finance.
   - **`vaderSentiment`:** Librería de NLP para el análisis de sentimiento de los titulares.
 - **Base de Datos:**
@@ -75,7 +77,7 @@ graph TD
     end
     subgraph "Librerías Clave (Backend)"
         P[Pandas<br>Cálculo de SMAs]
-        PT[pandas_ta<br>Cálculo de RSI]
+        PT[pandas_ta<br>Cálculo de RSI y MACD]
         V[VADER<br>Análisis de Sentimiento]
         SA[SQLAlchemy<br>ORM para DB]
     end
@@ -93,7 +95,7 @@ graph TD
     SA <--> DB
     YF -- Devuelve Datos --> M
     M -- Devuelve Análisis --> B
-    B -->|"JSON (Datos + Señales + Sentimiento + RSI)"| F
+    B -->|"JSON (Datos + Señales + Sentimiento + RSI + MACD)"| F
 ```
 
 ### 2. Flujo de una Petición de Análisis
@@ -115,7 +117,7 @@ sequenceDiagram
     F->>B: GET /api/stock/AAPL
     activate B
 
-    B->>YF: Ticker('AAPL').history(period="5y")
+    B->>YF: Ticker('AAPL').history(period="10y")
     activate YF
     YF-->>B: Devuelve datos históricos (DataFrame)
     deactivate YF
@@ -126,7 +128,7 @@ sequenceDiagram
     deactivate YF
 
     B->>B: 1. Calcula SMAs 50/200 con Pandas
-    B->>B: 2. Calcula RSI con pandas_ta
+    B->>B: 2. Calcula RSI y MACD con pandas_ta
     B->>B: 3. Detecta Cruces (Golden/Death)
 
     B->>V: 4. Analiza titulares de noticias
@@ -134,7 +136,7 @@ sequenceDiagram
     V-->>B: Devuelve Puntuación de Sentimiento
     deactivate V
 
-    B-->>F: Responde JSON (Datos + Señales + Sentimiento + RSI)
+    B-->>F: Responde JSON (Datos + Señales + Sentimiento + RSI + MACD)
     deactivate B
 
     F->>F: Actualiza el estado (useState)
@@ -240,7 +242,12 @@ Obtiene los datos históricos, indicadores técnicos y análisis de sentimiento 
   "current_state": "GOLDEN",  // GOLDEN, DEATH o HOLD
   "sentiment_score": 0.42,  // Entre -1 (muy negativo) y 1 (muy positivo)
   "sentiment_news_count": 10,  // Número de noticias analizadas
-  "latest_rsi": 65.3  // Valor RSI actual (0-100)
+  "latest_rsi": 65.3,  // Valor RSI actual (0-100)
+  "latest_macd": {
+    "macd": 2.45,  // Línea MACD
+    "signal": 1.83,  // Línea de señal
+    "histogram": 0.62  // Histograma (diferencia entre MACD y señal)
+  }
 }
 ```
 
@@ -283,13 +290,14 @@ Devuelve el portafolio actualizado (mismo formato que `/api/portfolio`).
 Este proyecto es una base sólida. Los siguientes pasos para mejorarlo serían:
 
 - **Autenticación Multi-Usuario:** Añadir un sistema de inicio de sesión (ej. JWT) para que múltiples usuarios puedan tener sus propios portafolios independientes.
-- **Más Indicadores Técnicos:** Implementar indicadores adicionales como el **MACD**, **Bandas de Bollinger** y **Media Móvil Exponencial (EMA)**.
+- **Más Indicadores Técnicos:** Implementar indicadores adicionales como **Bandas de Bollinger**, **Media Móvil Exponencial (EMA)** y **Estocástico**.
 - **Modelos de ML Avanzados:** Usar redes neuronales (como **LSTM**) para intentar predecir la tendencia del precio a corto plazo (y mostrar el % de confianza).
 - **Fuentes de Noticias Robustas:** Integrar una API de noticias profesional (como **NewsAPI** o **Alpaca**) para un análisis de sentimiento más profundo.
 - **Listas de Seguimiento (Watchlists):** Permitir al usuario guardar y monitorizar sus acciones favoritas.
 - **Historial de Transacciones:** Implementar un registro completo de todas las operaciones realizadas con métricas de rendimiento.
 - **Alertas en Tiempo Real:** Sistema de notificaciones para avisar cuando se detecten señales importantes en las acciones del portafolio.
 - **Análisis de Cartera:** Métricas avanzadas como el Ratio de Sharpe, diversificación, y retorno ajustado al riesgo.
+- **Modo Oscuro:** Implementar un tema oscuro para mejorar la experiencia de usuario en diferentes condiciones de luz.
 
 ## ✅ Mejoras Implementadas Recientemente
 
@@ -297,17 +305,28 @@ Este proyecto es una base sólida. Los siguientes pasos para mejorarlo serían:
 - ✨ **Persistencia con Base de Datos:** Implementación completa de SQLite con SQLAlchemy para almacenar el portafolio
 - 🔒 **Validación de Precios en Servidor:** Los precios se verifican en tiempo real en el backend, evitando manipulaciones del cliente
 - 📊 **Indicador RSI:** Cálculo del Índice de Fuerza Relativa usando `pandas_ta`
-- 🔄 **Gestión de Datos Mejorada:** Uso de `.fillna(None)` para convertir correctamente NaN a null en JSON
+- � **Indicador MACD:** Implementación del Moving Average Convergence Divergence con valores de MACD, señal e histograma
+- �🔄 **Gestión de Datos Mejorada:** Uso de `.fillna(None)` y `.where()` para convertir correctamente NaN a null en JSON
 - 🏗️ **Migraciones de Base de Datos:** Integración de Flask-Migrate para gestionar cambios en el esquema
-- 📈 **Historial Extendido:** Análisis de hasta 5 años de datos históricos para mayor precisión en indicadores
+- 📈 **Historial Extendido:** Análisis de hasta 10 años de datos históricos para mayor precisión en indicadores
+- 🛡️ **Manejo de Errores Robusto:** Validaciones completas con rollback de transacciones en caso de error
 
 ### Frontend
 - 🎨 **Código Más Limpio:** Refactorización de CSS y JavaScript para mejor legibilidad
 - 🔄 **Sincronización con Backend:** El portafolio se carga y actualiza desde la base de datos
-- 📱 **Interfaz Mejorada:** Grid de 3 columnas para indicadores (SMA, Sentimiento, RSI)
+- 📱 **Interfaz Mejorada:** Grid de 2x2 para 4 indicadores (SMA, RSI, Sentimiento, MACD)
 - ⚡ **Manejo de Errores Robusto:** Validación completa de operaciones con mensajes informativos
-- 🎯 **Componente RSI:** Nuevo indicador visual con estados de sobrecompra/sobreventa
+- 🎯 **Componente RSI:** Indicador visual con estados de sobrecompra/sobreventa
+- 📊 **Componente MACD:** Nuevo indicador de impulso con análisis alcista/bajista
 - 💰 **Panel de Operaciones:** Widget dedicado para comprar/vender con cálculo en tiempo real del coste
+- 📱 **Diseño Responsivo Completo:**
+  - Layout adaptable de 2 columnas en desktop, 1 columna en móviles
+  - Viewport optimizado para todos los dispositivos
+  - Tooltips y componentes adaptados a pantallas pequeñas
+  - Grid de indicadores que se apila en móviles (<768px)
+  - Formularios y botones con width 100% en móviles
+  - Prevención de scroll horizontal con overflow-x
+  - Canvas de gráficos completamente responsivo
 
 ## 📄 Licencia
 
