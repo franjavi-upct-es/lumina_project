@@ -84,7 +84,6 @@ Thumbs.db
 *.h5
 *.pkl
 *.joblib
-models/
 
 # Migration files (keep structure, ignore instance)
 migrations/versions/*.pyc
