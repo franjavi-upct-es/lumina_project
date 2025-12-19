@@ -1,0 +1,28 @@
+# frontend/streamlit-app/requirements.txt
+# Python 3.11 Compatible Streamlit Dependencies
+
+# Streamlit and core dependencies
+streamlit==1.29.0
+streamlit-extras==0.3.6
+
+# Data manipulation
+pandas==2.1.4
+numpy==1.26.2
+polars==0.19.19
+
+# Visualization
+plotly==5.18.0
+matplotlib==3.8.2
+seaborn==0.13.0
+
+# API communication
+requests==2.31.0
+httpx==0.25.2
+
+# Utilities
+python-dotenv==1.0.0
+pytz==2023.3.post1
+
+# Additional streamlit components
+streamlit-aggrid==0.3.4.post3
+streamlit-option-menu==0.3.6

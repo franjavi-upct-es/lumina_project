@@ -1,0 +1,58 @@
+# docker/Dockerfile.jupyter
+FROM jupyter/scipy-notebook:python-3.11
+
+USER root
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+USER $NB_UID
+
+WORKDIR /home/jovyan/work
+
+# Copy requirements
+COPY requirements/base.txt requirements/base.txt
+COPY requirements/ml.txt requirements/ml.txt
+
+# Install Python packages
+RUN pip install --no-cache-dir -r requirements/base.txt
+RUN pip install --no-cache-dir -r requirements/ml.txt
+
+# Install Jupyter extensions
+RUN pip install --no-cache-dir \
+    jupyterlab-git \
+    jupyterlab-execute-time \
+    ipywidgets \
+    plotly \
+    kaleido
+
+# Enable extensions
+RUN jupyter labextension enable jupyterlab-git
+RUN jupyter labextension enable jupyterlab-execute-time
+
+# Configure Jupyter
+RUN mkdir -p /home/jovyan/.jupyter
+RUN echo "\
+    c.ServerApp.ip = '0.0.0.0'\n\
+    c.ServerApp.port = 8888\n\
+    c.ServerApp.open_browser = False\n\
+    c.ServerApp.token = ''\n\
+    c.ServerApp.password = ''\n\
+    c.ServerApp.allow_root = False\n\
+    c.ServerApp.allow_origin = '*'\n\
+    c.ServerApp.disable_check_xsrf = True\n\
+    " > /home/jovyan/.jupyter/jupyter_server_config.py
+
+# Expose Jupyter port
+EXPOSE 8888
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8888/api || exit 1
+
+# Start Jupyter Lab
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]

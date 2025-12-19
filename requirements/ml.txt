@@ -1,0 +1,81 @@
+# requirements/ml.txt
+# Python 3.11 Compatible ML/DL Dependencies
+# For GPU service - tested versions
+
+# Deep Learning Frameworks
+torch==2.1.2
+torchvision==0.16.2
+torchaudio==2.1.2
+# Note: For CPU-only, use: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+# For CUDA 11.8: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# TensorFlow (compatible with Python 3.11)
+tensorflow==2.15.0
+keras==2.15.0
+
+# Transformers & NLP
+transformers==4.36.2
+sentence-transformers==2.2.2
+tokenizers==0.15.0
+datasets==2.16.0
+
+# Computer Vision
+opencv-python==4.9.0.80
+Pillow==10.1.0
+
+# Advanced ML
+catboost==1.2.2
+lightgbm==4.1.0
+xgboost==2.0.3
+
+# Hyperparameter Optimization
+optuna==3.4.0
+hyperopt==0.2.7
+ray[tune]==2.9.0
+
+# Model Interpretability
+shap==0.43.0
+lime==0.2.0.1
+alibi==0.9.4
+
+# Experiment Tracking
+mlflow==2.9.2
+wandb==0.16.1
+tensorboard==2.15.1
+
+# Time Series
+sktime==0.25.0
+tsfresh==0.20.1
+prophet==1.1.5
+
+# Hidden Markov Models
+hmmlearn==0.3.0
+# pomegranate has issues with Python 3.11, using alternative
+# pomegranate==1.0.0
+
+# Reinforcement Learning
+stable-baselines3==2.2.1
+gymnasium==0.29.1  # gym replacement
+
+# Model Serving
+onnx==1.15.0
+onnxruntime==1.16.3
+
+# Utilities
+joblib==1.3.2
+cloudpickle==3.0.0
+dill==0.3.7
+
+# Visualization
+matplotlib==3.8.2
+seaborn==0.13.0
+plotly==5.18.0
+
+# Progress bars
+tqdm==4.66.1
+
+# Memory profiling
+memory-profiler==0.61.0
+
+# Scientific computing
+scipy==1.11.4
