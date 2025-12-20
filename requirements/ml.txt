@@ -21,7 +21,7 @@ datasets==2.16.0
 
 # Computer Vision
 opencv-python==4.9.0.80
-Pillow==10.1.0
+Pillow
 
 # Advanced ML
 catboost==1.2.2
@@ -78,4 +78,4 @@ tqdm==4.66.1
 memory-profiler==0.61.0
 
 # Scientific computing
-scipy==1.11.4
+scipy>1.11.4
