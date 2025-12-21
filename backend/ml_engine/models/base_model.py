@@ -211,8 +211,7 @@ class BaseModel(ABC):
         Returns:
             Dictionary mapping feature names to importance scores
         """
-        logger.warning(
-            f"{self.model_type} does not support feature importance")
+        logger.warning(f"{self.model_type} does not support feature importance")
         return None
 
     def save(self, path: Union[str, Path]) -> str:
@@ -494,8 +493,7 @@ class EnsembleModel(BaseModel):
 
         # Weighted average
         if self.weights is not None:
-            ensemble_pred = np.average(
-                predictions, axis=0, weights=self.weights)
+            ensemble_pred = np.average(predictions, axis=0, weights=self.weights)
         else:
             ensemble_pred = np.mean(predictions, axis=0)
 
@@ -534,8 +532,7 @@ class EnsembleModel(BaseModel):
         bounds = [(0, 1) for _ in range(len(self.base_models))]
 
         # Initial weights (equal)
-        initial_weights = np.ones(
-            len(self.base_models)) / len(self.base_models)
+        initial_weights = np.ones(len(self.base_models)) / len(self.base_models)
 
         # Optimize
         result = minimize(

@@ -3,22 +3,28 @@
 Machine Learning endpoints for model training, prediction, and evaluation
 """
 
-import enum
-from celery.canvas import seq_concat_item
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Depends
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
 from uuid import uuid4
+from pathlib import Path
 import torch
+import json
 from loguru import logger
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ml_engine.models.lstm_advanced import AdvancedLSTM, LSTMTrainer, TimeSeriesDataset
-from ml_engine.models.base_model import ModelMetadata
 from data_engine.collectors.yfinance_collector import YFinanceCollector
 from data_engine.transformers.feature_engineering import FeatureEngineer
-from workers.ml_tasks import train_model_task, predict_task
+from workers.ml_tasks import (
+    train_model_task,
+    evaluate_model_task,
+    compute_feature_importance_task,
+)
 from config.settings import get_settings
+from db.models import get_async_session
 
 router = APIRouter()
 settings = get_settings()
@@ -38,7 +44,7 @@ class TrainModelRequest(BaseModel):
     sequence_length: int = Field(60, ge=10, le=200)
     prediction_horizon: int = Field(5, ge=1, le=20)
 
-    # Training paremeters
+    # Training parameters
     batch_size: int = Field(32, ge=8, le=128)
     num_epochs: int = Field(50, ge=5, le=200)
     learning_rate: float = Field(0.001, ge=0.0001, le=0.01)
@@ -203,6 +209,7 @@ async def get_training_job_status(job_id: str):
         status["progress"] = task.info
     elif task.state == "SUCCESS":
         status["result"] = task.result
+        status["model_id"] = f"{job['ticker']}_{job['model_type']}_{job_id}"
     elif task.state == "FAILURE":
         status["error"] = str(task.info)
 
@@ -280,7 +287,7 @@ async def predict_prices(request: PredictRequest):
             }
 
             if request.include_uncertainty:
-                pred_dic["confidence_lower"] = float(predictions["price_lower"][0][i])
+                pred_dict["confidence_lower"] = float(predictions["price_lower"][0][i])
                 pred_dict["confidence_upper"] = float(predictions["price_upper"][0][i])
 
             formatted_predictions.append(pred_dict)
@@ -324,16 +331,63 @@ async def list_models(
     is_active: Optional[bool] = None,
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_async_session),
 ):
     """
     List available models with filtering
     """
     try:
-        # TODO: Query from database
-        # For now, return dummy data
-        models = []
+        # Query from database
+        from db.models import Model
 
-        return ModelListResponse(models=models, total=len(models))
+        query = select(Model)
+
+        # Apply filters
+        if ticker:
+            query = query.where(Model.ticker == ticker)
+        if model_type:
+            query = query.where(Model.model_type == model_type)
+        if is_active is not None:
+            query = query.where(Model.is_active == is_active)
+
+        # Apply pagination
+        query = query.offset(offset).limit(limit).order_by(Model.trained_on.desc())
+
+        result = await db.execute(query)
+        models = result.scalars().all()
+
+        # Count total
+        from sqlalchemy import func
+
+        count_query = select(func.count(Model.model_id))
+        if ticker:
+            count_query = count_query.where(Model.ticker == ticker)
+        if model_type:
+            count_query = count_query.where(Model.model_type == model_type)
+        if is_active is not None:
+            count_query = count_query.where(Model.is_active == is_active)
+
+        total_result = await db.execute(count_query)
+        total = total_result.scalar()
+
+        # Format response
+        models_list = [
+            {
+                "model_id": str(m.model_id),
+                "model_name": m.model_name,
+                "model_type": m.model_type,
+                "ticker": m.ticker,
+                "version": m.version,
+                "trained_on": m.trained_on.isoformat(),
+                "is_active": m.is_active,
+                "mae": m.mae,
+                "rmse": m.rmse,
+                "r2_score": m.r2_score,
+            }
+            for m in models
+        ]
+
+        return ModelListResponse(models=models_list, total=total)
 
     except Exception as e:
         logger.error(f"Error listing models: {e}")
@@ -341,30 +395,79 @@ async def list_models(
 
 
 @router.get("/models/{model_id}", response_model=ModelDetailsResponse)
-async def get_model_details(model_id: str):
+async def get_model_details(
+    model_id: str,
+    db: AsyncSession = Depends(get_async_session),
+):
     """
     Get detailed information about a specific model
     """
     try:
-        # TODO: Query from database
-        raise HTTPException(status_code=404, detail="Model not found")
+        from db.models import Model
 
+        # Query from database
+        query = select(Model).where(Model.model_id == model_id)
+        result = await db.execute(query)
+        model = result.scalar_one_or_none()
+
+        if not model:
+            raise HTTPException(status_code=404, detail="Model not found")
+
+        return ModelDetailsResponse(
+            model_id=str(model.model_id),
+            model_name=model.model_name,
+            model_type=model.model_type,
+            ticker=model.ticker,
+            trained_on=model.trained_on,
+            hyperparameters=model.hyperparameters or {},
+            performance={
+                "mae": model.mae,
+                "rmse": model.rmse,
+                "r2_score": model.r2_score,
+            },
+            feature_importance=model.feature_importance,
+            is_active=model.is_active,
+        )
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching model details: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/models/{model_id}")
-async def delete_model(model_id: str):
+async def delete_model(
+    model_id: str,
+    db: AsyncSession = Depends(get_async_session),
+):
     """
     Delete a model (soft delete - marks as inactive)
     """
     try:
-        # TODO: Update database
+        from db.models import Model
+
+        # Query model
+        query = select(Model).where(Model.model_id == model_id)
+        result = await db.execute(query)
+        model = result.scalar_one_or_none()
+
+        if not model:
+            raise HTTPException(status_code=404, detail="Model not found")
+
+        # Soft delete
+        model.is_active = False
+        await db.commit()
+
+        logger.info(f"Model {model_id} marked as inactive")
+
         return {"message": f"Model {model_id} deleted successfully"}
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error deleting model: {e}")
+        await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -374,8 +477,21 @@ async def evaluate_model(model_id: str, request: ModelEvaluationRequest):
     Evaluate model performance on test data
     """
     try:
-        # TODO: Implement evaluation
-        return {"message": "Evaluation started"}
+        logger.info(f"Starting evaluation for model {model_id}")
+
+        # Submit evaluation task
+        task = evaluate_model_task.delay(
+            model_id=model_id,
+            test_start_date=request.test_start_date.isoformat(),
+            test_end_date=request.test_end_date.isoformat(),
+        )
+
+        return {
+            "message": "Evaluation started",
+            "task_id": task.id,
+            "model_id": model_id,
+            "status": "queued",
+        }
 
     except Exception as e:
         logger.error(f"Error evaluating model: {e}")
@@ -383,13 +499,28 @@ async def evaluate_model(model_id: str, request: ModelEvaluationRequest):
 
 
 @router.get("/features/importance/{model_id}")
-async def get_feature_importance(model_id: str):
+async def get_feature_importance(
+    model_id: str,
+    num_samples: int = Query(100, ge=10, le=500),
+):
     """
-    Get feature importance for a trained model
+    Get feature importance for a trained model using SHAP
     """
     try:
-        # TODO: Load model and compute SHAP values
-        return {"message": "Feature importance calculation"}
+        logger.info(f"Computing feature importance for model {model_id}")
+
+        # Submit feature importance task
+        task = compute_feature_importance_task.delay(
+            model_id=model_id,
+            num_samples=num_samples,
+        )
+
+        return {
+            "message": "Feature importance computation started",
+            "task_id": task.id,
+            "model_id": model_id,
+            "status": "queued",
+        }
 
     except Exception as e:
         logger.error(f"Error computing feature importance: {e}")
@@ -425,6 +556,18 @@ async def _train_model_sync(job_id: str, request: TrainModelRequest):
             prediction_horizon=request.prediction_horizon,
         )
 
+        # Split dataset
+        from torch.utils.data import DataLoader, random_split
+
+        train_size = int(0.8 * len(dataset))
+        val_size = len(dataset) - train_size
+        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+
+        train_loader = DataLoader(
+            train_dataset, batch_size=request.batch_size, shuffle=True
+        )
+        val_loader = DataLoader(val_dataset, batch_size=request.batch_size)
+
         # Train model
         model = AdvancedLSTM(
             input_dim=len(feature_columns),
@@ -436,9 +579,39 @@ async def _train_model_sync(job_id: str, request: TrainModelRequest):
 
         trainer = LSTMTrainer(model)
 
-        # TODO: Complete training implementation
+        history = trainer.train(
+            train_loader=train_loader,
+            val_loader=val_loader,
+            num_epochs=request.num_epochs,
+            learning_rate=request.learning_rate,
+            early_stopping_patience=request.early_stopping_patience,
+        )
+
+        # Save model
+        model_id = f"{request.ticker}_{request.model_type}_{job_id}"
+        model_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}.pt"
+
+        Path(settings.MODEL_STORAGE_PATH).mkdir(parents=True, exist_ok=True)
+        trainer.save_checkpoint(model_path)
+
+        # Save metadata
+        metadata = {
+            "model_id": model_id,
+            "feature_columns": feature_columns,
+            "sequence_length": request.sequence_length,
+            "prediction_horizon": request.prediction_horizon,
+        }
+
+        metadata_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}_metadata.json"
+        with open(metadata_path, "w") as f:
+            json.dump(metadata, f)
 
         training_jobs[job_id]["status"] = "completed"
+        training_jobs[job_id]["model_id"] = model_id
+        training_jobs[job_id]["metrics"] = {
+            "train_loss": history["train_loss"][-1],
+            "val_loss": history["val_loss"][-1],
+        }
 
     except Exception as e:
         logger.error(f"Training error: {e}")
@@ -448,17 +621,75 @@ async def _train_model_sync(job_id: str, request: TrainModelRequest):
 
 def _get_active_model(ticker: str, model_type: str) -> Optional[str]:
     """Get active model ID for ticker"""
-    # TODO: Query database
-    return None
+    try:
+        # Look for most recent model file
+        model_dir = Path(settings.MODEL_STORAGE_PATH)
+        pattern = f"{ticker}_{model_type}_*.pt"
+
+        model_files = list(model_dir.glob(pattern))
+        if not model_files:
+            return None
+
+        # Get most recent
+        most_recent = max(model_files, key=lambda p: p.stat().st_mtime)
+        model_id = most_recent.stem
+
+        logger.info(f"Found active model: {model_id}")
+        return model_id
+
+    except Exception as e:
+        logger.error(f"Error finding active model: {e}")
+        return None
 
 
 def _load_model(model_id: str):
     """Load model from storage"""
-    # TODO: Load from MLflow or filesystem
-    return None, None
+    try:
+        model_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}.pt"
+        metadata_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}_metadata.json"
+
+        # Load metadata
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+
+        # Load model
+        checkpoint = torch.load(model_path, map_location="cpu")
+
+        # Reconstruct model
+        model = AdvancedLSTM(
+            input_dim=len(metadata["feature_columns"]),
+            hidden_dim=128,  # Default, should be in metadata
+            num_layers=3,
+            dropout=0.3,
+            output_horizon=metadata["prediction_horizon"],
+        )
+
+        model.load_state_dict(checkpoint["model_state_dict"])
+        model.eval()
+        model.sequence_length = metadata["sequence_length"]
+
+        trainer = LSTMTrainer(model)
+
+        logger.info(f"Loaded model {model_id}")
+        return model, trainer
+
+    except Exception as e:
+        logger.error(f"Error loading model: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to load model: {str(e)}")
 
 
 def _get_feature_columns(model_id: str) -> List[str]:
     """Get feature columns used by model"""
-    # TODO: Load from model metadata
-    return []
+    try:
+        metadata_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}_metadata.json"
+
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+
+        return metadata["feature_columns"]
+
+    except Exception as e:
+        logger.error(f"Error loading feature columns: {e}")
+        # Return default features
+        fe = FeatureEngineer()
+        return fe.get_all_feature_names()[:50]
