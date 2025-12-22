@@ -42,8 +42,8 @@ services:
   # FastAPI Application
   api:
     build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile.api
+      context: ..
+      dockerfile: docker/Dockerfile.api
     container_name: lumina_api
     ports:
       - "8000:8000"
@@ -69,8 +69,8 @@ services:
   # Celery Worker - Data collection & processing
   celery_worker:
     build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile.api
+      context: ..
+      dockerfile: docker/Dockerfile.api
     container_name: lumina_celery_worker
     environment:
       - DATABASE_URL=postgresql://lumina:lumina_pass_2024@timescaledb:5432/lumina_quant
@@ -94,8 +94,8 @@ services:
   # Celery Beat - Scheduled tasks
   celery_beat:
     build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile.api
+      context: ..
+      dockerfile: docker/Dockerfile.api
     container_name: lumina_celery_beat
     environment:
       - DATABASE_URL=postgresql://lumina:lumina_pass_2024@timescaledb:5432/lumina_quant
@@ -114,8 +114,8 @@ services:
   # ML Service - GPU-enabled for model training
   ml_service:
     build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile.ml
+      context: ..
+      dockerfile: docker/Dockerfile.ml
     container_name: lumina_ml_service
     environment:
       - DATABASE_URL=postgresql://lumina:lumina_pass_2024@timescaledb:5432/lumina_quant
@@ -166,7 +166,7 @@ services:
   # Streamlit Dashboard
   streamlit:
     build:
-      context: ./frontend/streamlit-app
+      context: ../frontend/streamlit-app
       dockerfile: ../../docker/Dockerfile.streamlit
     container_name: lumina_streamlit
     ports:
@@ -186,8 +186,8 @@ services:
   # Flower - Celery monitoring
   flower:
     build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile.api
+      context: ..
+      dockerfile: docker/Dockerfile.api
     container_name: lumina_flower
     ports:
       - "5555:5555"
@@ -203,8 +203,8 @@ services:
   # Jupyter Lab - Research notebooks
   jupyter:
     build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile.jupyter
+      context: ..
+      dockerfile: docker/Dockerfile.jupyter
     container_name: lumina_jupyter
     ports:
       - "8888:8888"
