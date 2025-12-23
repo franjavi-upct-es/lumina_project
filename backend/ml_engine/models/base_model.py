@@ -58,7 +58,7 @@ class ModelMetadata(BaseModel):
     # Status
     is_active: bool = True
 
-    # Additional metadata
+    # Additional meta_data
     notes: Optional[str] = None
     tags: Dict[str, str] = Field(default_factory=dict)
 
@@ -94,7 +94,7 @@ class BaseModel(ABC):
 
         # Model state
         self.is_trained = False
-        self.metadata: Optional[ModelMetadata] = None
+        self.meta_data: Optional[ModelMetadata] = None
 
         # Training history
         self.training_history: Dict[str, List[float]] = {
@@ -231,11 +231,11 @@ class BaseModel(ABC):
         model_path = path / f"{self.model_name}_model.pkl"
         self._save_model(model_path)
 
-        # Save metadata
-        if self.metadata:
+        # Save meta_data
+        if self.meta_data:
             metadata_path = path / f"{self.model_name}_metadata.json"
             with open(metadata_path, "w") as f:
-                json.dump(self.metadata.dict(), f, indent=2, default=str)
+                json.dump(self.meta_data.dict(), f, indent=2, default=str)
 
         # Save training history
         history_path = path / f"{self.model_name}_history.json"
@@ -275,12 +275,12 @@ class BaseModel(ABC):
         model_path = path / f"{self.model_name}_model.pkl"
         self._load_model(model_path)
 
-        # Load metadata
+        # Load meta_data
         metadata_path = path / f"{self.model_name}_metadata.json"
         if metadata_path.exists():
             with open(metadata_path, "r") as f:
                 metadata_dict = json.load(f)
-                self.metadata = ModelMetadata(**metadata_dict)
+                self.meta_data = ModelMetadata(**metadata_dict)
 
         # Load training history
         history_path = path / f"{self.model_name}_history.json"
@@ -329,13 +329,13 @@ class BaseModel(ABC):
             mlflow.log_params(self.hyperparameters)
 
             # Log metrics
-            if self.metadata:
-                mlflow.log_metrics(self.metadata.train_metrics)
-                if self.metadata.validation_metrics:
+            if self.meta_data:
+                mlflow.log_metrics(self.meta_data.train_metrics)
+                if self.meta_data.validation_metrics:
                     mlflow.log_metrics(
                         {
                             f"val_{k}": v
-                            for k, v in self.metadata.validation_metrics.items()
+                            for k, v in self.meta_data.validation_metrics.items()
                         }
                     )
 
@@ -345,10 +345,10 @@ class BaseModel(ABC):
             # Get run ID
             run_id = mlflow.active_run().info.run_id
 
-            # Update metadata
-            if self.metadata:
-                self.metadata.mlflow_run_id = run_id
-                self.metadata.mlflow_experiment_id = (
+            # Update meta_data
+            if self.meta_data:
+                self.meta_data.mlflow_run_id = run_id
+                self.meta_data.mlflow_experiment_id = (
                     mlflow.active_run().info.experiment_id
                 )
 
@@ -425,14 +425,14 @@ class BaseModel(ABC):
             "num_features": len(self.feature_names),
         }
 
-        if self.metadata:
+        if self.meta_data:
             summary.update(
                 {
-                    "trained_on": self.metadata.trained_on.isoformat(),
-                    "training_samples": self.metadata.training_samples,
-                    "validation_samples": self.metadata.validation_samples,
-                    "train_metrics": self.metadata.train_metrics,
-                    "validation_metrics": self.metadata.validation_metrics,
+                    "trained_on": self.meta_data.trained_on.isoformat(),
+                    "training_samples": self.meta_data.training_samples,
+                    "validation_samples": self.meta_data.validation_samples,
+                    "train_metrics": self.meta_data.train_metrics,
+                    "validation_metrics": self.meta_data.validation_metrics,
                 }
             )
 

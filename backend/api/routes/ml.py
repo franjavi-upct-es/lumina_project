@@ -594,7 +594,7 @@ async def _train_model_sync(job_id: str, request: TrainModelRequest):
         Path(settings.MODEL_STORAGE_PATH).mkdir(parents=True, exist_ok=True)
         trainer.save_checkpoint(model_path)
 
-        # Save metadata
+        # Save meta_data
         metadata = {
             "model_id": model_id,
             "feature_columns": feature_columns,
@@ -648,7 +648,7 @@ def _load_model(model_id: str):
         model_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}.pt"
         metadata_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}_metadata.json"
 
-        # Load metadata
+        # Load meta_data
         with open(metadata_path, "r") as f:
             metadata = json.load(f)
 
@@ -658,7 +658,7 @@ def _load_model(model_id: str):
         # Reconstruct model
         model = AdvancedLSTM(
             input_dim=len(metadata["feature_columns"]),
-            hidden_dim=128,  # Default, should be in metadata
+            hidden_dim=128,  # Default, should be in meta_data
             num_layers=3,
             dropout=0.3,
             output_horizon=metadata["prediction_horizon"],

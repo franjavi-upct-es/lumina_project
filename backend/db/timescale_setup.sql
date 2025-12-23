@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS sentiment_data (
     confidence DOUBLE PRECISION,
     volume INT, -- Number of mentions
     text_snippet TEXT,
-    metadata JSONB,
+    meta_data JSONB,
     PRIMARY KEY (time, ticker, source)
 );
 
@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS market_regimes (
     probability DOUBLE PRECISION,
     volatility DOUBLE PRECISION,
     expected_duration_days INT,
-    metadata JSONB,
+    meta_data JSONB,
     PRIMARY KEY (time, ticker)
 );
 
@@ -131,12 +131,12 @@ CREATE TABLE IF NOT EXISTS backtest_trades (
     pnl_percent DOUBLE PRECISION,
     commission DOUBLE PRECISION,
     slippage DOUBLE PRECISION,
-    metadata JSONB
+    meta_data JSONB
 );
 
 CREATE INDEX IF NOT EXISTS idx_trades_backtest ON backtest_trades (backtest_id, entry_time);
 
--- Model metadata (regular table for MLflow integration)
+-- Model meta_data (regular table for MLflow integration)
 CREATE TABLE IF NOT EXISTS models (
     model_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     model_name VARCHAR(100) NOT NULL,
@@ -214,7 +214,7 @@ SELECT
     feature_name,
     avg(feature_value) AS avg_value,
     stddev(feature_value) AS std_value
-    min(feautre_value) AS min_value,
+    min(feature_value) AS min_value,
     max(feature_value) AS max_value
 FROM features
 GROUP BY day, ticker, feature_name

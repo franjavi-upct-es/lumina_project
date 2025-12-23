@@ -10,7 +10,7 @@ import yfinance as yf
 from loguru import logger
 import asyncio
 
-from base_collector import BaseDataCollector
+from data_engine.collectors.base_collector import BaseDataCollector
 
 
 class YFinanceCollector(BaseDataCollector):
@@ -64,7 +64,7 @@ class YFinanceCollector(BaseDataCollector):
             # Standardize columns
             df = self._standardize_columns(df)
 
-            # Add metadata
+            # Add meta_data
             df = self._add_metadata(df, ticker, "yfinance")
 
             # Ensure datetime column
@@ -137,7 +137,7 @@ class YFinanceCollector(BaseDataCollector):
 
     async def get_company_info(self, ticker: str) -> Optional[Dict[str, Any]]:
         """
-        Get company information and metadata
+        Get company information and meta_data
 
         Args:
             ticker: Stock ticker symbol

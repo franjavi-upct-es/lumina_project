@@ -225,7 +225,7 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
         # Reconstruct model (need to get hyperparams from DB or MLflow)
         # For now, use default params
         model = AdvancedLSTM(
-            input_dim=50,  # Should load from metadata
+            input_dim=50,  # Should load from meta_data
             hidden_dim=128,
             num_layers=3,
             dropout=0.3,
@@ -259,7 +259,7 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
         fe = FeatureEngineer()
         enriched_data = fe.create_all_features(data)
 
-        # Get feature columns (should load from model metadata)
+        # Get feature columns (should load from model meta_data)
         feature_columns = fe.get_all_feature_names()[:50]
         features = enriched_data.select(feature_columns).to_numpy()
 
@@ -405,7 +405,7 @@ def evaluate_model_task(model_id: str, test_start_date: str, test_end_date: str)
         start_date = datetime.fromisoformat(test_start_date)
         end_date = datetime.fromisoformat(test_end_date)
 
-        # Load model metadata to get ticker
+        # Load model meta_data to get ticker
         # For now, extract from model_id (format: ticker_modeltype_jobid)
         ticker = model_id.split("_")[0]
 

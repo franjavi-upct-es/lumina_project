@@ -191,7 +191,7 @@ class BaseDataCollector(ABC):
         self, data: pl.DataFrame, ticker: str, source: str
     ) -> pl.DataFrame:
         """
-        Add metadata columns to the DataFrame
+        Add meta_data columns to the DataFrame
 
         Args:
             data: Input DataFrame
@@ -199,7 +199,7 @@ class BaseDataCollector(ABC):
             source: Data source identifier
 
         Returns:
-            DataFrame with added metadata
+            DataFrame with added meta_data
         """
         return data.with_columns(
             [

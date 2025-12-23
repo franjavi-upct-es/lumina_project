@@ -142,7 +142,7 @@ class SentimentData(Base):
         Integer
     )  # Number of mentions/articles
     text_snippet: Mapped[Optional[str]] = mapped_column(Text)
-    metadata: Mapped[Optional[dict]] = mapped_column(JSONB)
+    meta_data: Mapped[Optional[dict]] = mapped_column(JSONB)
 
     __table_args__ = (
         Index("idx_sentiment_ticker", "ticker", "time", postgresql_using="btree"),
@@ -220,7 +220,7 @@ class MarketRegime(Base):
     probability: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
     volatility: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
     expected_duration_days: Mapped[Optional[int]] = mapped_column(Integer)
-    metadata: Mapped[Optional[dict]] = mapped_column(JSONB)
+    meta_data: Mapped[Optional[dict]] = mapped_column(JSONB)
 
     __table_args__ = (
         Index("idx_regimes_ticker", "ticker", "time", postgresql_using="btree"),
@@ -318,7 +318,7 @@ class BacktestTrade(Base):
     pnl_percent: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
     commission: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
     slippage: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    metadata: Mapped[Optional[dict]] = mapped_column(JSONB)
+    meta_data: Mapped[Optional[dict]] = mapped_column(JSONB)
 
     # Relationship to backtest
     backtest: Mapped["BacktestResult"] = relationship(
@@ -579,7 +579,7 @@ async def init_db():
         async with engine.begin() as conn:
             # Only create regular tables (not hypertables)
             # Hypertables are created by timescale_setup.sql
-            await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(Base.meta_data.create_all)
 
         logger.success("Database tables initialized successfully")
 

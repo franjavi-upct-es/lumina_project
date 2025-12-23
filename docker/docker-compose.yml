@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: lumina_pass_2024
       POSTGRES_DB: lumina_quant
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - timescale_data:/var/lib/postgresql/data
       - ./backend/db/timescale_setup.sql:/docker-entrypoint-initdb.d/init.sql
@@ -86,7 +86,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: celery -A workers.celery_app worker --loglevel=info --concurrency=4
+    command: celery -A --package ../backend/workers.celery_app worker --loglevel=info --concurrency=4
     networks:
       - lumina_network
     restart: unless-stopped
@@ -129,13 +129,13 @@ services:
       - timescaledb
       - redis
       - mlflow
-    deploy: # Comment if you don't have GPU
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+    # deploy: # Comment if you don't have GPU
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
     networks:
       - lumina_network
     restart: unless-stopped
