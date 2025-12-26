@@ -79,3 +79,4 @@ memory-profiler==0.61.0
 
 # Scientific computing
 scipy>1.11.4
+psycopg2-binary

@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS features (
     PRIMARY KEY (ticker, time, feature_name)
 );
 
-SELECT create_hypertable('features', 'time', if_not_exists => TRUE)
+SELECT create_hypertable('features', 'time', if_not_exists => TRUE);
 
 CREATE INDEX IF NOT EXISTS idx_features_ticker ON features (ticker, feature_name, time DESC);
 CREATE INDEX IF NOT EXISTS idx_features_category ON features (feature_category, time DESC);
