@@ -4,8 +4,7 @@ XGBoost model for financial time series prediction
 Optimized for tabular feature data with built-in feature importance
 """
 
-from sys import version
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Dict, Any, Optional, Tuple, Union
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -21,7 +20,7 @@ from ml_engine.models.base_model import BaseModel, ModelMetadata
 
 class XGBoostFinancialModel(BaseModel):
     """
-    XGBoost model optimized for financial prediction.
+    XGBoost model optimized for financial prediction
 
     Features:
     - Time series cross-validation
@@ -67,7 +66,7 @@ class XGBoostFinancialModel(BaseModel):
         )
 
         self.model: Optional[xgb.XGBRegressor] = None
-        self.scaler = StatandardScaler()
+        self.scaler = StandardScaler()
         self.prediction_horizon = hyperparameters.get("prediction_horizon", 1)
 
         # For multi-step prediction
@@ -80,6 +79,9 @@ class XGBoostFinancialModel(BaseModel):
         Args:
             input_shape: Shape of input features (not used for XGBoost but kept for interface)
             **kwargs: Additional parameters
+
+        Returns:
+            XGBoost model
         """
         logger.info(f"Building XGBoost model with params: {self.hyperparameters}")
 
@@ -119,7 +121,7 @@ class XGBoostFinancialModel(BaseModel):
 
         # Convert to numpy if needed
         X_train_np = X_train.values if isinstance(X_train, pd.DataFrame) else X_train
-        y_train_np = y_train.values if isinstance(y_val, pd.Series) else y_val
+        y_train_np = y_train.values if isinstance(y_train, pd.Series) else y_train
 
         # Scale features
         X_train_scaled = self.scaler.fit_transform(X_train_np)
@@ -213,11 +215,11 @@ class XGBoostFinancialModel(BaseModel):
         Train separate models for each prediction horizon
 
         Args:
-             X_train: Training features
-             y_train: Training targets (multi-step: shape [samples, horizons])
-             X_val: Validation features
-             y_val: Validation targets
-             **kwargs: Additional parameters
+            X_train: Training features
+            y_train: Training targets (multi-step: shape [samples, horizons])
+            X_val: Validation features
+            y_val: Validation targets
+            **kwargs: Additional parameters
 
         Returns:
             Training results for all horizons
@@ -275,8 +277,8 @@ class XGBoostFinancialModel(BaseModel):
         Make predictions
 
         Args:
-             X: Input features
-             **kwargs: Additional parameters
+            X: Input features
+            **kwargs: Additional parameters
                 - return_uncertainty: Whether to return prediction intervals
 
         Returns:
@@ -290,7 +292,7 @@ class XGBoostFinancialModel(BaseModel):
         X_scaled = self.scaler.transform(X_np)
 
         # Multi-step prediction
-        if self.prediction_horizon:
+        if self.models_per_horizon:
             predictions = []
             for horizon in range(len(self.models_per_horizon)):
                 model = self.models_per_horizon[horizon]
@@ -328,8 +330,8 @@ class XGBoostFinancialModel(BaseModel):
         Make predictions with uncertainty estimates
 
         Args:
-             X: Input features
-             **kwargs: Additional parameters
+            X: Input features
+            **kwargs: Additional parameters
 
         Returns:
             Tuple of (predictions, uncertainties)
@@ -396,7 +398,7 @@ class XGBoostFinancialModel(BaseModel):
             sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)
         )
 
-        logger.info(f"Top 5 features: {list(feature_importance.items())[:5]}")
+        logger.info(f"Top 5 features: {list(feature_importance.keys())[:5]}")
 
         return feature_importance
 
@@ -417,6 +419,23 @@ class XGBoostFinancialModel(BaseModel):
         with open(path, "wb") as f:
             pickle.dump(model_data, f)
 
+        logger.info(f"Model saved to {path}")
+
+    def _load_model(self, path: Path):
+        """
+        Load model-specific components
+
+        Args:
+            path: Path to load model from
+        """
+        with open(path, "rb") as f:
+            model_data = pickle.load(f)
+
+        self.model = model_data["model"]
+        self.scaler = model_data["scaler"]
+        self.models_per_horizon = model_data.get("models_per_horizon", {})
+        self.prediction_horizon = model_data.get("prediction_horizon", 1)
+
         logger.info(f"Model loaded from {path}")
 
     def _log_model_to_mlflow(self):
@@ -436,9 +455,9 @@ class XGBoostFinancialModel(BaseModel):
                 # Log top 20 as params
                 for i, (feat, score) in enumerate(list(importance.items())[:20]):
                     mlflow.log_param(f"top_feature_{i + 1}", feat)
-                    mlflow.log_param(f"importance_{i + 1}", score)
+                    mlflow.log_metric(f"importance_{i + 1}", score)
 
-        logger.info(f"Model logged to MLflow")
+        logger.info("Model logged to MLflow")
 
     def cross_validate(
         self,
@@ -459,7 +478,7 @@ class XGBoostFinancialModel(BaseModel):
         Returns:
             Cross-validation results
         """
-        logger.info(f"Performing {n_splits}-fold time cross-validation")
+        logger.info(f"Performing {n_splits}-fold time series cross-validation")
 
         # Convert to numpy
         X_np = X.values if isinstance(X, pd.DataFrame) else X
@@ -521,7 +540,7 @@ class XGBoostFinancialModel(BaseModel):
         }
 
         logger.success(
-            f"Cross-validation complete: Val MAE: {avg_results['avg_val_mae']:.4f} "
+            f"Cross-validation complete: Val MAE = {avg_results['avg_val_mae']:.4f} "
             f"± {avg_results['std_val_mae']:.4f}"
         )
 

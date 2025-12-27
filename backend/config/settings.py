@@ -7,7 +7,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, PostgresDsn, RedisDsn, validator
 from typing import List, Optional
 from functools import lru_cache
+from pathlib import Path
 import secrets
+
+# Get project root (2 levels up from this file)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+ENV_FILE = PROJECT_ROOT / ".env"
 
 
 class Settings(BaseSettings):
@@ -16,7 +21,7 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=True
+        env_file=str(ENV_FILE), env_file_encoding="utf-8", case_sensitive=True
     )
 
     # Application
@@ -43,8 +48,8 @@ class Settings(BaseSettings):
     ]
 
     # Database
-    DATABASE_URL: PostgresDsn = Field(
-        default="postgresql://lumina:lumina_pass_2024@localhost:5432/lumina_quant"
+    DATABASE_URL: str = Field(
+        default="postgresql://lumina:lumina_pass_2024@localhost:5433/lumina_quant"
     )
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 10
@@ -53,7 +58,7 @@ class Settings(BaseSettings):
     DB_ECHO: bool = False
 
     # Redis
-    REDIS_URL: RedisDsn = Field(default="redis://:lumina_redis_2024@localhost:6379/0")
+    REDIS_URL: str = Field(default="redis://:lumina_redis_2024@localhost:6379/0")
     REDIS_CACHE_TTL: int = 3600  # 1 hour
 
     # Celery
@@ -135,7 +140,7 @@ class Settings(BaseSettings):
         if async_driver:
             url = url.replace("postgresql://", "postgresql+asyncpg://")
         else:
-            url = url.replace("postgresql://", "postgresql+asyncpg2://")
+            url = url.replace("postgresql://", "postgresql+psycopg2://")
         return url
 
 

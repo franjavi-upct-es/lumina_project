@@ -87,3 +87,4 @@ Thumbs.db
 
 # Migration files (keep structure, ignore instance)
 migrations/versions/*.pyc
+backend/celerybeat-schedule

@@ -7,6 +7,10 @@ Populates TimescaleDB with historical data for testing
 import asyncio
 import sys
 from datetime import datetime, timedelta
+from pathlib import Path
+
+# Add backend to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
 from backend.data_engine.transformers.feature_engineering import FeatureEngineer

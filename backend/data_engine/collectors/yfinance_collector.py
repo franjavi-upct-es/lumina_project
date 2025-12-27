@@ -10,7 +10,7 @@ import yfinance as yf
 from loguru import logger
 import asyncio
 
-from data_engine.collectors.base_collector import BaseDataCollector
+from backend.data_engine.collectors.base_collector import BaseDataCollector
 
 
 class YFinanceCollector(BaseDataCollector):

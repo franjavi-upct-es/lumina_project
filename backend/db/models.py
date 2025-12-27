@@ -31,7 +31,7 @@ from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 from sqlalchemy.pool import NullPool
 from loguru import logger
 
-from config.settings import get_settings
+from backend.config.settings import get_settings
 
 settings = get_settings()
 
@@ -495,7 +495,7 @@ def get_async_engine() -> AsyncEngine:
         # Get database URL and ensure it uses asyncpg
         database_url = settings.get_database_url(async_driver=True)
 
-        # Create async engine
+        # Create async engine with SSL disabled for localhost
         _engine = create_async_engine(
             database_url,
             echo=settings.DB_ECHO,
@@ -505,6 +505,7 @@ def get_async_engine() -> AsyncEngine:
             pool_recycle=settings.DB_POOL_RECYCLE,
             pool_pre_ping=True,  # Verify connections before using
             poolclass=NullPool if settings.is_production else None,
+            connect_args={"server_settings": {"jit": "off"}, "ssl": False} if "localhost" in database_url else {},
         )
 
         logger.info(f"Created async database engine: {database_url.split('@')[1]}")
@@ -579,7 +580,7 @@ async def init_db():
         async with engine.begin() as conn:
             # Only create regular tables (not hypertables)
             # Hypertables are created by timescale_setup.sql
-            await conn.run_sync(Base.meta_data.create_all)
+            await conn.run_sync(Base.metadata.create_all)
 
         logger.success("Database tables initialized successfully")
 
