@@ -269,8 +269,11 @@ EOF
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         cd "$PROJECT_ROOT/docker"
 
+        print_info "Recreating network and services..."
+        docker-compose down 2>/dev/null || true
+
         print_info "Starting all services..."
-        docker-compose up -d --force-recreate
+        docker-compose up -d
 
         print_info "Waiting for services to start (20 seconds)..."
         sleep 20
@@ -289,35 +292,35 @@ EOF
     echo -e "${GREEN}✅ Lumina Quant Lab v2 is ready!${NC}"
     echo ""
     echo -e "${BLUE}📊 Available Services:${NC}"
-    echo "  • TimescaleDB:  Running on port 5433"
+    echo "  • TimescaleDB:  Running on port 5432"
     echo "  • Redis:        Running on port 6379"
 
-    if docker-compose -f "$PROJECT_ROOT/docker/docker-compose.yml" ps api 2>/dev/null | grep -q "Up"; then
+    if docker-compose -f docker/docker-compose.yml ps api 2>/dev/null | grep -q "Up"; then
         echo "  • API:          http://localhost:8000"
         echo "  • API Docs:     http://localhost:8000/docs"
     else
         echo "  • API:          Not started (run: docker-compose up -d api)"
     fi
 
-    if docker-compose -f "$PROJECT_ROOT/docker/docker-compose.yml" ps streamlit 2>/dev/null | grep -q "Up"; then
+    if docker-compose -f docker/docker-compose.yml ps streamlit 2>/dev/null | grep -q "Up"; then
         echo "  • Streamlit:    http://localhost:8501"
     else
         echo "  • Streamlit:    Not started (run: docker-compose up -d streamlit)"
     fi
 
-    if docker-compose -f "$PROJECT_ROOT/docker/docker-compose.yml" ps mlflow 2>/dev/null | grep -q "Up"; then
+    if docker-compose -f docker/docker-compose.yml ps mlflow 2>/dev/null | grep -q "Up"; then
         echo "  • MLflow:       http://localhost:5000"
     else
         echo "  • MLflow:       Not started (run: docker-compose up -d mlflow)"
     fi
 
-    if docker-compose -f "$PROJECT_ROOT/docker/docker-compose.yml" ps flower 2>/dev/null | grep -q "Up"; then
+    if docker-compose -f docker/docker-compose.yml ps flower 2>/dev/null | grep -q "Up"; then
         echo "  • Flower:       http://localhost:5555"
     else
         echo "  • Flower:       Not started (run: docker-compose up -d flower)"
     fi
 
-    if docker-compose -f "$PROJECT_ROOT/docker/docker-compose.yml" ps jupyter 2>/dev/null | grep -q "Up"; then
+    if docker-compose -f docker/docker-compose.yml ps jupyter 2>/dev/null | grep -q "Up"; then
         echo "  • Jupyter:      http://localhost:8888"
     else
         echo "  • Jupyter:      Not started (run: docker-compose up -d jupyter)"

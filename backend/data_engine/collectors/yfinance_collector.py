@@ -68,10 +68,10 @@ class YFinanceCollector(BaseDataCollector):
             df = self._add_metadata(df, ticker, "yfinance")
 
             # Ensure datetime column
-            if "date" in df.columns:
+            if "Date" in df.columns:
                 df = df.with_columns(
-                    pl.col("date").cast(pl.Datetime).alias("time")
-                ).drop("date")
+                    pl.col("Date").cast(pl.Datetime).alias("time")
+                ).drop("Date")
             elif "datetime" in df.columns:
                 df = df.rename({"datetime": "time"})
 
@@ -99,6 +99,8 @@ class YFinanceCollector(BaseDataCollector):
         if data.empty:
             logger.warning(f"No data returned for {ticker}")
             return None
+        
+        return data
 
     async def validate_data(self, data: pl.DataFrame) -> bool:
         """
