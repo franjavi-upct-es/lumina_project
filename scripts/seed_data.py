@@ -10,11 +10,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # Add backend to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
-from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
-from backend.data_engine.transformers.feature_engineering import FeatureEngineer
-from backend.db.models import (
+from data_engine.collectors.yfinance_collector import YFinanceCollector
+from data_engine.transformers.feature_engineering import FeatureEngineer
+from db.models import (
     init_db,
     bulk_insert_price_data,
     bulk_insert_features,

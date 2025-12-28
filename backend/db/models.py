@@ -19,6 +19,7 @@ from sqlalchemy import (
     ARRAY,
     Index,
     CheckConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB, DOUBLE_PRECISION, TIMESTAMP
 from sqlalchemy.ext.asyncio import (
@@ -618,8 +619,8 @@ async def check_db_connection() -> bool:
         engine = get_async_engine()
 
         async with engine.connect() as conn:
-            result = await conn.execute("SELECT 1")
-            await result.fetchone()
+            result = await conn.execute(text("SELECT 1"))
+            result.fetchone()
 
         logger.info("Database connection check: OK")
         return True
@@ -646,10 +647,10 @@ async def execute_raw_sql(sql: str) -> list:
         engine = get_async_engine()
 
         async with engine.connect() as conn:
-            result = await conn.execute(sql)
-            rows = await result.fetchall()
-
-        return rows
+            result = await conn.execute(text(sql))
+            if result.returns_rows:
+                return result.fetchall()
+            return []
 
     except Exception as e:
         logger.error(f"Failed to execute SQL: {e}")
@@ -682,6 +683,27 @@ async def bulk_insert_price_data(data: list[dict]) -> int:
         return 0
 
     try:
+        # Normalize timestamps to tz-aware UTC for TIMESTAMP(timezone=True)
+        from datetime import timezone
+        import pandas as pd
+
+        for row in data:
+            t = row.get("time")
+            if t is None:
+                continue
+            if isinstance(t, pd.Timestamp):
+                row["time"] = (
+                    t.tz_localize("UTC").to_pydatetime()
+                    if t.tzinfo is None
+                    else t.tz_convert("UTC").to_pydatetime()
+                )
+            elif isinstance(t, datetime):
+                row["time"] = (
+                    t.replace(tzinfo=timezone.utc)
+                    if t.tzinfo is None
+                    else t.astimezone(timezone.utc)
+                )
+
         session_factory = get_async_session_factory()
 
         async with session_factory() as session:
@@ -714,6 +736,27 @@ async def bulk_insert_features(data: list[dict]) -> int:
         return 0
 
     try:
+        # Normalize timestamps to tz-aware UTC for TIMESTAMP(timezone=True)
+        from datetime import timezone
+        import pandas as pd
+
+        for row in data:
+            t = row.get("time")
+            if t is None:
+                continue
+            if isinstance(t, pd.Timestamp):
+                row["time"] = (
+                    t.tz_localize("UTC").to_pydatetime()
+                    if t.tzinfo is None
+                    else t.tz_convert("UTC").to_pydatetime()
+                )
+            elif isinstance(t, datetime):
+                row["time"] = (
+                    t.replace(tzinfo=timezone.utc)
+                    if t.tzinfo is None
+                    else t.astimezone(timezone.utc)
+                )
+
         session_factory = get_async_session_factory()
 
         async with session_factory() as session:

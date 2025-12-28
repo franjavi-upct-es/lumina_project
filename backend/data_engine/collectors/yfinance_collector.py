@@ -29,7 +29,7 @@ class YFinanceCollector(BaseDataCollector):
         end_date: Optional[datetime] = None,
         interval: str = "1d",
         **kwargs,
-    ) -> pl.DataFrame:
+    ) -> Optional[pl.DataFrame]:
         """
         Collect historical price data from Yahoo Finance
 
@@ -67,13 +67,18 @@ class YFinanceCollector(BaseDataCollector):
             # Add meta_data
             df = self._add_metadata(df, ticker, "yfinance")
 
-            # Ensure datetime column
-            if "Date" in df.columns:
-                df = df.with_columns(
-                    pl.col("Date").cast(pl.Datetime).alias("time")
-                ).drop("Date")
-            elif "datetime" in df.columns:
-                df = df.rename({"datetime": "time"})
+            # Ensure datetime column (columns are standardized to lowercase)
+            date_col = next(
+                (candidate for candidate in ["date", "datetime"] if candidate in df.columns),
+                None,
+            )
+            if not date_col:
+                logger.error("No date column found in yfinance data")
+                return None
+
+            df = df.with_columns(
+                pl.col(date_col).cast(pl.Datetime).alias("time")
+            ).drop(date_col)
 
             return df
 
@@ -99,10 +104,10 @@ class YFinanceCollector(BaseDataCollector):
         if data.empty:
             logger.warning(f"No data returned for {ticker}")
             return None
-        
+
         return data
 
-    async def validate_data(self, data: pl.DataFrame) -> bool:
+    async def validate_data(self, data: Optional[pl.DataFrame]) -> bool:
         """
         Validate the colleted data
         """
@@ -225,7 +230,7 @@ class YFinanceCollector(BaseDataCollector):
 
     def _fetch_options_data(
         self, ticker: str, expiration_date: Optional[str]
-    ) -> Dict[str, pl.DataFrame]:
+    ) -> Optional[Dict[str, pl.DataFrame]]:
         """
         Synchronous fetch of options data
         """
@@ -261,7 +266,7 @@ class YFinanceCollector(BaseDataCollector):
             logger.error(f"Error fetching institutional holders for {ticker}: {e}")
             return None
 
-    def _fetch_institutional_holders(self, ticker: str) -> pl.DataFrame:
+    def _fetch_institutional_holders(self, ticker: str) -> Optional[pl.DataFrame]:
         """
         Synchronous fetch of institutional holders
         """
@@ -285,7 +290,7 @@ class YFinanceCollector(BaseDataCollector):
             logger.error(f"Error fetching earnings for {ticker}: {e}")
             return None
 
-    def _fetch_earnings(self, ticker: str) -> pl.DataFrame:
+    def _fetch_earnings(self, ticker: str) -> Optional[pl.DataFrame]:
         """
         Synchronous fetch of earnings
         """

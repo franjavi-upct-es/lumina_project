@@ -5,16 +5,17 @@ Run with: pytest tests/test_data_collection.py -v
 """
 
 import pytest
+import pytest_asyncio
 import asyncio
 from datetime import datetime, timedelta
 import sys
 from pathlib import Path
 
 # Add backend to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from data_engine.collectors.yfinance_collector import YFinanceCollector
-from data_engine.transformers.feature_engineering import FeatureEngineer
+from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
+from backend.data_engine.transformers.feature_engineering import FeatureEngineer
 
 
 class TestYFinanceCollector:
@@ -140,7 +141,7 @@ class TestFeatureEngineer:
         """Create feature engineer instance"""
         return FeatureEngineer()
 
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def sample_data(self):
         """Get sample data for testing"""
         collector = YFinanceCollector()
@@ -286,9 +287,9 @@ def event_loop():
 def test_import_modules():
     """Test that all modules can be imported"""
     try:
-        from data_engine.collectors.yfinance_collector import YFinanceCollector
-        from data_engine.transformers.feature_engineering import FeatureEngineer
-        from db.models import init_db, bulk_insert_price_data
+        from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
+        from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+        from backend.db.models import init_db, bulk_insert_price_data
 
         assert True
     except ImportError as e:

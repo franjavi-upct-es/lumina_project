@@ -15,7 +15,7 @@ import pickle
 from loguru import logger
 import mlflow
 
-from ml_engine.models.base_model import BaseModel, ModelMetadata
+from backend.ml_engine.models.base_model import BaseModel, ModelMetadata
 
 
 class XGBoostFinancialModel(BaseModel):
@@ -67,7 +67,7 @@ class XGBoostFinancialModel(BaseModel):
 
         self.model: Optional[xgb.XGBRegressor] = None
         self.scaler = StandardScaler()
-        self.prediction_horizon = hyperparameters.get("prediction_horizon", 1)
+        self.prediction_horizon = self.hyperparameters.get("prediction_horizon", 1)
 
         # For multi-step prediction
         self.models_per_horizon: Dict[int, xgb.XGBRegressor] = {}
@@ -164,7 +164,7 @@ class XGBoostFinancialModel(BaseModel):
             val_pred = self.model.predict(X_val_scaled)
             val_metrics = self.compute_metrics(y_val_np, val_pred, prefix="val_")
 
-        # Store metadata
+        # Store meta_data
         self.meta_data = ModelMetadata(
             model_id=self.model_name,
             model_name=self.model_name,
@@ -304,6 +304,10 @@ class XGBoostFinancialModel(BaseModel):
             # Single-step prediction
             predictions = self.model.predict(X_scaled)
 
+        # Normalize dtype for downstream consistency
+        if isinstance(predictions, np.ndarray):
+            predictions = predictions.astype(np.float64, copy=False)
+
         # Return with uncertainty if requested
         if kwargs.get("return_uncertainty", False):
             # Estimate uncertainty using prediction variance
@@ -313,6 +317,7 @@ class XGBoostFinancialModel(BaseModel):
                 if predictions.ndim > 1
                 else np.ones_like(predictions) * 0.05
             )
+            uncertainty = uncertainty.astype(np.float64, copy=False)
 
             return {
                 "predictions": predictions,

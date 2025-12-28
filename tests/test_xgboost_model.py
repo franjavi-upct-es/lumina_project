@@ -12,9 +12,9 @@ from pathlib import Path
 import tempfile
 
 # Add backend to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from ml_engine.models.xgboost_model import XGBoostFinancialModel
+from backend.ml_engine.models.xgboost_model import XGBoostFinancialModel
 
 
 class TestXGBoostModel:
@@ -245,7 +245,7 @@ class TestXGBoostModel:
             pytest.fail(f"Model should handle NaN values: {e}")
 
     def test_model_metadata(self, model, sample_data):
-        """Test model metadata is created correctly"""
+        """Test model meta_data is created correctly"""
         X_train, y_train, X_val, y_val = sample_data
 
         # Train
@@ -258,7 +258,7 @@ class TestXGBoostModel:
             verbose=0,
         )
 
-        # Check metadata
+        # Check meta_data
         assert model.meta_data is not None
         assert model.meta_data.model_name == "test_xgboost"
         assert model.meta_data.model_type == "xgboost"
@@ -311,8 +311,8 @@ class TestXGBoostIntegration:
     @pytest.mark.integration
     async def test_train_with_real_data(self):
         """Test training with real market data"""
-        from data_engine.collectors.yfinance_collector import YFinanceCollector
-        from data_engine.transformers.feature_engineering import FeatureEngineer
+        from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
+        from backend.data_engine.transformers.feature_engineering import FeatureEngineer
         from datetime import datetime, timedelta
 
         # Collect real data

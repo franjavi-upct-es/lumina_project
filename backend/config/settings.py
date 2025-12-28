@@ -10,9 +10,9 @@ from functools import lru_cache
 from pathlib import Path
 import secrets
 
-# Get project root (2 levels up from this file)
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-ENV_FILE = PROJECT_ROOT / ".env"
+# Load backend-specific env file (stable across local and container paths)
+BACKEND_ROOT = Path(__file__).resolve().parent.parent
+ENV_FILE = BACKEND_ROOT / ".env"
 
 
 class Settings(BaseSettings):
@@ -49,7 +49,7 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = Field(
-        default="postgresql://lumina:lumina_pass_2024@localhost:5433/lumina_quant"
+        default="postgresql://lumina_user:lumina_password@localhost:5433/lumina_quant"
     )
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 10

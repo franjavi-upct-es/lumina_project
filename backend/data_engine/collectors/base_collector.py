@@ -37,7 +37,7 @@ class BaseDataCollector(ABC):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         **kwargs,
-    ) -> pl.DataFrame:
+    ) -> Optional[pl.DataFrame]:
         """
         Collect data for a specific ticker
 
@@ -53,7 +53,7 @@ class BaseDataCollector(ABC):
         pass
 
     @abstractmethod
-    async def validate_data(self, data: pl.DataFrame) -> bool:
+    async def validate_data(self, data: Optional[pl.DataFrame]) -> bool:
         """
         Validate collected data
 

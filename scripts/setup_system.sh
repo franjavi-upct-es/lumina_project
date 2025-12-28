@@ -99,17 +99,17 @@ main() {
     # Step 3: Create .env file if doesn't exist
     print_header "Step 3: Setting Up Environment Variables"
 
-    if [ ! -f .env ]; then
+    if [ ! -f $PROJECT_ROOT/backend/.env ]; then
         print_info "Creating .env file..."
 
-        cat >.env <<'EOF'
+        cat > $PROJECT_ROOT/backend/.env <<'EOF'
 # Environment
 ENVIRONMENT=development
 DEBUG=True
 LOG_LEVEL=INFO
 
 # Database
-DATABASE_URL=postgresql://lumina:lumina_pass_2024@localhost:5433/lumina_quant
+DATABASE_URL=postgresql://lumina_user:lumina_password@localhost:5433/lumina_quant
 
 # Redis
 REDIS_URL=redis://:lumina_redis_2024@localhost:6379/0

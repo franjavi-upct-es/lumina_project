@@ -183,8 +183,8 @@ async def get_features(
     - price: Returns, gaps, ranges
     - volume: Volume indicators, OBV, VWAP
     - volatility: ATR, Bollinger Bands, historical volatility
-    - momentum: RSI, Stochastic, MACD
-    - trend: Moving averages, ADX, Parabolic SAR
+    - momentum: RSI, Stochastic, ROC, MFI
+    - trend: Moving averages, MACD, ADX, Parabolic SAR
     - statistical: Skewness, kurtosis, z-scores
     """
     try:

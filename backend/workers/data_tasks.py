@@ -577,6 +577,11 @@ def _get_feature_category(feature_name: str) -> str:
     elif any(
         x in feature_lower for x in ["rsi", "stoch", "williams", "roc", "cci", "mfi"]
     ):
+        return "momentum"
+    elif any(
+        x in feature_lower
+        for x in ["sma", "ema", "macd", "adx", "psar", "trend", "cross", "above"]
+    ):
         return "trend"
     else:
         return "statistical"

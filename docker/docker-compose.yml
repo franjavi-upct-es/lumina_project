@@ -6,16 +6,16 @@ services:
     image: timescale/timescaledb:latest-pg14
     container_name: lumina_timescaledb
     environment:
-      POSTGRES_USER: lumina
-      POSTGRES_PASSWORD: lumina_pass_2024
       POSTGRES_DB: lumina_quant
+      POSTGRES_USER: lumina_user
+      POSTGRES_PASSWORD: lumina_password
     ports:
       - "5433:5432"
     volumes:
       - timescale_data:/var/lib/postgresql/data
       - ../backend/db/timescale_setup.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lumina -d lumina_quant"]
+      test: ["CMD-SHELL", "pg_isready -U lumina_user -d lumina_quant"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -48,10 +48,10 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://lumina:lumina_pass_2024@timescaledb:5432/lumina_quant
+      - DATABASE_URL=postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
       - REDIS_URL=redis://:lumina_redis_2024@redis:6379/0
       - CELERY_BROKER_URL=redis://:lumina_redis_2024@redis:6379/1
-      - ENVIROMENT=development
+      - ENVIRONMENT=development
       - LOG_LEVEL=INFO
     volumes:
       - ../backend:/app
@@ -73,10 +73,10 @@ services:
       dockerfile: docker/Dockerfile.api
     container_name: lumina_celery_worker
     environment:
-      - DATABASE_URL=postgresql://lumina:lumina_pass_2024@timescaledb:5432/lumina_quant
+      - DATABASE_URL=postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
       - REDIS_URL=redis://:lumina_redis_2024@redis:6379/0
       - CELERY_BROKER_URL=redis://:lumina_redis_2024@redis:6379/1
-      - ENVIROMENT=development
+      - ENVIRONMENT=development
       - LOG_LEVEL=INFO
     volumes:
       - ../backend:/app
@@ -98,7 +98,7 @@ services:
       dockerfile: docker/Dockerfile.api
     container_name: lumina_celery_beat
     environment:
-      - DATABASE_URL=postgresql://lumina:lumina_pass_2024@timescaledb:5432/lumina_quant
+      - DATABASE_URL=postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
       - REDIS_URL=redis://:lumina_redis_2024@redis:6379/0
       - CELERY_BROKER_URL=redis://:lumina_redis_2024@redis:6379/1
       - ENVIRONMENT=development
@@ -118,7 +118,7 @@ services:
       dockerfile: docker/Dockerfile.ml
     container_name: lumina_ml_service
     environment:
-      - DATABASE_URL=postgresql://lumina:lumina_pass_2024@timescaledb:5432/lumina_quant
+      - DATABASE_URL=postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
       - REDIS_URL=redis://:lumina_redis_2024@redis:6379/0
       - MLFLOW_TRACKING_URI=http://mlflow:5000
     volumes:
@@ -149,13 +149,13 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - BACKEND_STORE_URI=postgresql://lumina:lumina_pass_2024@timescaledb:5432/lumina_quant
+      - BACKEND_STORE_URI=postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
       - ARTIFACT_ROOT=/mlflow/artifacts
     volumes:
       - mlflow_artifacts:/mlflow/artifacts
     command: >
       mlflow server
-      --backend-store-uri postgresql://lumina:lumina_pass_2024@timescaledb:5432/lumina_quant
+      --backend-store-uri postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
       --default-artifact-root /mlflow/artifacts
       --host 0.0.0.0
       --port 5000
@@ -213,7 +213,7 @@ services:
     ports:
       - "8888:8888"
     environment:
-      - DATABASE_URL=postgresql://lumina:lumina_pass_2024@timescaledb:5432/lumina_quant
+      - DATABASE_URL=postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
       - REDIS_URL=redis://:lumina_redis_2024@redis:6379/0
       - JUPYTER_ENABLE_LAB=yes
     volumes:
