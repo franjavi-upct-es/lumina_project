@@ -1219,4 +1219,3 @@ async def get_factor_exposure(
     except Exception as e:
         logger.error(f"Error calculating factor exposure: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
