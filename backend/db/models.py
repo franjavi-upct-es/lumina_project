@@ -506,7 +506,9 @@ def get_async_engine() -> AsyncEngine:
             pool_recycle=settings.DB_POOL_RECYCLE,
             pool_pre_ping=True,  # Verify connections before using
             poolclass=NullPool if settings.is_production else None,
-            connect_args={"server_settings": {"jit": "off"}, "ssl": False} if "localhost" in database_url else {},
+            connect_args={"server_settings": {"jit": "off"}, "ssl": False}
+            if "localhost" in database_url
+            else {},
         )
 
         logger.info(f"Created async database engine: {database_url.split('@')[1]}")

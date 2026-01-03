@@ -69,16 +69,20 @@ class YFinanceCollector(BaseDataCollector):
 
             # Ensure datetime column (columns are standardized to lowercase)
             date_col = next(
-                (candidate for candidate in ["date", "datetime"] if candidate in df.columns),
+                (
+                    candidate
+                    for candidate in ["date", "datetime"]
+                    if candidate in df.columns
+                ),
                 None,
             )
             if not date_col:
                 logger.error("No date column found in yfinance data")
                 return None
 
-            df = df.with_columns(
-                pl.col(date_col).cast(pl.Datetime).alias("time")
-            ).drop(date_col)
+            df = df.with_columns(pl.col(date_col).cast(pl.Datetime).alias("time")).drop(
+                date_col
+            )
 
             return df
 

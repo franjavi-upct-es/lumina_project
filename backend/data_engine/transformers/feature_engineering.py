@@ -277,9 +277,7 @@ class FeatureEngineer:
         # Commodity Channel Index (CCI)
         tp = (df["high"] + df["low"] + df["close"]) / 3
         sma_tp = tp.rolling(20).mean()
-        mad = tp.rolling(20).apply(
-            lambda x: np.mean(np.abs(x - np.mean(x))), raw=True
-        )
+        mad = tp.rolling(20).apply(lambda x: np.mean(np.abs(x - np.mean(x))), raw=True)
         df["cci_20"] = (tp - sma_tp) / (0.015 * mad)
 
         # Money Flow Index (MFI)
@@ -323,16 +321,16 @@ class FeatureEngineer:
         # Moving Averages
         for period in [5, 10, 20, 50, 100, 200]:
             df[f"sma_{period}"] = df["close"].rolling(period).mean()
-            df[f"sma_{period}_distance"] = (
-                df["close"] - df[f"sma_{period}"]
-            ) / df[f"sma_{period}"]
+            df[f"sma_{period}_distance"] = (df["close"] - df[f"sma_{period}"]) / df[
+                f"sma_{period}"
+            ]
 
         # Exponential Moving Averages
         for period in [12, 26, 50]:
             df[f"ema_{period}"] = df["close"].ewm(span=period, adjust=False).mean()
-            df[f"ema_{period}_distance"] = (
-                df["close"] - df[f"ema_{period}"]
-            ) / df[f"ema_{period}"]
+            df[f"ema_{period}_distance"] = (df["close"] - df[f"ema_{period}"]) / df[
+                f"ema_{period}"
+            ]
 
         # MACD
         ema_12 = df["close"].ewm(span=12, adjust=False).mean()
@@ -455,12 +453,8 @@ class FeatureEngineer:
         df["rolling_kurt_20"] = df["returns"].rolling(20).kurt()
 
         # Autocorrelation
-        df["autocorr_1"] = df["returns"].rolling(20).apply(
-            lambda x: x.autocorr(lag=1)
-        )
-        df["autocorr_5"] = df["returns"].rolling(20).apply(
-            lambda x: x.autocorr(lag=5)
-        )
+        df["autocorr_1"] = df["returns"].rolling(20).apply(lambda x: x.autocorr(lag=1))
+        df["autocorr_5"] = df["returns"].rolling(20).apply(lambda x: x.autocorr(lag=5))
 
         self.feature_categories["statistical"].extend(
             [
