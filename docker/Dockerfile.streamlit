@@ -1,48 +1,41 @@
-# docker/Dockerfile.streamlit
+FROM python:3.11-slim as builder
+
+WORKDIR /build
+
+COPY requirements.txt .
+RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
+
 FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
-# Copy requirements
-COPY requirements.txt .
+COPY --from=builder /wheels /wheels
+RUN pip install --no-cache-dir --no-index --find-links=/wheels /wheels/* && \
+    rm -rf /wheels /root/.cache
 
-# Install Streamlit and dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy Streamlit app
 COPY . .
 
-# Expose Streamlit port
+RUN mkdir -p ~/.streamlit && \
+    echo "[server]" > ~/.streamlit/config.toml && \
+    echo "headless = true" >> ~/.streamlit/config.toml && \
+    echo "port = 8501" >> ~/.streamlit/config.toml && \
+    echo "address = \"0.0.0.0\"" >> ~/.streamlit/config.toml && \
+    echo "enableCORS = false" >> ~/.streamlit/config.toml && \
+    echo "[theme]" >> ~/.streamlit/config.toml && \
+    echo "primaryColor = \"#1f77b4\"" >> ~/.streamlit/config.toml && \
+    echo "backgroundColor = \"#0e1117\"" >> ~/.streamlit/config.toml && \
+    echo "secondaryBackgroundColor = \"#262730\"" >> ~/.streamlit/config.toml && \
+    echo "textColor = \"#fafafa\"" >> ~/.streamlit/config.toml
+
 EXPOSE 8501
 
-# Configure Streamlit
-RUN mkdir -p ~/.streamlit
-RUN echo "\
-    [server]\n\
-    headless = true\n\
-    port = 8501\n\
-    address = \"0.0.0.0\"\n\
-    enableCORS = false\n\
-    enableXsrfProtection = false\n\
-    \n\
-    [theme]\n\
-    primaryColor = \"#1f77b4\"\n\
-    backgroundColor = \"#0e1117\"\n\
-    secondaryBackgroundColor = \"#262730\"\n\
-    textColor = \"#fafafa\"\n\
-    font = \"sans serif\"\n\
-    " > ~/.streamlit/config.toml
-
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8501/_stcore/health || exit 1
 
-# Run Streamlit
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]

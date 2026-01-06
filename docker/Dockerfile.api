@@ -9,11 +9,24 @@ RUN apt-get update && apt-get install -y \
     curl \
     git \
     postgresql-client \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY ../requirements/base.txt requirements/base.txt
-RUN pip install --no-cache-dir -r requirements/base.txt
+# Install uv - fast Python package installer
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+RUN sh /uv-installer.sh && rm /uv-installer.sh
+ENV PATH="/root/.local/bin/:$PATH"
+ENV UV_SYSTEM_PYTHON=1
+
+# Verify uv installation
+RUN uv --version
+
+# Copy requirements
+COPY requirements/base.txt requirements/base.txt
+COPY requirements/production.txt requirements/production.txt
+
+# Install dependencies using uv
+RUN uv pip install --system -r requirements/production.txt
 
 # Copy application
 COPY . .

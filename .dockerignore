@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+docs/
+*.md
+README.md
+
+# Tests
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Notebooks (except for jupyter container)
+*.ipynb_checkpoints/
+
+# Data files (should be in volumes)
+*.csv
+*.parquet
+*.db
+*.sqlite
+*.h5
+*.pkl
+
+# Logs
+*.log
+logs/
+
+# Docker
+docker/
+docker-compose*.yml
+Dockerfile*
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Environment files
+.env
+.env.*
+
+# Large model files
+models/
+data/
+mlruns/
+
+# Frontend
+frontend/
+node_modules/

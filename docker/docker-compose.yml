@@ -21,6 +21,7 @@ services:
       retries: 5
     networks:
       - lumina_network
+    restart: unless-stopped
 
   # Redis - Cache and message broker
   redis:
@@ -38,8 +39,9 @@ services:
       retries: 5
     networks:
       - lumina_network
+    restart: unless-stopped
 
-  # FastAPI Application
+  # FastAPI Application (with uv)
   api:
     build:
       context: ..
@@ -53,6 +55,7 @@ services:
       - CELERY_BROKER_URL=redis://:lumina_redis_2024@redis:6379/1
       - ENVIRONMENT=development
       - LOG_LEVEL=INFO
+      - UV_SYSTEM_PYTHON=1
     volumes:
       - ../backend:/app
       - parquet_storage:/app/data/parquet
@@ -66,7 +69,7 @@ services:
       - lumina_network
     restart: unless-stopped
 
-  # Celery Worker - Data collection & processing
+  # Celery Worker - Data collection & processing (with uv)
   celery_worker:
     build:
       context: ..
@@ -78,6 +81,7 @@ services:
       - CELERY_BROKER_URL=redis://:lumina_redis_2024@redis:6379/1
       - ENVIRONMENT=development
       - LOG_LEVEL=INFO
+      - UV_SYSTEM_PYTHON=1
     volumes:
       - ../backend:/app
       - parquet_storage:/app/data/parquet
@@ -91,7 +95,7 @@ services:
       - lumina_network
     restart: unless-stopped
 
-  # Celery Beat - Scheduled tasks
+  # Celery Beat - Scheduled tasks (with uv)
   celery_beat:
     build:
       context: ..
@@ -102,6 +106,7 @@ services:
       - REDIS_URL=redis://:lumina_redis_2024@redis:6379/0
       - CELERY_BROKER_URL=redis://:lumina_redis_2024@redis:6379/1
       - ENVIRONMENT=development
+      - UV_SYSTEM_PYTHON=1
     volumes:
       - ../backend:/app
     depends_on:
@@ -111,7 +116,7 @@ services:
       - lumina_network
     restart: unless-stopped
 
-  # ML Service - GPU-enabled for model training
+  # ML Service - CUDA 12.1 enabled for model training (with uv)
   ml_service:
     build:
       context: ..
@@ -121,6 +126,11 @@ services:
       - DATABASE_URL=postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
       - REDIS_URL=redis://:lumina_redis_2024@redis:6379/0
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - CUDA_VISIBLE_DEVICES=0
+      - UV_SYSTEM_PYTHON=1
+      # NVIDIA environment variables
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     volumes:
       - ../backend:/app
       - model_storage:/app/models
@@ -129,13 +139,13 @@ services:
       - timescaledb
       - redis
       - mlflow
-    # deploy: # Comment if you don't have GPU
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     networks:
       - lumina_network
     restart: unless-stopped
@@ -195,16 +205,18 @@ services:
       - "5555:5555"
     environment:
       - CELERY_BROKER_URL=redis://:lumina_redis_2024@redis:6379/1
+      - UV_SYSTEM_PYTHON=1
     volumes:
-      - "../backend:/app"
+      - ../backend:/app
     command: celery -A workers.celery_app flower --port=5555
     depends_on:
       - redis
       - celery_worker
     networks:
       - lumina_network
+    restart: unless-stopped
 
-  # Jupyter Lab - Research notebooks
+  # Jupyter Lab - Research notebooks (with uv)
   jupyter:
     build:
       context: ..
@@ -216,6 +228,7 @@ services:
       - DATABASE_URL=postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
       - REDIS_URL=redis://:lumina_redis_2024@redis:6379/0
       - JUPYTER_ENABLE_LAB=yes
+      - UV_SYSTEM_PYTHON=1
     volumes:
       - ../notebooks:/home/jovyan/work
       - ../backend:/home/jovyan/backend
@@ -226,6 +239,7 @@ services:
     command: start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''
     networks:
       - lumina_network
+    restart: unless-stopped
 
 networks:
   lumina_network:

@@ -1,6 +1,7 @@
 # requirements/base.txt
 # Python 3.11 Compatible Versions
-# Tested and verified for compatibility
+# Optimized for uv package manager
+# NOTE: PyTorch should be installed separately with CUDA support
 
 # Core Framework
 fastapi==0.104.1
@@ -54,17 +55,10 @@ shap==0.43.0
 statsmodels==0.14.1
 arch==6.3.0
 
-# Technical Indicators
-# Note: TA-Lib requires system installation: conda install -c conda-forge ta-lib
-# Or for pip: pip install TA-Lib (needs ta-lib C library)
-# pandas-ta REMOVED due to compatibility issues - using native implementations
-
 # Quantitative Finance
 PyPortfolioOpt
 
 # Backtesting
-# Note: vectorbt and backtrader may have issues with Python 3.11
-# Using alternatives or specific versions
 backtrader==1.9.78.123
 
 # NLP
@@ -100,8 +94,5 @@ httpx==0.25.2
 typing-extensions==4.9.0
 python-dateutil==2.8.2
 
-torch==2.1.2 --index-url https://download.pytorch.org/whl/cpu
-torchvision==0.16.2
-torchaudio==2.1.2
-
-scipy
+# Scientific computing
+scipy>=1.11.4
