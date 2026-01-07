@@ -1,50 +1,45 @@
-# docker/Dockerfile.api
-FROM ghcr.io/astral-sh/uv:latest AS builder
+# API Service with FastAPI
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# Copiamos los archivos de configuración del proyecto
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy dependency files
 COPY pyproject.toml uv.lock ./
 
-# Instalamos las dependencias
-# --frozen evita que uv intente actualizar el lockfile durante el build
-# --no-install-project instala solo las dependencias, no el código aún
-RUN uv sync --frozen --no-cache --no-install-project
+# Install API + DB dependencies
+RUN uv sync --frozen --no-cache --no-install-project --group api --group db
 
-# Segunda etapa para la imagen final
+# Production stage
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app"
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
     curl \
-    git \
-    postgresql-client \
-    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar uv desde builder
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
-# Copiar el entorno virtual desde builder
+# Copy virtual environment from builder
 COPY --from=builder /app/.venv /app/.venv
 
-# Configurar PATH para usar el entorno virtual
-ENV PATH="/app/.venv/bin:$PATH"
+# Copy application code
+COPY backend/ ./backend/
 
-# Copy application
-COPY . .
+# Create directories
+RUN mkdir -p /app/data/parquet /app/models /app/logs
 
-# Create necessary directories
-RUN mkdir -p data/parquet models logs
+EXPOSE 8000
 
-ENV PYTHONPATH=/app
-ENV PYTHONUNBUFFERED=1
-
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-CMD ["uv", "run", "uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

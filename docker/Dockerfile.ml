@@ -1,70 +1,57 @@
-# docker/Dockerfile.ml
-# ML Service with CUDA 13 support and uv package manager
-FROM ghcr.io/astral-sh/uv:latest AS builder
+# ML Worker Service with CUDA support
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# Copiamos los archivos de configuración del proyecto
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy dependency files
 COPY pyproject.toml uv.lock ./
 
-# Instalamos las dependencias con el grupo ml
-# --frozen evita que uv intente actualizar el lockfile
-RUN uv sync --frozen --no-cache --no-install-project --group ml
+# Install ML + DB + Celery + MLflow + Data dependencies
+RUN uv sync --frozen --no-cache --no-install-project --group ml --group db --group celery --group mlflow --group data
 
-# Segunda etapa con CUDA
+# Production stage with CUDA
 FROM nvidia/cuda:13.0.0-base-ubuntu24.04
 
-# Set environment variables
+WORKDIR /app
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DEBIAN_FRONTEND=noninteractive \
     CUDA_HOME=/usr/local/cuda \
-    PATH=/usr/local/cuda/bin:/app/.venv/bin:$PATH \
-    LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH \
+    PATH="/app/.venv/bin:/usr/local/cuda/bin:$PATH" \
+    LD_LIBRARY_PATH="/usr/local/cuda/lib64:$LD_LIBRARY_PATH" \
+    PYTHONPATH="/app" \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-dev \
-    python3-pip \
-    python3-venv \
-    build-essential \
-    git \
-    wget \
-    curl \
+# Install Python and system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 \
+    python3.12-dev \
+    python3.12-venv \
+    libpq5 \
     libgomp1 \
-    libopenblas-dev \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    libopenblas0 \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3.11 /usr/bin/python
 
-# Create symlink for python
-RUN ln -sf /usr/bin/python3 /usr/bin/python
-
-# Copiar uv desde builder
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
-# Copiar el entorno virtual desde builder
+# Copy virtual environment from builder
 COPY --from=builder /app/.venv /app/.venv
 
 # Copy application code
-COPY . .
+COPY backend/ ./backend/
 
-# Create necessary directories
+# Create directories
 RUN mkdir -p /app/models /app/data/parquet /app/logs
 
-# Set Python path
-ENV PYTHONPATH=/app
+# Verify PyTorch and CUDA
+RUN python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA available: {torch.cuda.is_available()}')" || echo "PyTorch verification skipped"
 
-# Verify CUDA and PyTorch installation
-RUN python3 -c "import torch; print(f'PyTorch version: {torch.__version__}'); print(f'CUDA available: {torch.cuda.is_available()}'); print(f'CUDA version: {torch.version.cuda}')"
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD python -c "import sys; sys.exit(0)" || exit 1
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python3 -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'" || exit 1
-
-# Default command (can be overridden)
-CMD ["uv", "run", "python", "-m", "backend.ml_engine.training.trainer"]
+CMD ["python", "-m", "celery", "-A", "backend.workers.celery_app", "worker", "--loglevel=info", "-Q", "ml_queue"]

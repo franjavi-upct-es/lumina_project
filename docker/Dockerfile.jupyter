@@ -1,67 +1,51 @@
-# docker/Dockerfile.jupyter
-FROM ghcr.io/astral-sh/uv:latest AS builder
+# Jupyter Notebook Service
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# Copiamos los archivos de configuración del proyecto
-COPY pyproject.toml uv.lock ./
-
-# Instalamos las dependencias con grupos ml y jupyter
-RUN uv sync --frozen --no-cache --no-install-project --group ml --group jupyter
-
-# Segunda etapa con Jupyter
-FROM jupyter/scipy-notebook:python-3.11
-
-USER root
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    git \
-    postgresql-client \
-    curl \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copiar uv desde builder
+# Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Copiar el entorno virtual desde builder
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install Jupyter + ML + Data + DB + Backtest dependencies
+RUN uv sync --frozen --no-cache --no-install-project --group jupyter --group ml --group data --group db --group backtest
+
+# Production stage
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app" \
+    JUPYTER_ENABLE_LAB=yes
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    libgomp1 \
+    libopenblas0 \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder
 COPY --from=builder /app/.venv /app/.venv
 
-# Ajustar permisos
-RUN chown -R $NB_UID:$NB_GID /app/.venv
+# Copy application code and notebooks
+COPY backend/ ./backend/
+COPY notebooks/ ./notebooks/
+COPY data/ ./data/
 
-USER $NB_UID
+# Create directories
+RUN mkdir -p /app/models /app/logs
 
-# Configurar PATH para usar el entorno virtual
-ENV PATH="/app/.venv/bin:$PATH"
-
-WORKDIR /home/jovyan/work
-
-# Enable extensions
-RUN jupyter labextension enable jupyterlab-git
-RUN jupyter labextension enable jupyterlab-execute-time
-
-# Configure Jupyter
-RUN mkdir -p /home/jovyan/.jupyter
-RUN echo "\
-    c.ServerApp.ip = '0.0.0.0'\n\
-    c.ServerApp.port = 8888\n\
-    c.ServerApp.open_browser = False\n\
-    c.ServerApp.token = ''\n\
-    c.ServerApp.password = ''\n\
-    c.ServerApp.allow_root = False\n\
-    c.ServerApp.allow_origin = '*'\n\
-    c.ServerApp.disable_check_xsrf = True\n\
-    " > /home/jovyan/.jupyter/jupyter_server_config.py
-
-# Expose Jupyter port
 EXPOSE 8888
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8888/api || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl --fail http://localhost:8888/api || exit 1
 
-# Start Jupyter Lab
-CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--NotebookApp.token=''"]

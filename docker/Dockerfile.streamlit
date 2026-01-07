@@ -1,43 +1,43 @@
-# Streamlit Dashboard
-FROM ghcr.io/astral-sh/uv:latest AS builder
+# Streamlit Frontend Service
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# Copiamos los archivos de configuración del proyecto
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy dependency files
 COPY pyproject.toml uv.lock ./
 
-# Instalamos las dependencias con el grupo streamlit
-RUN uv sync --frozen --no-cache --no-install-project --group streamlit
+# Install Streamlit + DB + Data dependencies
+RUN uv sync --frozen --no-cache --no-install-project --group streamlit --group db --group data
 
-# Segunda etapa para la imagen final
+# Production stage
 FROM python:3.11-slim
 
 WORKDIR /app
 
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app"
+
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar uv desde la imagen oficial
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
-# Copiar el entorno virtual desde builder
+# Copy virtual environment from builder
 COPY --from=builder /app/.venv /app/.venv
 
-# Configurar PATH para usar el entorno virtual
-ENV PATH="/app/.venv/bin:$PATH"
+# Copy application code
+COPY frontend/streamlit-app/ ./frontend/streamlit-app/
+COPY backend/ ./backend/
 
-# Copy streamlit app
-COPY frontend/streamlit-app/ /app/
-
-# Expose port
 EXPOSE 8501
 
-# Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl --fail http://localhost:8501/_stcore/health || exit 1
 
-# Run streamlit
-CMD ["uv", "run", "streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "frontend/streamlit-app/app.py", "--server.port=8501", "--server.address=0.0.0.0"]

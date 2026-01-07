@@ -1,4 +1,36 @@
-FROM ghcr.io/mlflow/mlflow:v2.9.2
+# MLflow Tracking Server
+FROM python:3.11-slim
 
-# Instalar el driver de PostgreSQL
-RUN pip install psycopg2-binary
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    MLFLOW_BACKEND_STORE_URI=postgresql://lumina:lumina_password@timescaledb:5432/lumina_mlflow \
+    MLFLOW_DEFAULT_ARTIFACT_ROOT=/app/mlartifacts
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install MLflow and dependencies
+RUN pip install --no-cache-dir \
+    mlflow>=2.15.0 \
+    psycopg2-binary>=2.9.9 \
+    boto3>=1.34.0
+
+# Create directories
+RUN mkdir -p /app/mlartifacts /app/mlruns
+
+EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl --fail http://localhost:5000/health || exit 1
+
+CMD ["mlflow", "server", \
+     "--host", "0.0.0.0", \
+     "--port", "5000", \
+     "--backend-store-uri", "postgresql://lumina:lumina_password@timescaledb:5432/lumina_mlflow", \
+     "--default-artifact-root", "/app/mlartifacts", \
+     "--serve-artifacts"]

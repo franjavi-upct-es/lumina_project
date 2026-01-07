@@ -1,254 +1,209 @@
-version: "3.8"
+version: "3.9"
 
 services:
-  # TimescaleDB - Time series database
+  # Database - TimescaleDB
   timescaledb:
-    image: timescale/timescaledb:latest-pg14
-    container_name: lumina_timescaledb
+    image: timescale/timescaledb:latest-pg16
+    container_name: lumina-timescaledb
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: lumina_quant
-      POSTGRES_USER: lumina_user
+      POSTGRES_USER: lumina
       POSTGRES_PASSWORD: lumina_password
-    ports:
-      - "5433:5432"
+      POSTGRES_DB: lumina_db
     volumes:
       - timescale_data:/var/lib/postgresql/data
-      - ../backend/db/timescale_setup.sql:/docker-entrypoint-initdb.d/init.sql
+      - ../backend/db/timescale_setup.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lumina_user -d lumina_quant"]
+      test: ["CMD-SHELL", "pg_isready -U lumina -d lumina_db"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - lumina_network
-    restart: unless-stopped
+      - lumina-network
 
-  # Redis - Cache and message broker
+  # Redis for Celery
   redis:
     image: redis:7-alpine
-    container_name: lumina_redis
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes --requirepass lumina_redis_2024
+    container_name: lumina-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
+    ports:
+      - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - lumina_network
-    restart: unless-stopped
+      - lumina-network
 
-  # FastAPI Application (with uv)
+  # FastAPI Backend
   api:
     build:
       context: ..
       dockerfile: docker/Dockerfile.api
-    container_name: lumina_api
+    container_name: lumina-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://lumina:lumina_password@timescaledb:5432/lumina_db
+      REDIS_URL: redis://redis:6379/0
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
+      FRED_API_KEY: ${FRED_API_KEY:-}
+      NEWS_API_KEY: ${NEWS_API_KEY:-}
     ports:
       - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
-      - REDIS_URL=redis://:lumina_redis_2024@redis:6379/0
-      - CELERY_BROKER_URL=redis://:lumina_redis_2024@redis:6379/1
-      - ENVIRONMENT=development
-      - LOG_LEVEL=INFO
-      - UV_SYSTEM_PYTHON=1
-    volumes:
-      - ../backend:/app
-      - parquet_storage:/app/data/parquet
     depends_on:
       timescaledb:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
-      - lumina_network
-    restart: unless-stopped
+      - lumina-network
 
-  # Celery Worker - Data collection & processing (with uv)
-  celery_worker:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.api
-    container_name: lumina_celery_worker
-    environment:
-      - DATABASE_URL=postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
-      - REDIS_URL=redis://:lumina_redis_2024@redis:6379/0
-      - CELERY_BROKER_URL=redis://:lumina_redis_2024@redis:6379/1
-      - ENVIRONMENT=development
-      - LOG_LEVEL=INFO
-      - UV_SYSTEM_PYTHON=1
-    volumes:
-      - ../backend:/app
-      - parquet_storage:/app/data/parquet
-    depends_on:
-      timescaledb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command: celery -A workers.celery_app worker --loglevel=info --concurrency=4
-    networks:
-      - lumina_network
-    restart: unless-stopped
-
-  # Celery Beat - Scheduled tasks (with uv)
-  celery_beat:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.api
-    container_name: lumina_celery_beat
-    environment:
-      - DATABASE_URL=postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
-      - REDIS_URL=redis://:lumina_redis_2024@redis:6379/0
-      - CELERY_BROKER_URL=redis://:lumina_redis_2024@redis:6379/1
-      - ENVIRONMENT=development
-      - UV_SYSTEM_PYTHON=1
-    volumes:
-      - ../backend:/app
-    depends_on:
-      - redis
-    command: celery -A workers.celery_app beat --loglevel=info
-    networks:
-      - lumina_network
-    restart: unless-stopped
-
-  # ML Service - CUDA 13.0 enabled for model training (with uv)
-  ml_service:
+  # ML Worker (GPU)
+  ml-worker:
     build:
       context: ..
       dockerfile: docker/Dockerfile.ml
-    container_name: lumina_ml_service
-    runtime: nvidia
-    environment:
-      - DATABASE_URL=postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
-      - REDIS_URL=redis://:lumina_redis_2024@redis:6379/0
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
-      - CUDA_VISIBLE_DEVICES=0
-      - UV_SYSTEM_PYTHON=1
-      # NVIDIA environment variables
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    volumes:
-      - ../backend:/app
-      - model_storage:/app/models
-      - parquet_storage:/app/data/parquet
-    depends_on:
-      - timescaledb
-      - redis
-      - mlflow
-    networks:
-      - lumina_network
+    container_name: lumina-ml-worker
     restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://lumina:lumina_password@timescaledb:5432/lumina_db
+      REDIS_URL: redis://redis:6379/0
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      CUDA_VISIBLE_DEVICES: "0"
+    volumes:
+      - ../models:/app/models
+      - ../data:/app/data
+      - ../logs:/app/logs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - lumina-network
 
-  # MLflow - Experiment tracking
+  # Celery Worker (CPU tasks)
+  celery-worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: lumina-celery-worker
+    restart: unless-stopped
+    command: ["python", "-m", "celery", "-A", "backend.workers.celery_app", "worker", "--loglevel=info", "-Q", "data_queue,backtest_queue"]
+    environment:
+      DATABASE_URL: postgresql://lumina:lumina_password@timescaledb:5432/lumina_db
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ../data:/app/data
+      - ../logs:/app/logs
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - lumina-network
+
+  # Celery Beat Scheduler
+  celery-beat:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: lumina-celery-beat
+    restart: unless-stopped
+    command: ["python", "-m", "celery", "-A", "backend.workers.celery_app", "beat", "--loglevel=info"]
+    environment:
+      DATABASE_URL: postgresql://lumina:lumina_password@timescaledb:5432/lumina_db
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - celery-worker
+    networks:
+      - lumina-network
+
+  # MLflow Tracking Server
   mlflow:
     build:
       context: ..
       dockerfile: docker/Dockerfile.mlflow
-    container_name: lumina_mlflow
+    container_name: lumina-mlflow
+    restart: unless-stopped
+    environment:
+      MLFLOW_BACKEND_STORE_URI: postgresql://lumina:lumina_password@timescaledb:5432/lumina_mlflow
+    volumes:
+      - mlflow_artifacts:/app/mlartifacts
     ports:
       - "5000:5000"
-    environment:
-      - BACKEND_STORE_URI=postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
-      - ARTIFACT_ROOT=/mlflow/artifacts
-    volumes:
-      - mlflow_artifacts:/mlflow/artifacts
-    command: >
-      mlflow server
-      --backend-store-uri postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
-      --default-artifact-root /mlflow/artifacts
-      --host 0.0.0.0
-      --port 5000
     depends_on:
-      - timescaledb
+      timescaledb:
+        condition: service_healthy
     networks:
-      - lumina_network
-    restart: unless-stopped
+      - lumina-network
 
-  # Streamlit Dashboard
+  # Streamlit Frontend
   streamlit:
     build:
       context: ..
       dockerfile: docker/Dockerfile.streamlit
-    container_name: lumina_streamlit
+    container_name: lumina-streamlit
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:8000
+      DATABASE_URL: postgresql://lumina:lumina_password@timescaledb:5432/lumina_db
     ports:
       - "8501:8501"
-    environment:
-      - API_URL=http://api:8000
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
-    volumes:
-      - ../frontend/streamlit-app:/app
     depends_on:
-      api:
-        condition: service_started
-      mlflow:
-        condition: service_started
+      - api
     networks:
-      - lumina_network
-    restart: unless-stopped
+      - lumina-network
 
-  # Flower - Celery monitoring
-  flower:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.api
-    container_name: lumina_flower
-    ports:
-      - "5555:5555"
-    environment:
-      - CELERY_BROKER_URL=redis://:lumina_redis_2024@redis:6379/1
-      - UV_SYSTEM_PYTHON=1
-    volumes:
-      - ../backend:/app
-    command: celery -A workers.celery_app flower --port=5555
-    depends_on:
-      - redis
-      - celery_worker
-    networks:
-      - lumina_network
-    restart: unless-stopped
-
-  # Jupyter Lab - Research notebooks (with uv)
+  # Jupyter Lab (development)
   jupyter:
     build:
       context: ..
       dockerfile: docker/Dockerfile.jupyter
-    container_name: lumina_jupyter
+    container_name: lumina-jupyter
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://lumina:lumina_password@timescaledb:5432/lumina_db
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - ../notebooks:/app/notebooks
+      - ../data:/app/data
+      - ../models:/app/models
     ports:
       - "8888:8888"
-    environment:
-      - DATABASE_URL=postgresql://lumina_user:lumina_password@timescaledb:5432/lumina_quant
-      - REDIS_URL=redis://:lumina_redis_2024@redis:6379/0
-      - JUPYTER_ENABLE_LAB=yes
-      - UV_SYSTEM_PYTHON=1
-    volumes:
-      - ../notebooks:/home/jovyan/work
-      - ../backend:/home/jovyan/backend
-      - parquet_storage:/home/jovyan/data/parquet
     depends_on:
-      - timescaledb
-      - redis
-    command: start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''
+      timescaledb:
+        condition: service_healthy
     networks:
-      - lumina_network
-    restart: unless-stopped
+      - lumina-network
+    profiles:
+      - dev
 
 networks:
-  lumina_network:
+  lumina-network:
     driver: bridge
 
 volumes:
   timescale_data:
-    driver: local
   redis_data:
-    driver: local
-  parquet_storage:
-    driver: local
   mlflow_artifacts:
-    driver: local
-  model_storage:
-    driver: local

@@ -1,124 +1,240 @@
 [project]
 name = "lumina-project"
-version = "0.1.0"
+version = "2.0.0"
+description = "Advanced ML-powered financial prediction platform"
 requires-python = ">=3.11"
 dependencies = [
-    "aiohttp>=3.9.5",
-    "alembic>=1.13.1",
-    "alibi>=0.9.6",
-    "alpha-vantage>=2.3.1",
-    "arch>=7.0.0",
-    "asyncpg>=0.29.0",
-    "backtrader>=1.9.78.123",
-    "beautifulsoup4>=4.12.3",
-    "black>=24.0.0",
-    "catboost>=1.2.5",
-    "celery>=5.4.0",
-    "cloudpickle>=3.0.0",
-    "cryptography>=41.0.7",
-    "curl-cffi>=0.7.0",
-    "datasets>=2.20.0",
-    "dill>=0.3.8",
-    "emails>=0.6",
+    # Core Web Framework
     "fastapi>=0.110.0",
-    "flake8>=7.0.0",
-    "flower>=2.0.1",
-    "fredapi>=0.5.1",
-    "gunicorn>=21.2.0",
-    "gymnasium>=0.29.1",
-    "hiredis>=2.3.2",
-    "hmmlearn>=0.3.2",
-    "httpx>=0.27.0",
-    "hyperopt>=0.2.7",
-    "isort>=5.13.2",
-    "joblib>=1.4.2",
-    "keras>=3.4.0",
-    "kombu>=5.3.7",
-    "lightgbm>=4.3.0",
-    "lime>=0.2.0.1",
-    "llvmlite>=0.42.0",
-    "loguru>=0.7.2",
-    "matplotlib>=3.8.2",
-    "memory-profiler>=0.61.0",
-    "mkdocs>=1.5.0",
-    "mkdocs-material>=9.5.0",
-    "mlflow>=2.12.1",
-    "mypy>=1.9.0",
-    "newsapi-python>=0.2.7",
-    "nltk>=3.8.1",
-    "numba>=0.59.0",
-    "numpy>=1.26.4",
-    "onnx>=1.16.0",
-    "onnxruntime-gpu>=1.18.0",
-    "opencv-python>=4.10.0.80",
-    "optuna>=3.6.1",
-    "orjson>=3.9.10",
-    "pandas>=2.2.2",
-    "passlib[bcrypt]>=1.7.4",
-    "pillow>=10.3.0",
-    "plotly>=5.18.0",
-    "polars>=0.20.20",
-    "praw>=7.7.1",
-    "pre-commit>=3.7.0",
-    "prometheus-client>=0.20.0",
-    "prophet>=1.1.5",
-    "psycopg2-binary>=2.9.9",
-    "py-healthcheck>=1.10.1",
-    "pyarrow>=16.0.0",
+    "uvicorn[standard]>=0.29.0",
+    # Data Validation & Settings
     "pydantic>=2.7.0",
     "pydantic-settings>=2.2.0",
-    "pylint>=3.1.0",
+    "python-dotenv>=1.0.1",
+    # Logging
+    "loguru>=0.7.2",
+    # Date/Time handling
+    "python-dateutil>=2.9.0",
+    "pytz>=2024.1",
+    # HTTP clients
+    "requests>=2.31.0",
+    "httpx>=0.27.0",
+    "aiohttp>=3.9.5",
+    # Retry logic
+    "tenacity>=8.3.0",
+    # Fast JSON serialization
+    "orjson>=3.9.10",
+    "ujson>=5.9.0",
+    # Core data processing (used everywhere)
+    "numpy>=1.26.4",
+    "pandas>=2.2.2",
+    "sqlalchemy>=2.0.30",
+    "asyncpg>=0.29.0",
+    "psycopg2-binary>=2.9.9",
+    "alembic>=1.13.1",
+    "redis>=5.0.4",
+    "hiredis>=2.3.2",
+    "celery>=5.4.0",
+    "flower>=2.0.1",
+    "kombu>=5.3.7",
+    "polars>=0.20.20",
+    "pyarrow>=16.0.0",
+    "yfinance>=0.2.40",
+    "curl-cffi>=0.7.0",
+    "alpha-vantage>=2.3.1",
+    "fredapi>=0.5.1",
+    "scikit-learn>=1.4.2",
+    "xgboost>=2.0.3",
+    "lightgbm>=4.3.0",
+    "optuna>=3.6.1",
+    "hyperopt>=0.2.7",
+    "mlflow>=2.12.1",
+    "shap>=0.45.1",
+    "statsmodels>=0.14.2",
+    "arch>=7.0.0",
     "pyportfolioopt>=1.5.5",
+    "backtrader>=1.9.78.123",
+    "spacy>=3.7.4",
+    "nltk>=3.8.1",
+    "textblob>=0.17.1",
+    "beautifulsoup4>=4.12.3",
+    "praw>=7.7.1",
+    "tweepy>=4.14.0",
+    "newsapi-python>=0.2.7",
+    "python-multipart>=0.0.9",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "sentry-sdk>=2.1.0",
+    "prometheus-client>=0.20.0",
+    "typing-extensions>=4.11.0",
+    "scipy>=1.13.0",
+]
+
+[dependency-groups]
+# API service dependencies (backend/api/*)
+api = [
+    "gunicorn>=21.2.0",
+    "python-multipart>=0.0.9",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "slowapi>=0.1.9",
+    "prometheus-client>=0.20.0",
+    "sentry-sdk>=2.1.0",
+]
+
+# Database dependencies (backend/db/*, backend/data_engine/storage/*)
+db = [
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.12.0",
+    "psycopg2-binary>=2.9.0",
+    "asyncpg>=0.29.0",
+    "redis>=5.0.0",
+    "hiredis>=2.3.0",
+    "sqlalchemy-timescaledb>=0.4.1",
+]
+
+# Data collection dependencies (backend/data_engine/collectors/*)
+data = [
+    # Market data
+    "yfinance>=0.2.40",
+    "alpha-vantage>=2.3.1",
+    
+    # Economic data
+    "fredapi>=0.5.1",
+    
+    # News & Social media
+    "newsapi-python>=0.2.7",
+    "praw>=7.7.1",
+    "tweepy>=4.14.0",
+    
+    # Web scraping
+    "beautifulsoup4>=4.12.3",
+    "curl-cffi>=0.6.0",
+    
+    # Data formats
+    "pyarrow>=15.0.0",
+    "polars>=0.20.0",
+]
+
+# ML/Training dependencies (backend/ml_engine/*)
+ml = [
+    # Deep Learning
+    "torch>=2.2.0",
+    "torchvision>=0.17.0",
+    
+    # Gradient Boosting
+    "xgboost>=2.0.0",
+    "lightgbm>=4.0.0",
+    "catboost>=1.2.0",
+    
+    # ML Core
+    "scikit-learn>=1.4.0",
+    "scipy>=1.12.0",
+    
+    # Optimization & Hyperparameter Tuning
+    "optuna>=3.5.0",
+    "hyperopt>=0.2.7",
+    
+    # Model Explainability (backend/ml_engine/evaluation/shap_explainer.py)
+    "shap>=0.45.0",
+    "lime>=0.2.0.1",
+    
+    # Time Series
+    "statsmodels>=0.14.0",
+    "arch>=6.0.0",
+    
+    # NLP & Transformers (backend/nlp_engine/*)
+    "transformers>=4.38.0",
+    "sentence-transformers>=2.5.0",
+    "tokenizers>=0.15.0",
+    "spacy>=3.7.0",
+    "nltk>=3.8.1",
+    "textblob>=0.17.1",
+    
+    # Hidden Markov Models (backend/quant_engine/regimes/hmm_detector.py)
+    "hmmlearn>=0.3.0",
+    
+    # Reinforcement Learning
+    "stable-baselines3>=2.2.0",
+    "gymnasium>=0.29.0",
+    
+    # Utilities
+    "joblib>=1.3.0",
+    "tqdm>=4.66.0",
+    "numba>=0.59.0",
+    "cloudpickle>=3.0.0",
+]
+
+# Backtesting dependencies (backend/backtesting/*)
+backtest = [
+    "backtrader>=1.9.78",
+    "pyportfolioopt>=1.5.5",
+    "empyrical>=0.5.5",
+    "quantstats>=0.0.62",
+]
+
+# Celery worker dependencies (backend/workers/*)
+celery = [
+    "celery>=5.3.6",
+    "flower>=2.0.1",
+    "kombu>=5.3.0",
+]
+
+# MLflow tracking dependencies
+mlflow = [
+    "mlflow>=2.10.0",
+    "tensorboard>=2.15.0",
+]
+
+# Jupyter notebook dependencies
+jupyter = [
+    "jupyter>=1.0.0",
+    "jupyterlab>=4.1.0",
+    "notebook>=7.1.0",
+    "ipywidgets>=8.1.0",
+    "matplotlib>=3.8.0",
+    "seaborn>=0.13.0",
+    "plotly>=5.18.0",
+]
+
+# Streamlit dashboard dependencies (frontend/streamlit-app/*)
+streamlit = [
+    "streamlit>=1.31.0",
+    "streamlit-aggrid>=0.3.4",
+    "streamlit-extras>=0.3.6",
+    "streamlit-option-menu>=0.3.6",
+    "matplotlib>=3.8.0",
+    "seaborn>=0.13.0",
+    "plotly>=5.18.0",
+    "pillow>=10.2.0",
+    "altair>=5.2.0",
+]
+
+# Development & Testing dependencies
+dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.12.0",
     "pytest-xdist>=3.5.0",
-    "python-dateutil>=2.9.0",
-    "python-dotenv>=1.0.1",
-    "python-jose[cryptography]>=3.3.0",
-    "python-json-logger>=2.0.7",
-    "python-multipart>=0.0.9",
-    "pytz>=2024.1",
-    "redis>=5.0.4",
-    "requests>=2.31.0",
-    "ruff>=0.4.0",
-    "scikit-learn>=1.4.2",
-    "scipy>=1.13.0",
-    "seaborn>=0.13.0",
-    "sentence-transformers>=3.0.0",
-    "sentry-sdk>=2.1.0",
-    "shap>=0.45.1",
-    "sktime>=0.30.0",
-    "slowapi>=0.1.9",
-    "spacy>=3.7.4",
-    "sqlalchemy>=2.0.30",
-    "sqlalchemy-timescaledb>=0.4.1",
-    "stable-baselines3>=2.3.2",
-    "statsmodels>=0.14.2",
-    "streamlit>=1.29.0",
-    "streamlit-aggrid>=0.3.4.post3",
-    "streamlit-extras>=0.3.6",
-    "streamlit-option-menu>=0.3.6",
-    "tenacity>=8.3.0",
-    "tensorboard>=2.17.0",
-    "tensorflow>=2.17.0",
-    "textblob>=0.17.1",
-    "tokenizers>=0.19.0",
-    "tqdm>=4.66.4",
-    "transformers>=4.42.0",
-    "tsfresh>=0.20.2",
-    "tweepy>=4.14.0",
-    "types-python-dateutil>=2.9.0",
+    "black>=24.1.0",
+    "ruff>=0.2.0",
+    "isort>=5.13.0",
+    "mypy>=1.8.0",
+    "pre-commit>=3.6.0",
+    "types-python-dateutil>=2.8.0",
     "types-redis>=4.6.0",
     "types-requests>=2.31.0",
-    "typing-extensions>=4.11.0",
-    "ujson>=5.9.0",
-    "uvicorn[standard]>=0.29.0",
-    "wandb>=0.17.0",
-    "xgboost>=2.0.3",
-    "yfinance>=0.2.40",
 ]
+
+# Documentation
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.5.0",
+]
+
+[tool.uv]
+index-strategy = "unsafe-best-match"
 
 [tool.pytest.ini_options]
 markers = [
@@ -130,3 +246,27 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short --strict-markers"
+asyncio_mode = "auto"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true
