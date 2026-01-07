@@ -1,71 +1,56 @@
-.PHONY: build build-api build-ml build-jupyter build-streamlit up down clean prune logs
+.PHONY: help build up down restart logs clean build-ml test lint format
 
-DOCKER_COMPOSE := docker-compose -f docker/docker-compose.yml
+help:
+	@echo "Lumina Quant Platform - Make Commands"
+	@echo "======================================"
+	@echo "build          - Build all containers"
+	@echo "build-ml       - Build only ML service"
+	@echo "up             - Start all services"
+	@echo "down           - Stop all services"
+	@echo "restart        - Restart all services"
+	@echo "logs           - Show logs"
+	@echo "clean          - Remove all containers and volumes"
+	@echo "test           - Run tests"
+	@echo "lint           - Run linter"
+	@echo "format         - Format code"
 
 build:
-	$(DOCKER_COMPOSE) build --parallel
-
-build-api:
-	docker build -t lumina-api:latest -f docker/Dockerfile.api .
+	cd docker && docker-compose build
 
 build-ml:
-	docker build -t lumina-ml:latest -f docker/Dockerfile.ml .
-
-build-jupyter:
-	docker build -t lumina-jupyter:latest -f docker/Dockerfile.jupyter .
-
-build-streamlit:
-	docker build -t lumina-streamlit:latest -f docker/Dockerfile.streamlit ./frontend/streamlit-app
+	cd docker && docker-compose build ml_service
 
 up:
-	$(DOCKER_COMPOSE) up -d
+	cd docker && docker-compose up -d
 
 down:
-	$(DOCKER_COMPOSE) down
+	cd docker && docker-compose down
 
 restart:
-	$(DOCKER_COMPOSE) restart
+	cd docker && docker-compose restart
 
 logs:
-	$(DOCKER_COMPOSE) logs -f
+	cd docker && docker-compose logs -f
 
-logs-api:
-	$(DOCKER_COMPOSE) logs -f api
-
-logs-worker:
-	$(DOCKER_COMPOSE) logs -f celery_worker
+logs-ml:
+	cd docker && docker-compose logs -f ml_service
 
 clean:
-	$(DOCKER_COMPOSE) down -v
+	cd docker && docker-compose down -v
 	docker system prune -f
 
-prune:
-	docker system prune -af --volumes
-	docker builder prune -af
+test:
+	pytest tests/ -v
 
-size:
-	@echo "Image sizes:"
-	@docker images | grep lumina
+lint:
+	cd backend && ruff check .
 
-ps:
-	$(DOCKER_COMPOSE) ps
+format:
+	cd backend && ruff format .
 
-shell-api:
-	$(DOCKER_COMPOSE) exec api /bin/bash
-
-shell-db:
-	$(DOCKER_COMPOSE) exec timescaledb psql -U lumina_user -d lumina_quant
-
-rebuild: down build up
-
-rebuild-api: down build-api
-	$(DOCKER_COMPOSE) up -d api celery_worker celery_beat flower
-
-rebuild-ml: down build-ml
-	$(DOCKER_COMPOSE) up -d ml_service
-
-health:
-	@echo "Checking services health..."
-	@curl -f http://localhost:8000/health || echo "API: DOWN"
-	@curl -f http://localhost:8501/_stcore/health || echo "Streamlit: DOWN"
-	@curl -f http://localhost:5000/health || echo "MLflow: DOWN"
+# Check GPU availability
+check-gpu:
+	@echo "Checking NVIDIA GPU..."
+	@nvidia-smi || echo "No NVIDIA GPU found"
+	@echo "\nChecking Docker NVIDIA runtime..."
+	@docker run --rm --gpus all nvidia/cuda:13.0.0-base-ubuntu24.04 nvidia-smi || echo "Docker NVIDIA runtime not configured"

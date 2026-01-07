@@ -1,9 +1,20 @@
 # docker/Dockerfile.jupyter
+FROM ghcr.io/astral-sh/uv:latest AS builder
+
+WORKDIR /app
+
+# Copiamos los archivos de configuración del proyecto
+COPY pyproject.toml uv.lock ./
+
+# Instalamos las dependencias con grupos ml y jupyter
+RUN uv sync --frozen --no-cache --no-install-project --group ml --group jupyter
+
+# Segunda etapa con Jupyter
 FROM jupyter/scipy-notebook:python-3.11
 
 USER root
 
-# Install system dependencies including uv
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     git \
@@ -12,36 +23,21 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for root user
-ADD https://astral.sh/uv/install.sh /uv-installer.sh
-RUN sh /uv-installer.sh && rm /uv-installer.sh
-ENV PATH="/root/.local/bin/:$PATH"
+# Copiar uv desde builder
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copiar el entorno virtual desde builder
+COPY --from=builder /app/.venv /app/.venv
+
+# Ajustar permisos
+RUN chown -R $NB_UID:$NB_GID /app/.venv
 
 USER $NB_UID
 
-# Install uv for jovyan user
-ADD https://astral.sh/uv/install.sh /uv-installer.sh
-RUN sh /uv-installer.sh && rm /uv-installer.sh
-ENV PATH="/home/jovyan/.local/bin:$PATH"
-ENV UV_SYSTEM_PYTHON=1
+# Configurar PATH para usar el entorno virtual
+ENV PATH="/app/.venv/bin:$PATH"
 
 WORKDIR /home/jovyan/work
-
-# Copy requirements
-COPY requirements/base.txt requirements/base.txt
-COPY requirements/ml.txt requirements/ml.txt
-
-# Install Python packages using uv
-RUN uv pip install --system -r requirements/base.txt
-RUN uv pip install --system -r requirements/ml.txt
-
-# Install Jupyter extensions
-RUN uv pip install --system \
-    jupyterlab-git \
-    jupyterlab-execute-time \
-    ipywidgets \
-    plotly \
-    kaleido
 
 # Enable extensions
 RUN jupyter labextension enable jupyterlab-git

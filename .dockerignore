@@ -76,5 +76,4 @@ data/
 mlruns/
 
 # Frontend
-frontend/
 node_modules/

@@ -82,9 +82,11 @@ class TestXGBoostModel:
         )
 
         assert model.is_trained
-        assert "train_metrics" in history
-        assert "val_metrics" in history
-        assert history["train_metrics"]["train_mae"] > 0
+        assert "train_mae" in history
+        assert "val_mae" in history
+        assert "best_iteration" in history
+        assert history["train_mae"] > 0
+        assert history["val_mae"] > 0
 
     def test_model_predict(self, model, sample_data):
         """Test model prediction"""

@@ -13,7 +13,7 @@ import pickle
 import numpy as np
 import pandas as pd
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 import mlflow
 
 
@@ -21,49 +21,20 @@ class ModelMetadata(BaseModel):
     """
     Metadata for a trained model
     """
-
-    model_id: str
+    
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        extra="allow"
+    )
+    
     model_name: str
-    model_type: str  # 'lstm', 'transformer', 'xgboost', 'ensemble'
-    version: str
-    ticker: str
-
-    # Training info
-    trained_on: datetime = Field(default_factory=datetime.now)
-    training_samples: int
-    validation_samples: int
-    test_samples: Optional[int] = None
-
-    # Hyperparameters
-    hyperparameters: Dict[str, Any]
-
-    # Features
-    feature_names: List[str]
-    num_features: int
-    sequence_length: Optional[int] = None
-    prediction_horizon: int
-
-    # Performance metrics
-    train_metrics: Dict[str, float]
-    validation_metrics: Dict[str, float]
-    test_metrics: Optional[Dict[str, float]] = None
-
-    # Feature importance (if available)
-    feature_importance: Optional[Dict[str, float]] = None
-
-    # MLflow tracking
-    mlflow_run_id: Optional[str] = None
-    mlflow_experiment_id: Optional[str] = None
-
-    # Status
-    is_active: bool = True
-
-    # Additional meta_data
-    notes: Optional[str] = None
-    tags: Dict[str, str] = Field(default_factory=dict)
-
-    class Config:
-        json_encoders = {datetime: lambda v: v.isoformat()}
+    model_type: str
+    version: str = "1.0.0"
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: Optional[datetime] = None
+    hyperparameters: Dict[str, Any] = Field(default_factory=dict)
+    metrics: Dict[str, Any] = Field(default_factory=dict)
+    feature_names: Optional[list] = None
 
 
 class BaseModel(ABC):
@@ -235,7 +206,7 @@ class BaseModel(ABC):
         if self.meta_data:
             metadata_path = path / f"{self.model_name}_metadata.json"
             with open(metadata_path, "w") as f:
-                json.dump(self.meta_data.dict(), f, indent=2, default=str)
+                json.dump(self.meta_data.model_dump(), f, indent=2, default=str)
 
         # Save training history
         history_path = path / f"{self.model_name}_history.json"

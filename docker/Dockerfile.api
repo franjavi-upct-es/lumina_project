@@ -1,4 +1,17 @@
 # docker/Dockerfile.api
+FROM ghcr.io/astral-sh/uv:latest AS builder
+
+WORKDIR /app
+
+# Copiamos los archivos de configuración del proyecto
+COPY pyproject.toml uv.lock ./
+
+# Instalamos las dependencias
+# --frozen evita que uv intente actualizar el lockfile durante el build
+# --no-install-project instala solo las dependencias, no el código aún
+RUN uv sync --frozen --no-cache --no-install-project
+
+# Segunda etapa para la imagen final
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -12,21 +25,14 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv - fast Python package installer
-ADD https://astral.sh/uv/install.sh /uv-installer.sh
-RUN sh /uv-installer.sh && rm /uv-installer.sh
-ENV PATH="/root/.local/bin/:$PATH"
-ENV UV_SYSTEM_PYTHON=1
+# Copiar uv desde builder
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Verify uv installation
-RUN uv --version
+# Copiar el entorno virtual desde builder
+COPY --from=builder /app/.venv /app/.venv
 
-# Copy requirements
-COPY requirements/base.txt requirements/base.txt
-COPY requirements/production.txt requirements/production.txt
-
-# Install dependencies using uv
-RUN uv pip install --system -r requirements/production.txt
+# Configurar PATH para usar el entorno virtual
+ENV PATH="/app/.venv/bin:$PATH"
 
 # Copy application
 COPY . .
@@ -41,4 +47,4 @@ ENV PYTHONUNBUFFERED=1
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

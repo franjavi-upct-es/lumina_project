@@ -89,3 +89,4 @@ Thumbs.db
 migrations/versions/*.pyc
 backend/celerybeat-schedule
 uv.lock
+.coverage

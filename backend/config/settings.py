@@ -3,8 +3,9 @@
 Configuration settings using Pydantic for type safety and validation
 """
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, PostgresDsn, RedisDsn, validator
+from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
+from pydantic import Field, PostgresDsn, RedisDsn, field_validator
 from typing import List, Optional
 from functools import lru_cache
 from pathlib import Path
@@ -20,8 +21,11 @@ class Settings(BaseSettings):
     Application settings with validation
     """
 
-    model_config = SettingsConfigDict(
-        env_file=str(ENV_FILE), env_file_encoding="utf-8", case_sensitive=True
+    model_config = ConfigDict(
+        extra="ignore",
+        env_file=str(ENV_FILE), 
+        env_file_encoding="utf-8", 
+        case_sensitive=True
     )
 
     # Application
@@ -111,14 +115,16 @@ class Settings(BaseSettings):
     SENTRY_DNS: Optional[str] = None
     PROMETHEUS_PORT: int = 9090
 
-    @validator("ENVIRONMENT")
+    @field_validator("ENVIRONMENT")
+    @classmethod
     def validate_enviroment(cls, v):
         valid_envs = ["development", "staging", "production"]
         if v not in valid_envs:
             raise ValueError(f"ENVIRONMENT must be one of {valid_envs}")
         return v
 
-    @validator("DATABASE_URL")
+    @field_validator("DATABASE_URL")
+    @classmethod
     def validate_database_url(cls, v):
         if not str(v).startswith("postgresql"):
             raise ValueError("DATABASE_URL must be a PostgreSQL connection string")

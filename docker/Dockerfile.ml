@@ -1,23 +1,37 @@
 # docker/Dockerfile.ml
-# ML Service with CUDA 12 support and uv package manager
-FROM nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04
+# ML Service with CUDA 13 support and uv package manager
+FROM ghcr.io/astral-sh/uv:latest AS builder
+
+WORKDIR /app
+
+# Copiamos los archivos de configuración del proyecto
+COPY pyproject.toml uv.lock ./
+
+# Instalamos las dependencias con el grupo ml
+# --frozen evita que uv intente actualizar el lockfile
+RUN uv sync --frozen --no-cache --no-install-project --group ml
+
+# Segunda etapa con CUDA
+FROM nvidia/cuda:13.0.0-base-ubuntu24.04
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DEBIAN_FRONTEND=noninteractive \
     CUDA_HOME=/usr/local/cuda \
-    PATH=/usr/local/cuda/bin:/root/.cargo/bin:$PATH \
+    PATH=/usr/local/cuda/bin:/app/.venv/bin:$PATH \
     LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH \
-    UV_SYSTEM_PYTHON=1
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    python3.11 \
-    python3.11-dev \
+    python3 \
+    python3-dev \
     python3-pip \
+    python3-venv \
     build-essential \
     git \
     wget \
@@ -27,32 +41,14 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Create symlinks for python
-RUN ln -sf /usr/bin/python3.11 /usr/bin/python3 && \
-    ln -sf /usr/bin/python3.11 /usr/bin/python
+# Create symlink for python
+RUN ln -sf /usr/bin/python3 /usr/bin/python
 
-# Install uv - fast Python package installer
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+# Copiar uv desde builder
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Verify uv installation
-RUN uv --version
-
-# Copy requirements files
-COPY requirements/base.txt requirements/base.txt
-COPY requirements/ml.txt requirements/ml.txt
-
-# Install PyTorch with CUDA 12.1 support using uv
-RUN uv pip install --system \
-    torch==2.1.2 \
-    torchvision==0.16.2 \
-    torchaudio==2.1.2 \
-    --index-url https://download.pytorch.org/whl/cu121
-
-# Install base requirements using uv
-RUN uv pip install --system -r requirements/base.txt
-
-# Install ML requirements using uv
-RUN uv pip install --system -r requirements/ml.txt
+# Copiar el entorno virtual desde builder
+COPY --from=builder /app/.venv /app/.venv
 
 # Copy application code
 COPY . .
@@ -71,4 +67,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python3 -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'" || exit 1
 
 # Default command (can be overridden)
-CMD ["python3", "-m", "ml_engine.training.trainer"]
+CMD ["uv", "run", "python", "-m", "backend.ml_engine.training.trainer"]

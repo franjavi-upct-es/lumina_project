@@ -140,15 +140,13 @@ class XGBoostFinancialModel(BaseModel):
         else:
             eval_set = [(X_train_scaled, y_train_np)]
 
-        # Train with early stopping
-        early_stopping_rounds = kwargs.get("early_stopping_rounds", 50)
+        # Train
         verbose = kwargs.get("verbose", 50)
 
         self.model.fit(
             X_train_scaled,
             y_train_np,
             eval_set=eval_set,
-            early_stopping_rounds=early_stopping_rounds,
             verbose=verbose,
         )
 
@@ -191,17 +189,37 @@ class XGBoostFinancialModel(BaseModel):
         if "validation_1" in evals_result:
             self.training_history["val_loss"] = evals_result["validation_1"]["rmse"]
 
-        logger.success("Training complete!")
-        logger.info(f"Train MAE: {train_metrics['train_mae']:.4f}")
-        if val_metrics:
-            logger.info(f"Val MAE: {val_metrics['val_mae']:.4f}")
+        # Calculate final metrics
+        train_predictions = self.model.predict(X_train_scaled)
+        train_mae = float(np.mean(np.abs(y_train_np - train_predictions)))
 
-        return {
-            "evals_result": evals_result,
-            "train_metrics": train_metrics,
-            "val_metrics": val_metrics,
-            "best_iteration": self.model.best_iteration,
+        logger.success("Training complete!")
+        logger.info(f"Train MAE: {train_mae:.4f}")
+
+        # Prepare result
+        history = {
+            "train_mae": train_mae,
         }
+
+        # Only add best_iteration if it exists (when early stopping is used)
+        try:
+            history["best_iteration"] = self.model.best_iteration
+        except AttributeError:
+            # No early stopping, use n_estimators
+            history["best_iteration"] = self.hyperparameters.get("n_estimators", 0)
+
+        # Validation metrics if provided
+        if X_val is not None and y_val is not None:
+            val_predictions = self.model.predict(X_val_scaled)
+            val_mae = float(np.mean(np.abs(y_val_np - val_predictions)))
+            logger.info(f"Val MAE: {val_mae:.4f}")
+            history["val_mae"] = val_mae
+
+        # Save metrics
+        self.metrics = history
+        self.status = "trained"
+
+        return history
 
     def fit_multistep(
         self,
