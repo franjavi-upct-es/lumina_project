@@ -442,7 +442,7 @@ class FeatureEngineer:
 
         # Collect statistical features to avoid fragmentation
         stat_features = {}
-        
+
         # Distance from moving average (normalized)
         for period in [20, 50]:
             ma = df["close"].rolling(period).mean()
@@ -456,9 +456,13 @@ class FeatureEngineer:
         stat_features["rolling_kurt_20"] = df["returns"].rolling(20).kurt()
 
         # Autocorrelation
-        stat_features["autocorr_1"] = df["returns"].rolling(20).apply(lambda x: x.autocorr(lag=1))
-        stat_features["autocorr_5"] = df["returns"].rolling(20).apply(lambda x: x.autocorr(lag=5))
-        
+        stat_features["autocorr_1"] = (
+            df["returns"].rolling(20).apply(lambda x: x.autocorr(lag=1))
+        )
+        stat_features["autocorr_5"] = (
+            df["returns"].rolling(20).apply(lambda x: x.autocorr(lag=5))
+        )
+
         # Add all statistical features at once
         df = pd.concat([df, pd.DataFrame(stat_features, index=df.index)], axis=1)
 
@@ -495,14 +499,14 @@ class FeatureEngineer:
 
         # Lag important features
         features_to_lag = ["returns", "volume_change", "rsi_14", "macd"]
-        
+
         # Collect all lagged features in a dictionary to avoid DataFrame fragmentation
         lagged_features = {}
         for feature in features_to_lag:
             if feature in df.columns:
                 for lag in lags:
                     lagged_features[f"{feature}_lag_{lag}"] = df[feature].shift(lag)
-        
+
         # Concatenate all at once
         if lagged_features:
             df = pd.concat([df, pd.DataFrame(lagged_features, index=df.index)], axis=1)
@@ -514,7 +518,7 @@ class FeatureEngineer:
         logger.debug("Adding rolling features...")
 
         windows = [5, 10, 20, 50]
-        
+
         # Collect all rolling features in a dictionary to avoid DataFrame fragmentation
         rolling_features = {}
 
@@ -522,7 +526,7 @@ class FeatureEngineer:
             # Rolling max/min
             high_max = df["high"].rolling(window).max()
             low_min = df["low"].rolling(window).min()
-            
+
             rolling_features[f"high_max_{window}"] = high_max
             rolling_features[f"low_min_{window}"] = low_min
 
@@ -535,17 +539,29 @@ class FeatureEngineer:
             ) / low_min
 
             # Rolling return stats
-            rolling_features[f"rolling_return_mean_{window}"] = df["returns"].rolling(window).mean()
-            rolling_features[f"rolling_return_std_{window}"] = df["returns"].rolling(window).std()
+            rolling_features[f"rolling_return_mean_{window}"] = (
+                df["returns"].rolling(window).mean()
+            )
+            rolling_features[f"rolling_return_std_{window}"] = (
+                df["returns"].rolling(window).std()
+            )
 
             # Rolling volume stats
-            rolling_features[f"rolling_volume_mean_{window}"] = df["volume"].rolling(window).mean()
-            rolling_features[f"rolling_volume_std_{window}"] = df["volume"].rolling(window).std()
+            rolling_features[f"rolling_volume_mean_{window}"] = (
+                df["volume"].rolling(window).mean()
+            )
+            rolling_features[f"rolling_volume_std_{window}"] = (
+                df["volume"].rolling(window).std()
+            )
 
             # Rolling price stats
-            rolling_features[f"rolling_close_mean_{window}"] = df["close"].rolling(window).mean()
-            rolling_features[f"rolling_close_std_{window}"] = df["close"].rolling(window).std()
-        
+            rolling_features[f"rolling_close_mean_{window}"] = (
+                df["close"].rolling(window).mean()
+            )
+            rolling_features[f"rolling_close_std_{window}"] = (
+                df["close"].rolling(window).std()
+            )
+
         # Concatenate all at once
         df = pd.concat([df, pd.DataFrame(rolling_features, index=df.index)], axis=1)
 

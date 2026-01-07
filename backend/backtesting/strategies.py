@@ -112,22 +112,22 @@ class RSIStrategy(BaseStrategy):
         return f"""
 def strategy(data, features):
     # RSI Strategy
-    # Buy when RSI < {self.params['oversold']}, Sell when RSI > {self.params['overbought']}
+    # Buy when RSI < {self.params["oversold"]}, Sell when RSI > {self.params["overbought"]}
 
     signals = []
-    rsi_col = 'rsi_{self.params['rsi_period']}'
+    rsi_col = 'rsi_{self.params["rsi_period"]}'
 
     for i in range(len(data)):
-        if i < {self.params['rsi_period']}:
+        if i < {self.params["rsi_period"]}:
             signals.append('HOLD')
         else:
             rsi = features[rsi_col].iloc[i] if rsi_col in features.columns else None
 
             if rsi is None or pd.isna(rsi):
                 signals.append('HOLD')
-            elif rsi < {self.params['oversold']}:
+            elif rsi < {self.params["oversold"]}:
                 signals.append('BUY')
-            elif rsi > {self.params['overbought']}:
+            elif rsi > {self.params["overbought"]}:
                 signals.append('SELL')
             else:
                 signals.append('HOLD')

@@ -21,12 +21,9 @@ class ModelMetadata(BaseModel):
     """
     Metadata for a trained model
     """
-    
-    model_config = ConfigDict(
-        arbitrary_types_allowed=True,
-        extra="allow"
-    )
-    
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
+
     model_name: str
     model_type: str
     version: str = "1.0.0"
