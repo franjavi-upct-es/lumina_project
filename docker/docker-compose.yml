@@ -14,9 +14,9 @@ services:
       - timescale_data:/var/lib/postgresql/data
       - ../backend/db/timescale_setup.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
-      - "5432:5432"
+      - "5435:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lumina -d lumina_db"]
+      test: ["CMD-SHELL", "pg_isready -U lumina -d lumina_db -p 5432"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -108,7 +108,18 @@ services:
       dockerfile: docker/Dockerfile.api
     container_name: lumina-celery-worker
     restart: unless-stopped
-    command: ["python", "-m", "celery", "-A", "backend.workers.celery_app", "worker", "--loglevel=info", "-Q", "data_queue,backtest_queue"]
+    command:
+      [
+        "python",
+        "-m",
+        "celery",
+        "-A",
+        "backend.workers.celery_app",
+        "worker",
+        "--loglevel=info",
+        "-Q",
+        "data_queue,backtest_queue",
+      ]
     environment:
       DATABASE_URL: postgresql://lumina:lumina_password@timescaledb:5432/lumina_db
       REDIS_URL: redis://redis:6379/0
@@ -130,7 +141,16 @@ services:
       dockerfile: docker/Dockerfile.api
     container_name: lumina-celery-beat
     restart: unless-stopped
-    command: ["python", "-m", "celery", "-A", "backend.workers.celery_app", "beat", "--loglevel=info"]
+    command:
+      [
+        "python",
+        "-m",
+        "celery",
+        "-A",
+        "backend.workers.celery_app",
+        "beat",
+        "--loglevel=info",
+      ]
     environment:
       DATABASE_URL: postgresql://lumina:lumina_password@timescaledb:5432/lumina_db
       REDIS_URL: redis://redis:6379/0

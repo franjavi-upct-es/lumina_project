@@ -102,7 +102,7 @@ main() {
     if [ ! -f $PROJECT_ROOT/backend/.env ]; then
         print_info "Creating .env file..."
 
-        cat > $PROJECT_ROOT/backend/.env <<'EOF'
+        cat >$PROJECT_ROOT/backend/.env <<'EOF'
 # Environment
 ENVIRONMENT=development
 DEBUG=True
@@ -292,7 +292,7 @@ EOF
     echo -e "${GREEN}✅ Lumina Quant Lab v2 is ready!${NC}"
     echo ""
     echo -e "${BLUE}📊 Available Services:${NC}"
-    echo "  • TimescaleDB:  Running on port 5432"
+    echo "  • TimescaleDB:  Running on port 5435"
     echo "  • Redis:        Running on port 6379"
 
     if docker-compose -f docker/docker-compose.yml ps api 2>/dev/null | grep -q "Up"; then

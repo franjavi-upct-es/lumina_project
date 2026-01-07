@@ -5,7 +5,7 @@ WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    MLFLOW_BACKEND_STORE_URI=postgresql://lumina:lumina_password@timescaledb:5432/lumina_mlflow \
+    MLFLOW_BACKEND_STORE_URI=postgresql://lumina:lumina_password@timescaledb:5435/lumina_mlflow \
     MLFLOW_DEFAULT_ARTIFACT_ROOT=/app/mlartifacts
 
 # Install system dependencies
@@ -29,8 +29,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl --fail http://localhost:5000/health || exit 1
 
 CMD ["mlflow", "server", \
-     "--host", "0.0.0.0", \
-     "--port", "5000", \
-     "--backend-store-uri", "postgresql://lumina:lumina_password@timescaledb:5432/lumina_mlflow", \
-     "--default-artifact-root", "/app/mlartifacts", \
-     "--serve-artifacts"]
+    "--host", "0.0.0.0", \
+    "--port", "5000", \
+    "--backend-store-uri", "postgresql://lumina:lumina_password@timescaledb:5435/lumina_mlflow", \
+    "--default-artifact-root", "/app/mlartifacts", \
+    "--serve-artifacts"]
