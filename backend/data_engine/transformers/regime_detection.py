@@ -221,9 +221,7 @@ class RegimeDetector:
 
         # Add probabilities
         for i in range(self.n_regimes):
-            result = result.with_columns(
-                pl.Series(f"regime_{i}_prob", probabilities[:, i])
-            )
+            result = result.with_columns(pl.Series(f"regime_{i}_prob", probabilities[:, i]))
 
         logger.success("Regime prediction complete")
         return result
@@ -448,9 +446,7 @@ class RuleBasedRegimeDetector:
             result = data.clone()
 
         # Calculate rolling volatility
-        result = result.with_columns(
-            pl.col("returns").rolling_std(window).alias("volatility")
-        )
+        result = result.with_columns(pl.col("returns").rolling_std(window).alias("volatility"))
 
         # Classify regime
         vol_regime = []

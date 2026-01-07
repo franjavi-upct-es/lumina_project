@@ -135,9 +135,7 @@ async def train_model(request: TrainModelRequest, background_tasks: BackgroundTa
     try:
         job_id = str(uuid4())
 
-        logger.info(
-            f"Received training request for {request.ticker} ({request.model_type})"
-        )
+        logger.info(f"Received training request for {request.ticker} ({request.model_type})")
 
         if request.async_training:
             # Async training with Celery
@@ -229,9 +227,7 @@ async def predict_prices(request: PredictRequest):
         logger.info(f"Prediction request for {request.ticker}")
 
         # Load or get active model
-        model_id = request.model_id or _get_active_model(
-            request.ticker, request.model_type
-        )
+        model_id = request.model_id or _get_active_model(request.ticker, request.model_type)
 
         if not model_id:
             raise HTTPException(
@@ -263,9 +259,7 @@ async def predict_prices(request: PredictRequest):
         features = enriched_data.select(feature_columns).to_numpy()
 
         # Take last sequence_length points
-        sequence_length = (
-            model.sequence_length if hasattr(model, "sequence_length") else 60
-        )
+        sequence_length = model.sequence_length if hasattr(model, "sequence_length") else 60
         input_sequence = torch.FloatTensor(features[-sequence_length:])
 
         # Predict
@@ -281,9 +275,7 @@ async def predict_prices(request: PredictRequest):
                 "day": i + 1,
                 "predicted_price": float(pred_price),
                 "change": float(pred_price - current_price),
-                "change_percent": float(
-                    (pred_price - current_price) / current_price * 100
-                ),
+                "change_percent": float((pred_price - current_price) / current_price * 100),
             }
 
             if request.include_uncertainty:
@@ -563,9 +555,7 @@ async def _train_model_sync(job_id: str, request: TrainModelRequest):
         val_size = len(dataset) - train_size
         train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
-        train_loader = DataLoader(
-            train_dataset, batch_size=request.batch_size, shuffle=True
-        )
+        train_loader = DataLoader(train_dataset, batch_size=request.batch_size, shuffle=True)
         val_loader = DataLoader(val_dataset, batch_size=request.batch_size)
 
         # Train model

@@ -39,15 +39,11 @@ class BacktestRequest(BaseModel):
     max_positions: int = Field(10, ge=1, le=50)
 
     # Transaction costs
-    commission: float = Field(
-        0.001, ge=0.0, le=0.1, description="Commission rate (0.001 = 0.1%)"
-    )
+    commission: float = Field(0.001, ge=0.0, le=0.1, description="Commission rate (0.001 = 0.1%)")
     slippage: float = Field(0.0005, ge=0.0, le=0.05, description="Slippage rate")
 
     # Risk management
-    stop_loss: Optional[float] = Field(
-        None, ge=0.01, le=0.5, description="Stop loss percentage"
-    )
+    stop_loss: Optional[float] = Field(None, ge=0.01, le=0.5, description="Stop loss percentage")
     take_profit: Optional[float] = Field(
         None, ge=0.01, le=2.0, description="Take profit percentage"
     )
@@ -94,9 +90,7 @@ class OptimizationRequest(BaseModel):
     end_date: datetime
 
     # Parameters to optimize
-    param_grid: Dict[str, List[Any]] = Field(
-        ..., description="Grid of parameters to test"
-    )
+    param_grid: Dict[str, List[Any]] = Field(..., description="Grid of parameters to test")
 
     # Optimization metric
     optimization_metric: str = Field(
@@ -314,16 +308,12 @@ async def get_backtest_results(
             calmar_ratio=backtest.calmar_ratio,
             max_drawdown=backtest.max_drawdown,
             total_trades=backtest.num_trades,
-            winning_trades=int(backtest.num_trades * backtest.win_rate)
-            if backtest.win_rate
-            else 0,
+            winning_trades=int(backtest.num_trades * backtest.win_rate) if backtest.win_rate else 0,
             losing_trades=int(backtest.num_trades * (1 - backtest.win_rate))
             if backtest.win_rate
             else 0,
             win_rate=backtest.win_rate or 0.0,
-            avg_win=backtest.avg_trade
-            if backtest.avg_trade and backtest.avg_trade > 0
-            else 0.0,
+            avg_win=backtest.avg_trade if backtest.avg_trade and backtest.avg_trade > 0 else 0.0,
             avg_loss=abs(backtest.avg_trade)
             if backtest.avg_trade and backtest.avg_trade < 0
             else 0.0,
@@ -402,18 +392,14 @@ async def list_backtests(
 
         # Apply filters
         if strategy_name:
-            query = query.where(
-                BacktestResult.strategy_name.ilike(f"%{strategy_name}%")
-            )
+            query = query.where(BacktestResult.strategy_name.ilike(f"%{strategy_name}%"))
         if ticker:
             query = query.where(BacktestResult.tickers.contains([ticker]))
         if min_sharpe is not None:
             query = query.where(BacktestResult.sharpe_ratio >= min_sharpe)
 
         # Apply pagination and ordering
-        query = (
-            query.offset(offset).limit(limit).order_by(BacktestResult.created_at.desc())
-        )
+        query = query.offset(offset).limit(limit).order_by(BacktestResult.created_at.desc())
 
         result = await db.execute(query)
         backtests = result.scalars().all()
@@ -638,16 +624,12 @@ async def compare_strategies(
         from db.models import BacktestResult
 
         # Fetch all backtests
-        query = select(BacktestResult).where(
-            BacktestResult.backtest_id.in_(backtest_ids)
-        )
+        query = select(BacktestResult).where(BacktestResult.backtest_id.in_(backtest_ids))
         result = await db.execute(query)
         backtests = result.scalars().all()
 
         if len(backtests) != len(backtest_ids):
-            raise HTTPException(
-                status_code=404, detail="One or more backtests not found"
-            )
+            raise HTTPException(status_code=404, detail="One or more backtests not found")
 
         # Build comparison
         comparison = {
@@ -684,11 +666,7 @@ async def compare_strategies(
 
         # Find best by each metric
         for metric in metrics:
-            values = [
-                b.__dict__[metric]
-                for b in backtests
-                if b.__dict__.get(metric) is not None
-            ]
+            values = [b.__dict__[metric] for b in backtests if b.__dict__.get(metric) is not None]
             if values:
                 if metric == "max_drawdown":
                     best_idx = values.index(min(values))  # Lower is better
@@ -881,9 +859,7 @@ async def get_drawdown_analysis(
             else 0.0
         )
         max_dd_duration = (
-            max([p["duration_days"] for p in drawdown_periods])
-            if drawdown_periods
-            else 0
+            max([p["duration_days"] for p in drawdown_periods]) if drawdown_periods else 0
         )
 
         return {

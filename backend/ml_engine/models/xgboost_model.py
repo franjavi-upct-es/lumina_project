@@ -254,9 +254,7 @@ class XGBoostFinancialModel(BaseModel):
             y_train = y_train.reshape(-1, 1)
 
         num_horizons = y_train.shape[1]
-        logger.info(
-            f"Training {num_horizons} models for {num_horizons}-step prediction"
-        )
+        logger.info(f"Training {num_horizons} models for {num_horizons}-step prediction")
 
         results = {}
 
@@ -412,8 +410,7 @@ class XGBoostFinancialModel(BaseModel):
 
         # Create dictionary
         feature_importance = {
-            name: float(score)
-            for name, score in zip(self.feature_names, importance_scores)
+            name: float(score) for name, score in zip(self.feature_names, importance_scores)
         }
 
         # Sort by importance

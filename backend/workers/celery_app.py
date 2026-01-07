@@ -64,9 +64,7 @@ celery_app.conf.update(
         # Update market data daily after market close
         "update-market-data": {
             "task": "workers.data_tasks.update_all_tickers",
-            "schedule": crontab(
-                hour=21, minute=30
-            ),  # 9:30 PM UTC (after US market close)
+            "schedule": crontab(hour=21, minute=30),  # 9:30 PM UTC (after US market close)
         },
         # Update features daily
         "update-feature": {

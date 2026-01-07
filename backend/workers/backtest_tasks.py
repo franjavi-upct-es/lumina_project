@@ -30,9 +30,7 @@ def run_backtest_task(
         logger.info(f"Starting backtest job {job_id}: {strategy_name}")
 
         # Update progress
-        self.update_state(
-            state="PROGRESS", meta={"step": "data_collection", "progress": 10}
-        )
+        self.update_state(state="PROGRESS", meta={"step": "data_collection", "progress": 10})
 
         # Collect data
         import asyncio
@@ -62,9 +60,7 @@ def run_backtest_task(
         if not all_data:
             raise ValueError("No data collected")
 
-        self.update_state(
-            state="PROGRESS", meta={"step": "strategy_execution", "progress": 40}
-        )
+        self.update_state(state="PROGRESS", meta={"step": "strategy_execution", "progress": 40})
 
         # Compile strategy
         namespace = {}
@@ -124,9 +120,7 @@ def run_backtest_task(
                     net_proceeds = proceeds - commission - slippage
 
                     pnl = net_proceeds - (position["shares"] * position["entry_price"])
-                    pnl_percent = (
-                        pnl / (position["shares"] * position["entry_price"]) * 100
-                    )
+                    pnl_percent = pnl / (position["shares"] * position["entry_price"]) * 100
 
                     equity += net_proceeds
 
@@ -150,14 +144,9 @@ def run_backtest_task(
 
                 # Check stop loss / take profit
                 for tick, pos in list(positions.items()):
-                    current_return = (current_price - pos["entry_price"]) / pos[
-                        "entry_price"
-                    ]
+                    current_return = (current_price - pos["entry_price"]) / pos["entry_price"]
 
-                    if (
-                        config.get("stop_loss")
-                        and current_return <= -config["stop_loss"]
-                    ):
+                    if config.get("stop_loss") and current_return <= -config["stop_loss"]:
                         # Stop loss triggered
                         proceeds = pos["shares"] * current_price
                         commission = proceeds * config["commission"]
@@ -177,10 +166,7 @@ def run_backtest_task(
                                 "exit_price": current_price,
                                 "quantity": pos["shares"],
                                 "pnl": pnl,
-                                "pnl_percent": (
-                                    pnl / (pos["shares"] * pos["entry_price"])
-                                )
-                                * 100,
+                                "pnl_percent": (pnl / (pos["shares"] * pos["entry_price"])) * 100,
                                 "commission": commission,
                                 "slippage": slippage,
                                 "exit_reason": "stop_loss",
@@ -189,10 +175,7 @@ def run_backtest_task(
 
                         del positions[tick]
 
-                    elif (
-                        config.get("take_profit")
-                        and current_return >= config["take_profit"]
-                    ):
+                    elif config.get("take_profit") and current_return >= config["take_profit"]:
                         # Take profit triggered
                         proceeds = pos["shares"] * current_price
                         commission = proceeds * config["commission"]
@@ -212,10 +195,7 @@ def run_backtest_task(
                                 "exit_price": current_price,
                                 "quantity": pos["shares"],
                                 "pnl": pnl,
-                                "pnl_percent": (
-                                    pnl / (pos["shares"] * pos["entry_price"])
-                                )
-                                * 100,
+                                "pnl_percent": (pnl / (pos["shares"] * pos["entry_price"])) * 100,
                                 "commission": commission,
                                 "slippage": slippage,
                                 "exit_reason": "take_profit",
@@ -232,15 +212,11 @@ def run_backtest_task(
                     }
                 )
 
-        self.update_state(
-            state="PROGRESS", meta={"step": "metrics_calculation", "progress": 80}
-        )
+        self.update_state(state="PROGRESS", meta={"step": "metrics_calculation", "progress": 80})
 
         # Calculate metrics
         final_capital = equity
-        total_return = (final_capital - config["initial_capital"]) / config[
-            "initial_capital"
-        ]
+        total_return = (final_capital - config["initial_capital"]) / config["initial_capital"]
 
         # Time-based metrics
         days = (
@@ -248,9 +224,7 @@ def run_backtest_task(
             - datetime.fromisoformat(config["start_date"])
         ).days
         years = days / 365.25
-        annualized_return = (
-            (1 + total_return) ** (1 / years) - 1 if years > 0 else total_return
-        )
+        annualized_return = (1 + total_return) ** (1 / years) - 1 if years > 0 else total_return
 
         # Risk metrics
         equity_values = [point["equity"] for point in equity_curve]
@@ -263,11 +237,7 @@ def run_backtest_task(
 
         # Sortino ratio (downside deviation)
         downside_returns = returns[returns < 0]
-        downside_std = (
-            np.std(downside_returns) * np.sqrt(252)
-            if len(downside_returns) > 0
-            else 0.0
-        )
+        downside_std = np.std(downside_returns) * np.sqrt(252) if len(downside_returns) > 0 else 0.0
         sortino_ratio = (mean_return * 252) / downside_std if downside_std > 0 else 0.0
 
         # Drawdown
@@ -286,14 +256,10 @@ def run_backtest_task(
         win_rate = len(winning_trades) / num_trades if num_trades > 0 else 0.0
 
         avg_win = np.mean([t["pnl"] for t in winning_trades]) if winning_trades else 0.0
-        avg_loss = (
-            np.mean([abs(t["pnl"]) for t in losing_trades]) if losing_trades else 0.0
-        )
+        avg_loss = np.mean([abs(t["pnl"]) for t in losing_trades]) if losing_trades else 0.0
 
         total_wins = sum([t["pnl"] for t in winning_trades]) if winning_trades else 0.0
-        total_losses = (
-            abs(sum([t["pnl"] for t in losing_trades])) if losing_trades else 0.0
-        )
+        total_losses = abs(sum([t["pnl"] for t in losing_trades])) if losing_trades else 0.0
         profit_factor = total_wins / total_losses if total_losses > 0 else 0.0
 
         # Monthly returns
@@ -376,10 +342,7 @@ def walk_forward_optimization_task(
         current_start = start_dt
         window_num = 0
 
-        while (
-            current_start + timedelta(days=train_period_days + test_period_days)
-            <= end_dt
-        ):
+        while current_start + timedelta(days=train_period_days + test_period_days) <= end_dt:
             window_num += 1
 
             train_start = current_start
@@ -473,9 +436,7 @@ def walk_forward_optimization_task(
                 "avg_return": avg_return,
                 "avg_sharpe": avg_sharpe,
                 "avg_drawdown": avg_drawdown,
-                "consistency": np.std(
-                    [r["test_metrics"]["total_return"] for r in results]
-                ),
+                "consistency": np.std([r["test_metrics"]["total_return"] for r in results]),
             },
             "windows": results,
             "completed_at": datetime.now().isoformat(),

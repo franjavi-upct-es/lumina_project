@@ -143,9 +143,37 @@ EOF
     # Step 4: Create Python virtual environment
     print_header "Step 4: Setting Up Python Environment"
 
+    # Ask user for package manager preference
+    echo ""
+    echo -e "${BLUE}Choose package manager:${NC}"
+    echo "  1) pip (traditional)"
+    echo "  2) uv (fast, modern)"
+    echo ""
+    read -p "Select option (1 or 2, default: 1): " -n 1 -r PKG_MANAGER
+    echo ""
+
+    if [[ $PKG_MANAGER == "2" ]]; then
+        if ! check_command "uv"; then
+            print_warning "uv is not installed. Installing uv..."
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            export PATH="$HOME/.cargo/bin:$PATH"
+            
+            if ! check_command "uv"; then
+                print_error "Failed to install uv. Falling back to pip."
+                PKG_MANAGER="1"
+            else
+                print_success "uv installed successfully"
+            fi
+        fi
+    fi
+
     if [ ! -d ".venv" ]; then
         print_info "Creating virtual environment..."
-        python3 -m venv .venv
+        if [[ $PKG_MANAGER == "2" ]]; then
+            uv venv .venv
+        else
+            python3 -m venv .venv
+        fi
         print_success "Virtual environment created"
     else
         print_info "Virtual environment already exists"
@@ -153,19 +181,40 @@ EOF
 
     print_info "Activating virtual environment..."
     source .venv/bin/activate
+    
+    # Add project to PYTHONPATH
+    export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
 
-    print_info "Upgrading pip..."
-    pip install --upgrade pip setuptools wheel --quiet
+    if [[ $PKG_MANAGER == "2" ]]; then
+        print_info "Installing dependencies with uv..."
+        
+        if [ -f "pyproject.toml" ]; then
+            print_info "Installing from pyproject.toml..."
+            uv sync --all-groups
+            print_success "Dependencies installed"
+        elif [ -f "requirements/base.txt" ]; then
+            uv pip install -r requirements/base.txt
+            print_success "Base dependencies installed"
+            
+            if [ -f "requirements/dev.txt" ]; then
+                uv pip install -r requirements/dev.txt
+                print_success "Dev dependencies installed"
+            fi
+        fi
+    else
+        print_info "Upgrading pip..."
+        pip install --upgrade pip setuptools wheel --quiet
 
-    print_info "Installing dependencies..."
-    if [ -f "requirements/base.txt" ]; then
-        pip install -r requirements/base.txt --quiet
-        print_success "Base dependencies installed"
-    fi
+        print_info "Installing dependencies with pip..."
+        if [ -f "requirements/base.txt" ]; then
+            pip install -r requirements/base.txt --quiet
+            print_success "Base dependencies installed"
+        fi
 
-    if [ -f "requirements/dev.txt" ]; then
-        pip install -r requirements/dev.txt --quiet
-        print_success "Dev dependencies installed"
+        if [ -f "requirements/dev.txt" ]; then
+            pip install -r requirements/dev.txt --quiet
+            print_success "Dev dependencies installed"
+        fi
     fi
 
     # Step 5: Start Docker services
@@ -197,7 +246,7 @@ EOF
 
     print_info "Waiting for TimescaleDB to be ready..."
     for i in {1..30}; do
-        if docker exec lumina_timescaledb pg_isready -U lumina >/dev/null 2>&1; then
+        if docker exec lumina-timescaledb pg_isready -U lumina >/dev/null 2>&1; then
             print_success "TimescaleDB is ready"
             break
         fi
@@ -209,7 +258,7 @@ EOF
     done
 
     print_info "Running database initialization script..."
-    if docker exec -i lumina_timescaledb psql -U lumina -d lumina_quant <"$PROJECT_ROOT/backend/db/timescale_setup.sql" >/dev/null 2>&1; then
+    if docker exec -i lumina-timescaledb psql -U lumina -d lumina_db <"$PROJECT_ROOT/backend/db/timescale_setup.sql" >/dev/null 2>&1; then
         print_success "Database initialized"
     else
         print_warning "Database initialization had warnings (this may be normal if tables exist)"
@@ -221,21 +270,21 @@ EOF
     print_header "Step 7: Verifying Installation"
 
     print_info "Testing database connection..."
-    if docker exec lumina_timescaledb psql -U lumina -d lumina_quant -c "SELECT version();" >/dev/null 2>&1; then
+    if docker exec lumina-timescaledb psql -U lumina -d lumina_db -c "SELECT version();" >/dev/null 2>&1; then
         print_success "Database connection: OK"
     else
         print_error "Database connection: FAILED"
     fi
 
     print_info "Testing Redis connection..."
-    if docker exec lumina_redis redis-cli -a lumina_redis_2024 ping >/dev/null 2>&1; then
+    if docker exec lumina-redis redis-cli ping >/dev/null 2>&1; then
         print_success "Redis connection: OK"
     else
         print_error "Redis connection: FAILED"
     fi
 
     print_info "Testing Python imports..."
-    if python3 -c "from data_engine.collectors.yfinance_collector import YFinanceCollector" 2>/dev/null; then
+    if python3 -c "from backend.data_engine.collectors.yfinance_collector import YFinanceCollector" 2>/dev/null; then
         print_success "Python imports: OK"
     else
         print_error "Python imports: FAILED"

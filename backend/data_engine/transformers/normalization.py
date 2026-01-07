@@ -398,9 +398,7 @@ class TimeSeriesNormalizer:
                 expanding_min = data_pd[col].expanding(min_periods=min_periods).min()
                 expanding_max = data_pd[col].expanding(min_periods=min_periods).max()
 
-                normalized = (data_pd[col] - expanding_min) / (
-                    expanding_max - expanding_min
-                )
+                normalized = (data_pd[col] - expanding_min) / (expanding_max - expanding_min)
                 data_pd[f"{col}_norm"] = normalized
 
         # Convert back to polars
@@ -485,9 +483,7 @@ class TimeSeriesNormalizer:
                 continue
 
             # Calculate percentage change
-            pct_change = (data[col] - data[col].shift(periods)) / data[col].shift(
-                periods
-            )
+            pct_change = (data[col] - data[col].shift(periods)) / data[col].shift(periods)
             result = result.with_columns(pct_change.alias(f"{col}_pct_change"))
 
         logger.success("Percentage change calculation complete")
@@ -561,7 +557,5 @@ def create_rolling_features(
                 data[col].rolling_max(window).alias(f"{col}_rolling_max_{window}")
             )
 
-    logger.success(
-        f"Created {(len(result.columns) - len(data.columns))} rolling features"
-    )
+    logger.success(f"Created {(len(result.columns) - len(data.columns))} rolling features")
     return result

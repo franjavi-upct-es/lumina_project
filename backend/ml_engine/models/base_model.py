@@ -275,9 +275,7 @@ class BaseModel(ABC):
         """
         pass
 
-    def save_to_mlflow(
-        self, experiment_name: str, run_name: Optional[str] = None
-    ) -> str:
+    def save_to_mlflow(self, experiment_name: str, run_name: Optional[str] = None) -> str:
         """
         Save model to MLflow
 
@@ -301,10 +299,7 @@ class BaseModel(ABC):
                 mlflow.log_metrics(self.meta_data.train_metrics)
                 if self.meta_data.validation_metrics:
                     mlflow.log_metrics(
-                        {
-                            f"val_{k}": v
-                            for k, v in self.meta_data.validation_metrics.items()
-                        }
+                        {f"val_{k}": v for k, v in self.meta_data.validation_metrics.items()}
                     )
 
             # Log model
@@ -316,9 +311,7 @@ class BaseModel(ABC):
             # Update meta_data
             if self.meta_data:
                 self.meta_data.mlflow_run_id = run_id
-                self.meta_data.mlflow_experiment_id = (
-                    mlflow.active_run().info.experiment_id
-                )
+                self.meta_data.mlflow_experiment_id = mlflow.active_run().info.experiment_id
 
             logger.info(f"Model saved to MLflow with run_id: {run_id}")
             return run_id
@@ -417,9 +410,7 @@ class EnsembleModel(BaseModel):
     Base class for ensemble models that combine multiple models
     """
 
-    def __init__(
-        self, model_name: str, base_models: Optional[List[BaseModel]] = None, **kwargs
-    ):
+    def __init__(self, model_name: str, base_models: Optional[List[BaseModel]] = None, **kwargs):
         """
         Initialize ensemble model
 

@@ -22,9 +22,7 @@ settings = get_settings()
 
 
 @shared_task(bind=True, name="workers.ml_tasks.train_model_task")
-def train_model_task(
-    self, job_id: str, ticker: str, model_type: str, hyperparams: Dict[str, Any]
-):
+def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparams: Dict[str, Any]):
     """
     Train a machine learning model asynchronously
 
@@ -38,9 +36,7 @@ def train_model_task(
         logger.info(f"Starting training job {job_id} for {ticker} ({model_type})")
 
         # Update task state
-        self.update_state(
-            state="PROGRESS", meta={"step": "data_collection", "progress": 0}
-        )
+        self.update_state(state="PROGRESS", meta={"step": "data_collection", "progress": 0})
 
         # 1. Collect data
         import asyncio
@@ -57,9 +53,7 @@ def train_model_task(
         # Run async collection in sync context
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        data = loop.run_until_complete(
-            collector.collect_with_retry(ticker, start_date, end_date)
-        )
+        data = loop.run_until_complete(collector.collect_with_retry(ticker, start_date, end_date))
         loop.close()
 
         if data is None or data.height == 0:
@@ -68,9 +62,7 @@ def train_model_task(
         logger.info(f"Collected {data.height} data points for {ticker}")
 
         # Update progress
-        self.update_state(
-            state="PROGRESS", meta={"step": "feature_engineering", "progress": 20}
-        )
+        self.update_state(state="PROGRESS", meta={"step": "feature_engineering", "progress": 20})
 
         # 2. Engineer features
         fe = FeatureEngineer()
@@ -83,9 +75,7 @@ def train_model_task(
         logger.info(f"Engineered {len(feature_columns)} features")
 
         # Update progress
-        self.update_state(
-            state="PROGRESS", meta={"step": "dataset_preparation", "progress": 40}
-        )
+        self.update_state(state="PROGRESS", meta={"step": "dataset_preparation", "progress": 40})
 
         # 3. Prepare dataset
         sequence_length = hyperparams.get("sequence_length", 60)
@@ -108,14 +98,10 @@ def train_model_task(
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         val_loader = DataLoader(val_dataset, batch_size=batch_size)
 
-        logger.info(
-            f"Dataset prepared: {train_size} train, {val_size} validation samples"
-        )
+        logger.info(f"Dataset prepared: {train_size} train, {val_size} validation samples")
 
         # Update progress
-        self.update_state(
-            state="PROGRESS", meta={"step": "model_initialization", "progress": 50}
-        )
+        self.update_state(state="PROGRESS", meta={"step": "model_initialization", "progress": 50})
 
         # 4. Initialize model
         if model_type == "lstm":
@@ -173,9 +159,7 @@ def train_model_task(
             )
 
             # Save model
-            model_path = (
-                f"{settings.MODEL_STORAGE_PATH}/{ticker}_{model_type}_{job_id}.pt"
-            )
+            model_path = f"{settings.MODEL_STORAGE_PATH}/{ticker}_{model_type}_{job_id}.pt"
             trainer.save_checkpoint(model_path)
             mlflow.log_artifact(model_path)
 
@@ -266,9 +250,7 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
         # 4. Prepare input sequence
         sequence_length = 60
         if len(features) < sequence_length:
-            raise ValueError(
-                f"Not enough data points. Need {sequence_length}, got {len(features)}"
-            )
+            raise ValueError(f"Not enough data points. Need {sequence_length}, got {len(features)}")
 
         input_sequence = torch.FloatTensor(features[-sequence_length:])
 
@@ -287,8 +269,7 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
                     "date": (datetime.now() + timedelta(days=i + 1)).isoformat(),
                     "predicted_price": pred_price,
                     "change": pred_price - current_price,
-                    "change_percent": ((pred_price - current_price) / current_price)
-                    * 100,
+                    "change_percent": ((pred_price - current_price) / current_price) * 100,
                     "confidence_lower": float(predictions["price_lower"][0][i]),
                     "confidence_upper": float(predictions["price_upper"][0][i]),
                     "uncertainty": float(predictions["uncertainty"][0][i]),
@@ -560,9 +541,7 @@ def compute_feature_importance_task(model_id: str, num_samples: int = 100):
             indices = np.random.choice(len(features) - 60, num_samples, replace=False)
             sample_data = np.array([features[i : i + 60] for i in indices])
         else:
-            sample_data = np.array(
-                [features[i : i + 60] for i in range(len(features) - 60)]
-            )
+            sample_data = np.array([features[i : i + 60] for i in range(len(features) - 60)])
 
         sample_data = torch.FloatTensor(sample_data)
 

@@ -10,11 +10,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # Add backend to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from data_engine.collectors.yfinance_collector import YFinanceCollector
-from data_engine.transformers.feature_engineering import FeatureEngineer
-from db.models import (
+from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
+from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+from backend.db.models import (
     init_db,
     bulk_insert_price_data,
     bulk_insert_features,
@@ -141,6 +141,15 @@ async def seed_features(tickers: list[str], days: int = 90):
     for ticker in tickers:
         logger.info(f"Processing {ticker}...")
 
+        # Delete existing features for this ticker (optional)
+        try:
+            from backend.db.models import delete_features_by_ticker
+            deleted = await delete_features_by_ticker(ticker, start_date, end_date)
+            if deleted > 0:
+                logger.info(f"  Deleted {deleted} existing feature rows")
+        except Exception as e:
+            logger.warning(f"  Could not delete existing features: {e}")
+
         # Collect data
         data = await collector.collect_with_retry(
             ticker=ticker, start_date=start_date, end_date=end_date
@@ -202,18 +211,11 @@ def _get_category(feature_name: str) -> str:
         return "price"
     elif any(x in feature_name.lower() for x in ["volume", "obv", "vwap", "cmf"]):
         return "volume"
-    elif any(
-        x in feature_name.lower() for x in ["volatility", "atr", "bb", "parkinson"]
-    ):
+    elif any(x in feature_name.lower() for x in ["volatility", "atr", "bb", "parkinson"]):
         return "volatility"
-    elif any(
-        x in feature_name.lower()
-        for x in ["rsi", "stoch", "williams", "roc", "cci", "mfi"]
-    ):
+    elif any(x in feature_name.lower() for x in ["rsi", "stoch", "williams", "roc", "cci", "mfi"]):
         return "momentum"
-    elif any(
-        x in feature_name.lower() for x in ["sma", "ema", "macd", "adx", "psar", "bb_"]
-    ):
+    elif any(x in feature_name.lower() for x in ["sma", "ema", "macd", "adx", "psar", "bb_"]):
         return "trend"
     else:
         return "statistical"
@@ -247,12 +249,8 @@ async def main():
         default=90,
         help="Days of feature history (default: 90)",
     )
-    parser.add_argument(
-        "--skip-price", action="store_true", help="Skip price data seeding"
-    )
-    parser.add_argument(
-        "--skip-features", action="store_true", help="Skip feature seeding"
-    )
+    parser.add_argument("--skip-price", action="store_true", help="Skip price data seeding")
+    parser.add_argument("--skip-features", action="store_true", help="Skip feature seeding")
 
     args = parser.parse_args()
 

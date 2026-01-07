@@ -143,9 +143,7 @@ class NewsCollector(BaseDataCollector):
                 published_at = article.get("publishedAt")
                 if published_at:
                     try:
-                        published_dt = datetime.fromisoformat(
-                            published_at.replace("Z", "+00:00")
-                        )
+                        published_dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
                     except:
                         published_dt = None
                 else:
@@ -256,9 +254,7 @@ class NewsCollector(BaseDataCollector):
                 published_at = article.get("publishedAt")
                 if published_at:
                     try:
-                        published_dt = datetime.fromisoformat(
-                            published_at.replace("Z", "+00:00")
-                        )
+                        published_dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
                     except:
                         continue
                 else:
@@ -351,9 +347,7 @@ class NewsCollector(BaseDataCollector):
                 published_at = article.get("publishedAt")
                 if published_at:
                     try:
-                        published_dt = datetime.fromisoformat(
-                            published_at.replace("Z", "+00:00")
-                        )
+                        published_dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
                     except:
                         continue
                 else:
@@ -528,9 +522,7 @@ class NewsCollector(BaseDataCollector):
                     ticker_counts[ticker] = ticker_counts.get(ticker, 0) + 1
 
             # Sort by count
-            sorted_tickers = dict(
-                sorted(ticker_counts.items(), key=lambda x: x[1], reverse=True)
-            )
+            sorted_tickers = dict(sorted(ticker_counts.items(), key=lambda x: x[1], reverse=True))
 
             logger.success(f"Found {len(sorted_tickers)} trending tickers")
             return sorted_tickers
@@ -552,9 +544,7 @@ class NewsCollector(BaseDataCollector):
         Returns:
             DataFrame with earnings news
         """
-        query = (
-            "earnings report OR quarterly earnings OR earnings beat OR earnings miss"
-        )
+        query = "earnings report OR quarterly earnings OR earnings beat OR earnings miss"
 
         return await self.search_news(
             query=query,

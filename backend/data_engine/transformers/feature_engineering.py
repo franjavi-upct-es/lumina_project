@@ -87,9 +87,7 @@ class FeatureEngineer:
         # Convert back to Polars
         result = pl.from_pandas(df_pd.reset_index())
 
-        logger.success(
-            f"Created {len(result.columns) - len(data.columns)} new features"
-        )
+        logger.success(f"Created {len(result.columns) - len(data.columns)} new features")
 
         return result
 
@@ -152,9 +150,7 @@ class FeatureEngineer:
 
         # Price-volume relationship
         df["price_volume"] = df["close"] * df["volume"]
-        df["vwap"] = (
-            df["price_volume"].rolling(20).sum() / df["volume"].rolling(20).sum()
-        )
+        df["vwap"] = df["price_volume"].rolling(20).sum() / df["volume"].rolling(20).sum()
 
         # OBV (On-Balance Volume)
         df["obv"] = (np.sign(df["close"].diff()) * df["volume"]).fillna(0).cumsum()
@@ -168,9 +164,7 @@ class FeatureEngineer:
             df["money_flow_multiplier"].replace([np.inf, -np.inf], 0).fillna(0)
         )
         df["money_flow_volume"] = df["money_flow_multiplier"] * df["volume"]
-        df["cmf_20"] = (
-            df["money_flow_volume"].rolling(20).sum() / df["volume"].rolling(20).sum()
-        )
+        df["cmf_20"] = df["money_flow_volume"].rolling(20).sum() / df["volume"].rolling(20).sum()
 
         self.feature_categories["volume"].extend(
             [
@@ -284,14 +278,10 @@ class FeatureEngineer:
         typical_price = (df["high"] + df["low"] + df["close"]) / 3
         money_flow = typical_price * df["volume"]
         positive_flow = (
-            money_flow.where(typical_price > typical_price.shift(1), 0)
-            .rolling(14)
-            .sum()
+            money_flow.where(typical_price > typical_price.shift(1), 0).rolling(14).sum()
         )
         negative_flow = (
-            money_flow.where(typical_price < typical_price.shift(1), 0)
-            .rolling(14)
-            .sum()
+            money_flow.where(typical_price < typical_price.shift(1), 0).rolling(14).sum()
         )
         mfi_ratio = positive_flow / negative_flow
         df["mfi_14"] = 100 - (100 / (1 + mfi_ratio))
@@ -321,16 +311,12 @@ class FeatureEngineer:
         # Moving Averages
         for period in [5, 10, 20, 50, 100, 200]:
             df[f"sma_{period}"] = df["close"].rolling(period).mean()
-            df[f"sma_{period}_distance"] = (df["close"] - df[f"sma_{period}"]) / df[
-                f"sma_{period}"
-            ]
+            df[f"sma_{period}_distance"] = (df["close"] - df[f"sma_{period}"]) / df[f"sma_{period}"]
 
         # Exponential Moving Averages
         for period in [12, 26, 50]:
             df[f"ema_{period}"] = df["close"].ewm(span=period, adjust=False).mean()
-            df[f"ema_{period}_distance"] = (df["close"] - df[f"ema_{period}"]) / df[
-                f"ema_{period}"
-            ]
+            df[f"ema_{period}_distance"] = (df["close"] - df[f"ema_{period}"]) / df[f"ema_{period}"]
 
         # MACD
         ema_12 = df["close"].ewm(span=12, adjust=False).mean()
@@ -370,9 +356,7 @@ class FeatureEngineer:
         df["bb_upper"] = sma_20 + (std_20 * 2)
         df["bb_middle"] = sma_20
         df["bb_lower"] = sma_20 - (std_20 * 2)
-        df["bb_position"] = (df["close"] - df["bb_lower"]) / (
-            df["bb_upper"] - df["bb_lower"]
-        )
+        df["bb_position"] = (df["close"] - df["bb_lower"]) / (df["bb_upper"] - df["bb_lower"])
 
         # Parabolic SAR (simplified)
         df["psar"] = df["close"].rolling(20).mean()
@@ -435,9 +419,7 @@ class FeatureEngineer:
 
         # Percentile rank
         df["percentile_rank_20"] = (
-            df["close"]
-            .rolling(20)
-            .apply(lambda x: pd.Series(x).rank(pct=True).iloc[-1])
+            df["close"].rolling(20).apply(lambda x: pd.Series(x).rank(pct=True).iloc[-1])
         )
 
         # Collect statistical features to avoid fragmentation
@@ -456,12 +438,8 @@ class FeatureEngineer:
         stat_features["rolling_kurt_20"] = df["returns"].rolling(20).kurt()
 
         # Autocorrelation
-        stat_features["autocorr_1"] = (
-            df["returns"].rolling(20).apply(lambda x: x.autocorr(lag=1))
-        )
-        stat_features["autocorr_5"] = (
-            df["returns"].rolling(20).apply(lambda x: x.autocorr(lag=5))
-        )
+        stat_features["autocorr_1"] = df["returns"].rolling(20).apply(lambda x: x.autocorr(lag=1))
+        stat_features["autocorr_5"] = df["returns"].rolling(20).apply(lambda x: x.autocorr(lag=5))
 
         # Add all statistical features at once
         df = pd.concat([df, pd.DataFrame(stat_features, index=df.index)], axis=1)
@@ -488,9 +466,7 @@ class FeatureEngineer:
 
         return df
 
-    def _add_lagged_features(
-        self, df: pd.DataFrame, lags: List[int] = None
-    ) -> pd.DataFrame:
+    def _add_lagged_features(self, df: pd.DataFrame, lags: List[int] = None) -> pd.DataFrame:
         """Add lagged features for capturing temporal patterns"""
         if lags is None:
             lags = [1, 2, 3, 5, 10, 20]
@@ -531,36 +507,20 @@ class FeatureEngineer:
             rolling_features[f"low_min_{window}"] = low_min
 
             # Distance from rolling max/min
-            rolling_features[f"dist_from_high_{window}"] = (
-                df["close"] - high_max
-            ) / high_max
-            rolling_features[f"dist_from_low_{window}"] = (
-                df["close"] - low_min
-            ) / low_min
+            rolling_features[f"dist_from_high_{window}"] = (df["close"] - high_max) / high_max
+            rolling_features[f"dist_from_low_{window}"] = (df["close"] - low_min) / low_min
 
             # Rolling return stats
-            rolling_features[f"rolling_return_mean_{window}"] = (
-                df["returns"].rolling(window).mean()
-            )
-            rolling_features[f"rolling_return_std_{window}"] = (
-                df["returns"].rolling(window).std()
-            )
+            rolling_features[f"rolling_return_mean_{window}"] = df["returns"].rolling(window).mean()
+            rolling_features[f"rolling_return_std_{window}"] = df["returns"].rolling(window).std()
 
             # Rolling volume stats
-            rolling_features[f"rolling_volume_mean_{window}"] = (
-                df["volume"].rolling(window).mean()
-            )
-            rolling_features[f"rolling_volume_std_{window}"] = (
-                df["volume"].rolling(window).std()
-            )
+            rolling_features[f"rolling_volume_mean_{window}"] = df["volume"].rolling(window).mean()
+            rolling_features[f"rolling_volume_std_{window}"] = df["volume"].rolling(window).std()
 
             # Rolling price stats
-            rolling_features[f"rolling_close_mean_{window}"] = (
-                df["close"].rolling(window).mean()
-            )
-            rolling_features[f"rolling_close_std_{window}"] = (
-                df["close"].rolling(window).std()
-            )
+            rolling_features[f"rolling_close_mean_{window}"] = df["close"].rolling(window).mean()
+            rolling_features[f"rolling_close_std_{window}"] = df["close"].rolling(window).std()
 
         # Concatenate all at once
         df = pd.concat([df, pd.DataFrame(rolling_features, index=df.index)], axis=1)

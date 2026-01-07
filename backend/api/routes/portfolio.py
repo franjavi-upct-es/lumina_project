@@ -156,9 +156,7 @@ async def optimize_portfolio(request: PortfolioOptimizationRequest):
     - hrp: Hierarchical Risk Parity
     """
     try:
-        logger.info(
-            f"Portfolio optimization: {request.method} for {len(request.tickers)} assets"
-        )
+        logger.info(f"Portfolio optimization: {request.method} for {len(request.tickers)} assets")
 
         # Collect historical data
         collector = YFinanceCollector()
@@ -172,9 +170,7 @@ async def optimize_portfolio(request: PortfolioOptimizationRequest):
                 returns_data[ticker] = data.select("close").to_series().to_numpy()
 
         if len(returns_data) < 2:
-            raise HTTPException(
-                status_code=400, detail="Need at least 2 tickers with valid data"
-            )
+            raise HTTPException(status_code=400, detail="Need at least 2 tickers with valid data")
 
         # Calculate returns matrix
         returns_df = pd.DataFrame(returns_data)
@@ -194,13 +190,9 @@ async def optimize_portfolio(request: PortfolioOptimizationRequest):
                 request.max_weight,
             )
         elif request.method == "min_volatility":
-            weights = _optimize_min_volatility(
-                cov_matrix, request.min_weight, request.max_weight
-            )
+            weights = _optimize_min_volatility(cov_matrix, request.min_weight, request.max_weight)
         elif request.method == "risk_parity":
-            weights = _optimize_risk_parity(
-                cov_matrix, request.min_weight, request.max_weight
-            )
+            weights = _optimize_risk_parity(cov_matrix, request.min_weight, request.max_weight)
         elif request.method == "black_litterman":
             weights = _optimize_black_litterman(
                 mean_returns,
@@ -249,9 +241,7 @@ async def optimize_portfolio(request: PortfolioOptimizationRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def _optimize_max_sharpe(
-    mean_returns, cov_matrix, risk_free_rate, min_weight, max_weight
-):
+def _optimize_max_sharpe(mean_returns, cov_matrix, risk_free_rate, min_weight, max_weight):
     """Maximize Sharpe ratio"""
     n_assets = len(mean_returns)
 
@@ -264,9 +254,7 @@ def _optimize_max_sharpe(
     bounds = tuple((min_weight, max_weight) for _ in range(n_assets))
     initial = np.ones(n_assets) / n_assets
 
-    result = minimize(
-        neg_sharpe, initial, method="SLSQP", bounds=bounds, constraints=constraints
-    )
+    result = minimize(neg_sharpe, initial, method="SLSQP", bounds=bounds, constraints=constraints)
     return result.x
 
 
@@ -341,9 +329,7 @@ def _optimize_hrp(returns_df, min_weight, max_weight):
     return weights.values
 
 
-def _generate_efficient_frontier(
-    mean_returns, cov_matrix, risk_free_rate, num_points=20
-):
+def _generate_efficient_frontier(mean_returns, cov_matrix, risk_free_rate, num_points=20):
     """Generate efficient frontier points"""
     frontier = []
     target_returns = np.linspace(mean_returns.min(), mean_returns.max(), num_points)
@@ -375,9 +361,7 @@ def _generate_efficient_frontier(
                 ret = float(target)
                 sharpe = (ret - risk_free_rate) / vol if vol > 0 else 0
 
-                frontier.append(
-                    {"return": ret, "volatility": vol, "sharpe_ratio": sharpe}
-                )
+                frontier.append({"return": ret, "volatility": vol, "sharpe_ratio": sharpe})
         except:
             continue
 
@@ -399,9 +383,7 @@ async def get_portfolio_metrics(
     """
     try:
         # Get portfolio balance
-        balance_query = select(PortfolioBalance).where(
-            PortfolioBalance.user_id == user_id
-        )
+        balance_query = select(PortfolioBalance).where(PortfolioBalance.user_id == user_id)
         balance_result = await db.execute(balance_query)
         balance = balance_result.scalar_one_or_none()
 
@@ -471,13 +453,9 @@ async def get_portfolio_metrics(
         # Calculate daily return (simplified)
         daily_return = 0.0
         if len(all_transactions) > 0:
-            recent_balance = (
-                all_transactions[0].balance_after if all_transactions else total_value
-            )
+            recent_balance = all_transactions[0].balance_after if all_transactions else total_value
             daily_return = (
-                (total_value - recent_balance) / recent_balance
-                if recent_balance > 0
-                else 0.0
+                (total_value - recent_balance) / recent_balance if recent_balance > 0 else 0.0
             )
 
         # YTD return (simplified)
@@ -486,24 +464,18 @@ async def get_portfolio_metrics(
         ytd_return = 0.0
         if ytd_transactions:
             ytd_initial = ytd_transactions[-1].balance_after
-            ytd_return = (
-                (total_value - ytd_initial) / ytd_initial if ytd_initial > 0 else 0.0
-            )
+            ytd_return = (total_value - ytd_initial) / ytd_initial if ytd_initial > 0 else 0.0
 
         # Risk metrics (simplified calculations)
         volatility = 0.15  # Default
-        sharpe_ratio = (
-            (total_return * 252 - 0.05) / volatility if volatility > 0 else 0.0
-        )
+        sharpe_ratio = (total_return * 252 - 0.05) / volatility if volatility > 0 else 0.0
         beta = 1.0
         var_95 = total_value * 0.02  # 2% VaR
         max_drawdown = 0.0
 
         # Concentration analysis
         concentration = {
-            "top_position": max([p["weight"] for p in positions_list])
-            if positions_list
-            else 0.0,
+            "top_position": max([p["weight"] for p in positions_list]) if positions_list else 0.0,
             "top_3_concentration": sum(
                 sorted([p["weight"] for p in positions_list], reverse=True)[:3]
             )
@@ -551,8 +523,7 @@ async def check_rebalance(request: RebalanceRequest):
 
         # Calculate current weights
         current_weights = {
-            ticker: value / total_value
-            for ticker, value in request.current_holdings.items()
+            ticker: value / total_value for ticker, value in request.current_holdings.items()
         }
 
         # Check if rebalancing needed
@@ -581,9 +552,7 @@ async def check_rebalance(request: RebalanceRequest):
                 )
 
         # Estimate transaction costs
-        estimated_cost = (
-            sum(trade["value"] for trade in trades) * settings.DEFAULT_COMMISSION
-        )
+        estimated_cost = sum(trade["value"] for trade in trades) * settings.DEFAULT_COMMISSION
 
         return RebalanceResponse(
             trades_needed=needs_rebalance,
@@ -648,9 +617,7 @@ async def analyze_portfolio_risk(request: RiskAnalysisRequest):
 
         max_drawdown = float(drawdown.min())
         current_drawdown = float(drawdown.iloc[-1])
-        avg_drawdown = (
-            float(drawdown[drawdown < 0].mean()) if (drawdown < 0).any() else 0.0
-        )
+        avg_drawdown = float(drawdown[drawdown < 0].mean()) if (drawdown < 0).any() else 0.0
 
         # Drawdown duration
         is_drawdown = drawdown < 0
@@ -680,15 +647,11 @@ async def analyze_portfolio_risk(request: RiskAnalysisRequest):
                 ticker="SPY", start_date=request.start_date, end_date=request.end_date
             )
             if spy_data and spy_data.height > 0:
-                spy_returns = (
-                    spy_data.select("close").to_series().pct_change().drop_nulls()
-                )
+                spy_returns = spy_data.select("close").to_series().pct_change().drop_nulls()
                 if len(spy_returns) == len(portfolio_returns):
                     covariance = np.cov(portfolio_returns, spy_returns)[0, 1]
                     market_variance = np.var(spy_returns)
-                    market_beta = (
-                        covariance / market_variance if market_variance > 0 else 1.0
-                    )
+                    market_beta = covariance / market_variance if market_variance > 0 else 1.0
         except:
             pass
 
@@ -696,9 +659,7 @@ async def analyze_portfolio_risk(request: RiskAnalysisRequest):
         stress_scenarios = {}
 
         # 2008 crisis: -35% shock
-        stress_scenarios["2008_financial_crisis"] = float(
-            portfolio_returns.mean() - 0.35
-        )
+        stress_scenarios["2008_financial_crisis"] = float(portfolio_returns.mean() - 0.35)
 
         # 2020 COVID: -28% shock
         stress_scenarios["2020_covid_crash"] = float(portfolio_returns.mean() - 0.28)
@@ -826,9 +787,7 @@ async def get_efficient_frontier(
         )
 
         min_vol_return = np.dot(min_vol_weights, mean_returns)
-        min_vol_vol = np.sqrt(
-            np.dot(min_vol_weights.T, np.dot(cov_matrix, min_vol_weights))
-        )
+        min_vol_vol = np.sqrt(np.dot(min_vol_weights.T, np.dot(cov_matrix, min_vol_weights)))
 
         return {
             "frontier_points": frontier_points,
@@ -836,9 +795,7 @@ async def get_efficient_frontier(
                 "weights": dict(zip(tickers, max_sharpe_weights)),
                 "return": float(max_sharpe_return),
                 "volatility": float(max_sharpe_vol),
-                "sharpe_ratio": float(
-                    (max_sharpe_return - risk_free_rate) / max_sharpe_vol
-                ),
+                "sharpe_ratio": float((max_sharpe_return - risk_free_rate) / max_sharpe_vol),
             },
             "min_variance_portfolio": {
                 "weights": dict(zip(tickers, min_vol_weights)),
@@ -872,9 +829,7 @@ async def monte_carlo_simulation(
     Run Monte Carlo simulation for portfolio
     """
     try:
-        logger.info(
-            f"Monte Carlo: {num_simulations} simulations over {time_horizon_days} days"
-        )
+        logger.info(f"Monte Carlo: {num_simulations} simulations over {time_horizon_days} days")
 
         # Collect historical data
         if start_date is None:
@@ -933,9 +888,7 @@ async def monte_carlo_simulation(
         expected_value = float(np.mean(final_values))
 
         # Sample trajectories for visualization
-        sample_indices = np.random.choice(
-            num_simulations, min(100, num_simulations), replace=False
-        )
+        sample_indices = np.random.choice(num_simulations, min(100, num_simulations), replace=False)
         sample_paths = simulations[sample_indices].tolist()
 
         return {
@@ -1150,9 +1103,7 @@ async def get_factor_exposure(
         factors = {}
 
         if spy_data and spy_data.height > 0:
-            market_returns = (
-                spy_data.select("close").to_series().pct_change().drop_nulls()
-            )
+            market_returns = spy_data.select("close").to_series().pct_change().drop_nulls()
 
             # Align dates
             common_dates = min(len(portfolio_returns), len(market_returns))
@@ -1174,9 +1125,7 @@ async def get_factor_exposure(
             r_squared = 0.5
 
         # Simplified factor estimates (in production, use Fama-French data)
-        factors["size"] = float(
-            np.random.normal(-0.1, 0.2)
-        )  # Negative = large cap bias
+        factors["size"] = float(np.random.normal(-0.1, 0.2))  # Negative = large cap bias
         factors["value"] = float(np.random.normal(0.1, 0.2))
         factors["momentum"] = float(np.random.normal(0.2, 0.3))
         factors["quality"] = float(np.random.normal(0.05, 0.15))

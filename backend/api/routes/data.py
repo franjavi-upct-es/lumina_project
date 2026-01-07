@@ -102,9 +102,7 @@ async def get_historical_prices(
         )
 
         if data is None or data.height == 0:
-            raise HTTPException(
-                status_code=404, detail=f"No data found for ticker {ticker}"
-            )
+            raise HTTPException(status_code=404, detail=f"No data found for ticker {ticker}")
 
         # Convert to dict for response
         data_dict = data.to_dicts()
@@ -194,9 +192,7 @@ async def get_features(
         )
 
         if data is None:
-            raise HTTPException(
-                status_code=404, detail=f"No data found for ticker {ticker}"
-            )
+            raise HTTPException(status_code=404, detail=f"No data found for ticker {ticker}")
 
         # Engineer features
         fe = FeatureEngineer()
@@ -238,9 +234,7 @@ async def get_features(
 
 
 @router.get("/{ticker}/info", response_model=CompanyInfoResponse)
-async def get_company_info(
-    ticker: str, collector: YFinanceCollector = Depends(get_collector)
-):
+async def get_company_info(ticker: str, collector: YFinanceCollector = Depends(get_collector)):
     """
     Get company information and fundamental metrics
     """
@@ -262,9 +256,7 @@ async def get_company_info(
 @router.get("/{ticker}/options")
 async def get_options_chain(
     ticker: str,
-    expiration_date: Optional[str] = Query(
-        None, description="Expiration date (YYYY-MM-DD)"
-    ),
+    expiration_date: Optional[str] = Query(None, description="Expiration date (YYYY-MM-DD)"),
     collector: YFinanceCollector = Depends(get_collector),
 ):
     """
@@ -274,9 +266,7 @@ async def get_options_chain(
         options_data = await collector.get_options_data(ticker, expiration_date)
 
         if options_data is None:
-            raise HTTPException(
-                status_code=404, detail=f"Options data not found for {ticker}"
-            )
+            raise HTTPException(status_code=404, detail=f"Options data not found for {ticker}")
 
         return {
             "ticker": ticker,
@@ -314,9 +304,7 @@ async def get_institutional_holders(
 
 
 @router.get("/{ticker}/earnings")
-async def get_earnings_history(
-    ticker: str, collector: YFinanceCollector = Depends(get_collector)
-):
+async def get_earnings_history(ticker: str, collector: YFinanceCollector = Depends(get_collector)):
     """
     Get historical earnings data
     """
@@ -324,9 +312,7 @@ async def get_earnings_history(
         earnings = await collector.get_earnings_history(ticker)
 
         if earnings is None:
-            raise HTTPException(
-                status_code=404, detail=f"Earnings data not found for {ticker}"
-            )
+            raise HTTPException(status_code=404, detail=f"Earnings data not found for {ticker}")
 
         return {"ticker": ticker, "earnings": earnings.to_dicts()}
 
@@ -354,9 +340,7 @@ async def get_market_status():
             "current_time": now.isoformat(),
             "timezone": "UTC",
             "next_open": "Market hours: 9:30 AM - 4:00 PM EST (Mon-Fri)",
-            "message": "Market is open"
-            if (is_weekday and is_market_hours)
-            else "Market is closed",
+            "message": "Market is open" if (is_weekday and is_market_hours) else "Market is closed",
         }
 
         return status

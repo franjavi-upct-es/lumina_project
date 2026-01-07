@@ -95,11 +95,7 @@ class FeatureStore:
                             continue
 
                         # Get category
-                        category = (
-                            categories.get(fname, "unknown")
-                            if categories
-                            else "unknown"
-                        )
+                        category = categories.get(fname, "unknown") if categories else "unknown"
 
                         feature_records.append(
                             {
@@ -164,9 +160,7 @@ class FeatureStore:
 
             # Check cache
             if use_cache and cache_key in self.cache:
-                cache_age = datetime.now() - self.cache_timestamps.get(
-                    cache_key, datetime.min
-                )
+                cache_age = datetime.now() - self.cache_timestamps.get(cache_key, datetime.min)
                 if cache_age < self.cache_ttl:
                     logger.debug(f"Using cached features for {ticker}")
                     return self.cache[cache_key]
@@ -226,9 +220,7 @@ class FeatureStore:
                 self.cache[cache_key] = features_df
                 self.cache_timestamps[cache_key] = datetime.now()
 
-                logger.info(
-                    f"Retrieved {features_df.height} feature records for {ticker}"
-                )
+                logger.info(f"Retrieved {features_df.height} feature records for {ticker}")
                 return features_df
 
         except Exception as e:
@@ -261,8 +253,7 @@ class FeatureStore:
 
             # Gather all tasks
             tasks = [
-                self.get_features(ticker, feature_names, start_date, end_date)
-                for ticker in tickers
+                self.get_features(ticker, feature_names, start_date, end_date) for ticker in tickers
             ]
 
             # Execute concurrently
@@ -275,9 +266,7 @@ class FeatureStore:
                 elif features is not None:
                     results[ticker] = features
 
-            logger.success(
-                f"Retrieved features for {len(results)}/{len(tickers)} tickers"
-            )
+            logger.success(f"Retrieved features for {len(results)}/{len(tickers)} tickers")
             return results
 
         except Exception as e:
@@ -360,9 +349,7 @@ class FeatureStore:
                     Feature.feature_name,
                     Feature.feature_category,
                     func.count(Feature.feature_name).label("count"),
-                ).group_by(
-                    Feature.ticker, Feature.feature_name, Feature.feature_category
-                )
+                ).group_by(Feature.ticker, Feature.feature_name, Feature.feature_category)
 
                 if ticker:
                     query = query.where(Feature.ticker == ticker)
@@ -423,9 +410,7 @@ class FeatureStore:
                     func.min(Feature.feature_value).label("min"),
                     func.max(Feature.feature_value).label("max"),
                     func.count(Feature.feature_value).label("count"),
-                ).where(
-                    and_(Feature.ticker == ticker, Feature.feature_name == feature_name)
-                )
+                ).where(and_(Feature.ticker == ticker, Feature.feature_name == feature_name))
 
                 if start_date:
                     query = query.where(Feature.time >= start_date)

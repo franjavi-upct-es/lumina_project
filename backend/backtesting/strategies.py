@@ -473,9 +473,7 @@ def get_strategy(strategy_name: str, **params) -> BaseStrategy:
         Strategy instance
     """
     if strategy_name not in STRATEGIES:
-        raise ValueError(
-            f"Unknown strategy: {strategy_name}. Available: {list(STRATEGIES.keys())}"
-        )
+        raise ValueError(f"Unknown strategy: {strategy_name}. Available: {list(STRATEGIES.keys())}")
 
     strategy_class = STRATEGIES[strategy_name]
     return strategy_class(**params)

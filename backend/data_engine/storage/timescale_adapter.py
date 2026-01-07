@@ -61,15 +61,9 @@ class TimescaleAdapter:
                         "open": float(row["open"]) if pd.notna(row["open"]) else None,
                         "high": float(row["high"]) if pd.notna(row["high"]) else None,
                         "low": float(row["low"]) if pd.notna(row["low"]) else None,
-                        "close": float(row["close"])
-                        if pd.notna(row["close"])
-                        else None,
-                        "volume": int(row["volume"])
-                        if pd.notna(row["volume"])
-                        else None,
-                        "adjusted_close": float(row["close"])
-                        if pd.notna(row["close"])
-                        else None,
+                        "close": float(row["close"]) if pd.notna(row["close"]) else None,
+                        "volume": int(row["volume"]) if pd.notna(row["volume"]) else None,
+                        "adjusted_close": float(row["close"]) if pd.notna(row["close"]) else None,
                         "dividends": 0.0,
                         "stock_splits": 0.0,
                     }
@@ -241,9 +235,7 @@ class TimescaleAdapter:
             logger.error(f"Error refreshing continuous aggregate: {e}")
             return False
 
-    async def add_compression_policy(
-        self, table_name: str, compress_after: str = "7 days"
-    ) -> bool:
+    async def add_compression_policy(self, table_name: str, compress_after: str = "7 days") -> bool:
         """
         Add compression policy to hypertable
 
@@ -273,9 +265,7 @@ class TimescaleAdapter:
             logger.error(f"Error adding compression policy: {e}")
             return False
 
-    async def add_retention_policy(
-        self, table_name: str, retain_for: str = "1 year"
-    ) -> bool:
+    async def add_retention_policy(self, table_name: str, retain_for: str = "1 year") -> bool:
         """
         Add data retention policy
 

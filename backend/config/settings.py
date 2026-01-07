@@ -31,13 +31,9 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = "Lumina Quant Lab"
     VERSION: str = "2.0.0"
-    ENVIRONMENT: str = Field(
-        default="development", pattern="^(development|staging|production)$"
-    )
+    ENVIRONMENT: str = Field(default="development", pattern="^(development|staging|production)$")
     DEBUG: bool = Field(default=False)
-    LOG_LEVEL: str = Field(
-        default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)"
-    )
+    LOG_LEVEL: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)")
 
     # API
     API_V2_PREFIX: str = "/api/v2"
@@ -66,12 +62,8 @@ class Settings(BaseSettings):
     REDIS_CACHE_TTL: int = 3600  # 1 hour
 
     # Celery
-    CELERY_BROKER_URL: str = Field(
-        default="redis://:lumina_redis_2024@localhost:6379/1"
-    )
-    CELERY_RESULT_BACKEND: str = Field(
-        default="redis://:lumina_redis_2024@localhost:6379/2"
-    )
+    CELERY_BROKER_URL: str = Field(default="redis://:lumina_redis_2024@localhost:6379/1")
+    CELERY_RESULT_BACKEND: str = Field(default="redis://:lumina_redis_2024@localhost:6379/2")
     CELERY_TASK_TIME_LIMIT: int = 3600  # 1 hour
     CELERY_TASK_SOFT_TIME_LIMIT: int = 3300  # 55 hour
 

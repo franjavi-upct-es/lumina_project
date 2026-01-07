@@ -99,9 +99,7 @@ def update_ticker_data(
 
         # Collect data
         data = loop.run_until_complete(
-            collector.collect_with_retry(
-                ticker=ticker, start_date=start_date, end_date=end_date
-            )
+            collector.collect_with_retry(ticker=ticker, start_date=start_date, end_date=end_date)
         )
 
         if data is None or data.height == 0:
@@ -128,9 +126,7 @@ def update_ticker_data(
                     "low": float(row["low"]) if pd.notna(row["low"]) else None,
                     "close": float(row["close"]) if pd.notna(row["close"]) else None,
                     "volume": int(row["volume"]) if pd.notna(row["volume"]) else None,
-                    "adjusted_close": float(row["close"])
-                    if pd.notna(row["close"])
-                    else None,
+                    "adjusted_close": float(row["close"]) if pd.notna(row["close"]) else None,
                     "dividends": 0.0,
                     "stock_splits": 0.0,
                 }
@@ -172,9 +168,7 @@ def update_ticker_data(
 
             # Bulk insert features
             if feature_data:
-                feature_count = loop.run_until_complete(
-                    bulk_insert_features(feature_data)
-                )
+                feature_count = loop.run_until_complete(bulk_insert_features(feature_data))
                 logger.success(f"Inserted {feature_count} feature rows for {ticker}")
 
         loop.close()
@@ -194,9 +188,7 @@ def update_ticker_data(
 
 
 @shared_task(name="workers.data_tasks.update_all_tickers")
-def update_all_tickers(
-    tickers: Optional[List[str]] = None, days: int = 1
-) -> Dict[str, Any]:
+def update_all_tickers(tickers: Optional[List[str]] = None, days: int = 1) -> Dict[str, Any]:
     """
     Update data for all tracked tickers in parallel
 
@@ -221,8 +213,7 @@ def update_all_tickers(
 
         # Create parallel tasks using Celery group
         job = group(
-            update_ticker_data.s(ticker, days=days, include_features=True)
-            for ticker in tickers
+            update_ticker_data.s(ticker, days=days, include_features=True) for ticker in tickers
         )
 
         # Execute in parallel
@@ -259,9 +250,7 @@ def update_all_tickers(
 
 
 @shared_task(name="workers.data_tasks.update_all_features")
-def update_all_features(
-    tickers: Optional[List[str]] = None, days: int = 90
-) -> Dict[str, Any]:
+def update_all_features(tickers: Optional[List[str]] = None, days: int = 90) -> Dict[str, Any]:
     """
     Recalculate features for all tickers
 
@@ -328,9 +317,7 @@ def update_all_features(
                                         "ticker": ticker,
                                         "feature_name": fname,
                                         "feature_value": float(val),
-                                        "feature_category": _get_feature_category(
-                                            fname
-                                        ),
+                                        "feature_category": _get_feature_category(fname),
                                     }
                                 )
 
@@ -434,9 +421,7 @@ def health_check_task() -> Dict[str, Any]:
             if k not in ["timestamp", "latest_data_age_hours"]
         ):
             health_status["overall"] = "healthy"
-        elif (
-            "unhealthy" in health_status.values() or "no_data" in health_status.values()
-        ):
+        elif "unhealthy" in health_status.values() or "no_data" in health_status.values():
             health_status["overall"] = "unhealthy"
         else:
             health_status["overall"] = "degraded"
@@ -512,9 +497,7 @@ def cleanup_old_results(days_to_keep: int = 90) -> Dict[str, Any]:
             "completed_at": datetime.now().isoformat(),
         }
 
-        logger.success(
-            f"✅ Cleanup completed: {summary['total_deleted']} records deleted"
-        )
+        logger.success(f"✅ Cleanup completed: {summary['total_deleted']} records deleted")
         return summary
 
     except Exception as e:
@@ -565,22 +548,16 @@ def _get_feature_category(feature_name: str) -> str:
     """Determine feature category from name"""
     feature_lower = feature_name.lower()
 
-    if any(
-        x in feature_lower
-        for x in ["return", "price", "gap", "change", "typical", "weighted"]
-    ):
+    if any(x in feature_lower for x in ["return", "price", "gap", "change", "typical", "weighted"]):
         return "price"
     elif any(x in feature_lower for x in ["volume", "obv", "vwap", "cmf"]):
         return "volume"
     elif any(x in feature_lower for x in ["volatility", "atr", "bb", "parkinson"]):
         return "volatility"
-    elif any(
-        x in feature_lower for x in ["rsi", "stoch", "williams", "roc", "cci", "mfi"]
-    ):
+    elif any(x in feature_lower for x in ["rsi", "stoch", "williams", "roc", "cci", "mfi"]):
         return "momentum"
     elif any(
-        x in feature_lower
-        for x in ["sma", "ema", "macd", "adx", "psar", "trend", "cross", "above"]
+        x in feature_lower for x in ["sma", "ema", "macd", "adx", "psar", "trend", "cross", "above"]
     ):
         return "trend"
     else:
@@ -648,9 +625,7 @@ def generate_data_report() -> Dict[str, Any]:
             LIMIT 10
             """
             result = loop.run_until_complete(execute_raw_sql(sql))
-            report["metrics"]["top_tickers"] = (
-                {r[0]: r[1] for r in result} if result else 0
-            )
+            report["metrics"]["top_tickers"] = {r[0]: r[1] for r in result} if result else 0
         except Exception as e:
             logger.error(f"Error counting by ticker: {e}")
 

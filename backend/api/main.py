@@ -14,12 +14,13 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.settings import settings
-from config.logging_config import setup_logging
-from api.routes import data, ml, portfolio, risk, backtest
+from backend.config.settings import settings
+
+# from backend.config.logging_config import setup_logging
+from backend.api.routes import data, ml, portfolio, risk, backtest
 
 # Setup logging
-setup_logging()
+# setup_logging()
 logger = logging.getLogger(__name__)
 
 app = FastAPI(

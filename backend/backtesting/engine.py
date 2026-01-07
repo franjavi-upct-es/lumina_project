@@ -172,9 +172,7 @@ class BacktestResult:
 
         self.winning_trades = len(wins)
         self.losing_trades = len(losses)
-        self.win_rate = (
-            self.winning_trades / self.num_trades if self.num_trades > 0 else 0
-        )
+        self.win_rate = self.winning_trades / self.num_trades if self.num_trades > 0 else 0
 
         # Average win/loss
         self.avg_win = np.mean([t.pnl for t in wins]) if wins else 0.0
@@ -186,9 +184,7 @@ class BacktestResult:
         self.profit_factor = total_wins / total_losses if total_losses > 0 else 0.0
 
         # Payoff ratio
-        self.payoff_ratio = (
-            abs(self.avg_win / self.avg_loss) if self.avg_loss != 0 else 0.0
-        )
+        self.payoff_ratio = abs(self.avg_win / self.avg_loss) if self.avg_loss != 0 else 0.0
 
         # Recovery factor
         if self.max_drawdown != 0:
@@ -251,9 +247,7 @@ class BacktestEngine:
         # Results
         self.results: Optional[BacktestResult] = None
 
-        logger.info(
-            f"Initialized backtest engine in {self.config.execution_mode.value} mode"
-        )
+        logger.info(f"Initialized backtest engine in {self.config.execution_mode.value} mode")
 
     def run(
         self,
@@ -474,9 +468,7 @@ class BacktestEngine:
             List of test results
         """
         logger.info("Starting walk-forward analysis")
-        logger.info(
-            f"Train: {train_size} days, Test: {test_size} days, Step: {step_size} days"
-        )
+        logger.info(f"Train: {train_size} days, Test: {test_size} days, Step: {step_size} days")
 
         # Get date range from first ticker
         first_ticker = list(data.keys())[0]
@@ -501,13 +493,9 @@ class BacktestEngine:
             )
 
             # Split data
-            train_data = {
-                ticker: df.iloc[train_start:train_end] for ticker, df in data.items()
-            }
+            train_data = {ticker: df.iloc[train_start:train_end] for ticker, df in data.items()}
 
-            test_data = {
-                ticker: df.iloc[test_start:test_end] for ticker, df in data.items()
-            }
+            test_data = {ticker: df.iloc[test_start:test_end] for ticker, df in data.items()}
 
             # Run backtest on test data
             try:

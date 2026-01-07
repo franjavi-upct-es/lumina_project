@@ -52,10 +52,7 @@ class ParquetWriter:
 
         self.max_file_size_mb = settings.MAX_PARQUET_FILE_SIZE_MB
 
-        logger.info(
-            f"ParquetWriter initialized at {self.base_path} "
-            f"with {compression} compression"
-        )
+        logger.info(f"ParquetWriter initialized at {self.base_path} with {compression} compression")
 
     def write(
         self,
@@ -88,8 +85,7 @@ class ParquetWriter:
             partition_cols = partition_by or self.partition_cols
 
             logger.info(
-                f"Writing {data.height} rows to {dataset_name} "
-                f"(partitioned by {partition_cols})"
+                f"Writing {data.height} rows to {dataset_name} (partitioned by {partition_cols})"
             )
 
             # Convert to PyArrow Table
@@ -229,9 +225,7 @@ class ParquetWriter:
         Returns:
             Path where data was written
         """
-        return self.write(
-            data, dataset_name, mode="overwrite", partition_by=partition_by
-        )
+        return self.write(data, dataset_name, mode="overwrite", partition_by=partition_by)
 
     def delete_dataset(self, dataset_name: str) -> bool:
         """
@@ -388,9 +382,7 @@ class ParquetWriter:
             logger.error(f"Error compacting dataset: {e}")
             return False
 
-    def validate_schema(
-        self, data: pl.DataFrame, expected_schema: Dict[str, str]
-    ) -> bool:
+    def validate_schema(self, data: pl.DataFrame, expected_schema: Dict[str, str]) -> bool:
         """
         Validate DataFrame schema
 
@@ -410,8 +402,7 @@ class ParquetWriter:
                 actual_type = str(data[col].dtype)
                 if expected_type not in actual_type:
                     logger.warning(
-                        f"Type mismatch for {col}: "
-                        f"expected {expected_type}, got {actual_type}"
+                        f"Type mismatch for {col}: expected {expected_type}, got {actual_type}"
                     )
 
             return True

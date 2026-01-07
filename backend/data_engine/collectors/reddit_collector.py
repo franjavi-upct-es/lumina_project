@@ -121,9 +121,7 @@ class RedditCollector(BaseDataCollector):
             # Search query - Reddit doesn't support cashtags directly
             query = f"${ticker} OR {ticker}"
 
-            logger.info(
-                f"Searching Reddit for {ticker} in {len(subreddits)} subreddits"
-            )
+            logger.info(f"Searching Reddit for {ticker} in {len(subreddits)} subreddits")
 
             # Collect posts from all subreddits
             all_posts = []
@@ -209,9 +207,7 @@ class RedditCollector(BaseDataCollector):
                             "post_id": submission.id,
                             "title": submission.title,
                             "text": submission.selftext,
-                            "author": str(submission.author)
-                            if submission.author
-                            else "[deleted]",
+                            "author": str(submission.author) if submission.author else "[deleted]",
                             "score": submission.score,
                             "upvote_ratio": submission.upvote_ratio,
                             "num_comments": submission.num_comments,
@@ -285,9 +281,7 @@ class RedditCollector(BaseDataCollector):
                     ticker_counts[ticker] = ticker_counts.get(ticker, 0) + 1
 
             # Sort by count
-            sorted_tickers = dict(
-                sorted(ticker_counts.items(), key=lambda x: x[1], reverse=True)
-            )
+            sorted_tickers = dict(sorted(ticker_counts.items(), key=lambda x: x[1], reverse=True))
 
             logger.success(f"Found {len(sorted_tickers)} trending tickers")
             return sorted_tickers
@@ -486,9 +480,7 @@ class RedditCollector(BaseDataCollector):
                         "score": submission.score,
                         "upvote_ratio": submission.upvote_ratio,
                         "num_comments": submission.num_comments,
-                        "author": str(submission.author)
-                        if submission.author
-                        else "[deleted]",
+                        "author": str(submission.author) if submission.author else "[deleted]",
                     }
                 )
 

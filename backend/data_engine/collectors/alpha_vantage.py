@@ -167,9 +167,7 @@ class AlphaVantageCollector(BaseDataCollector):
 
         # Check for invalid prices
         invalid = data.filter(
-            (pl.col("high") < pl.col("low"))
-            | (pl.col("close") < 0)
-            | (pl.col("volume") < 0)
+            (pl.col("high") < pl.col("low")) | (pl.col("close") < 0) | (pl.col("volume") < 0)
         )
 
         if invalid.height > 0:
@@ -243,9 +241,7 @@ class AlphaVantageCollector(BaseDataCollector):
                 "quarterly_revenue_growth": self._parse_float(
                     data.get("QuarterlyRevenueGrowthYOY")
                 ),
-                "analyst_target_price": self._parse_float(
-                    data.get("AnalystTargetPrice")
-                ),
+                "analyst_target_price": self._parse_float(data.get("AnalystTargetPrice")),
                 "trailing_pe": self._parse_float(data.get("TrailingPE")),
                 "forward_pe": self._parse_float(data.get("ForwardPE")),
                 "price_to_sales": self._parse_float(data.get("PriceToSalesRatioTTM")),
@@ -320,16 +316,10 @@ class AlphaVantageCollector(BaseDataCollector):
                         "fiscal_date": report.get("fiscalDateEnding"),
                         "reported_currency": report.get("reportedCurrency"),
                         "total_revenue": self._parse_float(report.get("totalRevenue")),
-                        "cost_of_revenue": self._parse_float(
-                            report.get("costOfRevenue")
-                        ),
+                        "cost_of_revenue": self._parse_float(report.get("costOfRevenue")),
                         "gross_profit": self._parse_float(report.get("grossProfit")),
-                        "operating_expenses": self._parse_float(
-                            report.get("operatingExpenses")
-                        ),
-                        "operating_income": self._parse_float(
-                            report.get("operatingIncome")
-                        ),
+                        "operating_expenses": self._parse_float(report.get("operatingExpenses")),
+                        "operating_income": self._parse_float(report.get("operatingIncome")),
                         "ebitda": self._parse_float(report.get("ebitda")),
                         "net_income": self._parse_float(report.get("netIncome")),
                         "eps": self._parse_float(report.get("eps")),
@@ -340,9 +330,7 @@ class AlphaVantageCollector(BaseDataCollector):
                 )
 
             df = pl.DataFrame(records)
-            df = df.with_columns(
-                pl.col("fiscal_date").str.strptime(pl.Date, "%Y-%m-%d")
-            )
+            df = df.with_columns(pl.col("fiscal_date").str.strptime(pl.Date, "%Y-%m-%d"))
 
             logger.success(f"Fetched income statement for {ticker}")
             return df
@@ -391,15 +379,11 @@ class AlphaVantageCollector(BaseDataCollector):
                     {
                         "fiscal_date": report.get("fiscalDateEnding"),
                         "total_assets": self._parse_float(report.get("totalAssets")),
-                        "total_liabilities": self._parse_float(
-                            report.get("totalLiabilities")
-                        ),
+                        "total_liabilities": self._parse_float(report.get("totalLiabilities")),
                         "total_shareholder_equity": self._parse_float(
                             report.get("totalShareholderEquity")
                         ),
-                        "current_assets": self._parse_float(
-                            report.get("totalCurrentAssets")
-                        ),
+                        "current_assets": self._parse_float(report.get("totalCurrentAssets")),
                         "current_liabilities": self._parse_float(
                             report.get("totalCurrentLiabilities")
                         ),
@@ -407,20 +391,14 @@ class AlphaVantageCollector(BaseDataCollector):
                             report.get("cashAndCashEquivalentsAtCarryingValue")
                         ),
                         "inventory": self._parse_float(report.get("inventory")),
-                        "short_term_debt": self._parse_float(
-                            report.get("shortTermDebt")
-                        ),
+                        "short_term_debt": self._parse_float(report.get("shortTermDebt")),
                         "long_term_debt": self._parse_float(report.get("longTermDebt")),
-                        "retained_earnings": self._parse_float(
-                            report.get("retainedEarnings")
-                        ),
+                        "retained_earnings": self._parse_float(report.get("retainedEarnings")),
                     }
                 )
 
             df = pl.DataFrame(records)
-            df = df.with_columns(
-                pl.col("fiscal_date").str.strptime(pl.Date, "%Y-%m-%d")
-            )
+            df = df.with_columns(pl.col("fiscal_date").str.strptime(pl.Date, "%Y-%m-%d"))
 
             logger.success(f"Fetched balance sheet for {ticker}")
             return df
@@ -429,9 +407,7 @@ class AlphaVantageCollector(BaseDataCollector):
             logger.error(f"Error fetching balance sheet for {ticker}: {e}")
             return None
 
-    async def get_cash_flow(
-        self, ticker: str, quarterly: bool = False
-    ) -> Optional[pl.DataFrame]:
+    async def get_cash_flow(self, ticker: str, quarterly: bool = False) -> Optional[pl.DataFrame]:
         """
         Get cash flow statement
         """
@@ -468,9 +444,7 @@ class AlphaVantageCollector(BaseDataCollector):
                 records.append(
                     {
                         "fiscal_date": report.get("fiscalDateEnding"),
-                        "operating_cashflow": self._parse_float(
-                            report.get("operatingCashflow")
-                        ),
+                        "operating_cashflow": self._parse_float(report.get("operatingCashflow")),
                         "capital_expenditures": self._parse_float(
                             report.get("capitalExpenditures")
                         ),
@@ -480,9 +454,7 @@ class AlphaVantageCollector(BaseDataCollector):
                         "cashflow_from_financing": self._parse_float(
                             report.get("cashflowFromFinancing")
                         ),
-                        "dividend_payout": self._parse_float(
-                            report.get("dividendPayout")
-                        ),
+                        "dividend_payout": self._parse_float(report.get("dividendPayout")),
                         "net_income": self._parse_float(report.get("netIncome")),
                         "depreciation": self._parse_float(report.get("depreciation")),
                         "change_in_cash": self._parse_float(
@@ -492,9 +464,7 @@ class AlphaVantageCollector(BaseDataCollector):
                 )
 
             df = pl.DataFrame(records)
-            df = df.with_columns(
-                pl.col("fiscal_date").str.strptime(pl.Date, "%Y-%m-%d")
-            )
+            df = df.with_columns(pl.col("fiscal_date").str.strptime(pl.Date, "%Y-%m-%d"))
 
             logger.success(f"Fetched cash flow for {ticker}")
             return df
@@ -543,9 +513,7 @@ class AlphaVantageCollector(BaseDataCollector):
                         "reported_eps": self._parse_float(earning.get("reportedEPS")),
                         "estimated_eps": self._parse_float(earning.get("estimatedEPS")),
                         "surprise": self._parse_float(earning.get("surprise")),
-                        "surprise_percentage": self._parse_float(
-                            earning.get("surprisePercentage")
-                        ),
+                        "surprise_percentage": self._parse_float(earning.get("surprisePercentage")),
                     }
                 )
 

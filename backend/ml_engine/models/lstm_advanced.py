@@ -36,9 +36,7 @@ class Attention(nn.Module):
         attention_weights = F.softmax(scores, dim=1)  # (batch, seq_len, 1)
 
         # Apply attention weights
-        context = torch.sum(
-            attention_weights * lstm_output, dim=1
-        )  # (batch, hidden_dim)
+        context = torch.sum(attention_weights * lstm_output, dim=1)  # (batch, hidden_dim)
 
         return context, attention_weights.squeeze(-1)
 
@@ -302,9 +300,7 @@ class LSTMTrainer:
             # Calculate losses
             price_loss = F.mse_loss(outputs["price"], target_prices)
             vol_loss = F.mse_loss(outputs["volatility"], target_vol)
-            regime_loss = F.cross_entropy(
-                outputs["regime_logits"], target_regime.squeeze()
-            )
+            regime_loss = F.cross_entropy(outputs["regime_logits"], target_regime.squeeze())
 
             # Combined loss
             loss = (
@@ -360,9 +356,7 @@ class LSTMTrainer:
 
             price_loss = F.mse_loss(outputs["price"], target_prices)
             vol_loss = F.mse_loss(outputs["volatility"], target_vol)
-            regime_loss = F.cross_entropy(
-                outputs["regime_logits"], target_regime.squeeze()
-            )
+            regime_loss = F.cross_entropy(outputs["regime_logits"], target_regime.squeeze())
 
             loss = (
                 price_loss_weight * price_loss
@@ -463,12 +457,8 @@ class LSTMTrainer:
 
         return {
             "price": outputs["price"].cpu().numpy(),
-            "price_lower": (outputs["price"] - 1.96 * outputs["uncertainty"])
-            .cpu()
-            .numpy(),
-            "price_upper": (outputs["price"] + 1.96 * outputs["uncertainty"])
-            .cpu()
-            .numpy(),
+            "price_lower": (outputs["price"] - 1.96 * outputs["uncertainty"]).cpu().numpy(),
+            "price_upper": (outputs["price"] + 1.96 * outputs["uncertainty"]).cpu().numpy(),
             "volatility": outputs["volatility"].cpu().numpy(),
             "regime_probs": outputs["regime_probs"].cpu().numpy(),
             "uncertainty": outputs["uncertainty"].cpu().numpy(),
@@ -477,9 +467,7 @@ class LSTMTrainer:
 
     def save_checkpoint(self, path: str):
         """Save model checkpoint"""
-        torch.save(
-            {"model_state_dict": self.model.state_dict(), "history": self.history}, path
-        )
+        torch.save({"model_state_dict": self.model.state_dict(), "history": self.history}, path)
 
     def load_checkpoint(self, path: str):
         """Load model checkpoint"""

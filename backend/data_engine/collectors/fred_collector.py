@@ -186,9 +186,7 @@ class FredCollector(BaseDataCollector):
 
                 try:
                     value = float(value_str)
-                    records.append(
-                        {"date": obs["date"], "value": value, "series_id": series_id}
-                    )
+                    records.append({"date": obs["date"], "value": value, "series_id": series_id})
                 except (ValueError, TypeError):
                     continue
 

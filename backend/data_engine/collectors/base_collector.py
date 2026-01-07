@@ -73,24 +73,18 @@ class BaseDataCollector(ABC):
         minute_ago = now - timedelta(minutes=1)
 
         # Remove old timestamps
-        self._request_timestamps = [
-            ts for ts in self._request_timestamps if ts > minute_ago
-        ]
+        self._request_timestamps = [ts for ts in self._request_timestamps if ts > minute_ago]
 
         # Check if we're at the limit
         if len(self._request_timestamps) >= self.rate_limit:
             wait_time = (self._request_timestamps[0] - minute_ago).total_seconds()
-            logger.warning(
-                f"Rate limit reached for {self.name}, waiting {wait_time:.2f}s"
-            )
+            logger.warning(f"Rate limit reached for {self.name}, waiting {wait_time:.2f}s")
             await asyncio.sleep(wait_time + 0.1)
 
         # Record this request
         self._request_timestamps.append(now)
 
-    @retry(
-        stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
-    )
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     async def collect_with_retry(
         self,
         ticker: str,
@@ -153,9 +147,7 @@ class BaseDataCollector(ABC):
         async def collect_one(ticker: str):
             async with semaphore:
                 try:
-                    data = await self.collect_with_retry(
-                        ticker, start_date, end_date, **kwargs
-                    )
+                    data = await self.collect_with_retry(ticker, start_date, end_date, **kwargs)
                     if data is not None:
                         results[ticker] = data
                 except Exception as e:
@@ -164,9 +156,7 @@ class BaseDataCollector(ABC):
         tasks = [collect_one(ticker) for ticker in tickers]
         await asyncio.gather(*tasks)
 
-        logger.info(
-            f"Batch collection complete: {len(results)}/{len(tickers)} successful"
-        )
+        logger.info(f"Batch collection complete: {len(results)}/{len(tickers)} successful")
         return results
 
     def _standardize_columns(self, data: pl.DataFrame) -> pl.DataFrame:
@@ -187,9 +177,7 @@ class BaseDataCollector(ABC):
 
         return data.rename(column_mapping)
 
-    def _add_metadata(
-        self, data: pl.DataFrame, ticker: str, source: str
-    ) -> pl.DataFrame:
+    def _add_metadata(self, data: pl.DataFrame, ticker: str, source: str) -> pl.DataFrame:
         """
         Add meta_data columns to the DataFrame
 
