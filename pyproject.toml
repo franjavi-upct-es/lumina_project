@@ -119,8 +119,9 @@ data = [
 # ML/Training dependencies (backend/ml_engine/*)
 ml = [
     # Deep Learning
-    "torch>=2.2.0",
-    "torchvision>=0.17.0",
+    "torch>=2.9.0",
+    "torchvision>=0.24.0",
+    "torchaudio>=2.9.0",
 
     # Gradient Boosting
     "xgboost>=2.0.0",
@@ -155,15 +156,15 @@ ml = [
     "hmmlearn>=0.3.0",
 
     # Reinforcement Learning
-    "stable-baselines3>=2.2.0",
+    "stable-baselines3>=2.5.0",
     "gymnasium>=0.29.0",
 
     # Utilities
     "joblib>=1.3.0",
     "tqdm>=4.66.0",
-    "numba>=0.59.0",
+    "numba>=0.60.0",
     "cloudpickle>=3.0.0",
-    "llvmlite>=0.36.0",
+    "llvmlite>=0.43.0",
 ]
 
 # Backtesting dependencies (backend/backtesting/*)
@@ -226,6 +227,9 @@ docs = ["mkdocs>=1.5.0", "mkdocs-material>=9.5.0"]
 
 [tool.uv]
 index-strategy = "unsafe-best-match"
+extra-index-url = [
+    "https://download.pytorch.org/whl/cu128"
+]
 
 [tool.pytest.ini_options]
 markers = [
