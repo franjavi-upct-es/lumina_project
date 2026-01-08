@@ -4,12 +4,13 @@ Base class for all data collectors
 Provides common interface and utilities
 """
 
+import asyncio
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
+from typing import Any
+
 import polars as pl
 from loguru import logger
-import asyncio
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 
@@ -27,17 +28,17 @@ class BaseDataCollector(ABC):
         """
         self.name = name
         self.rate_limit = rate_limit
-        self._request_timestamps: List[datetime] = []
+        self._request_timestamps: list[datetime] = []
         logger.info(f"Initialized {name} collector with rate limit {rate_limit}/min")
 
     @abstractmethod
     async def collect(
         self,
         ticker: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         **kwargs,
-    ) -> Optional[pl.DataFrame]:
+    ) -> pl.DataFrame | None:
         """
         Collect data for a specific ticker
 
@@ -53,7 +54,7 @@ class BaseDataCollector(ABC):
         pass
 
     @abstractmethod
-    async def validate_data(self, data: Optional[pl.DataFrame]) -> bool:
+    async def validate_data(self, data: pl.DataFrame | None) -> bool:
         """
         Validate collected data
 
@@ -88,10 +89,10 @@ class BaseDataCollector(ABC):
     async def collect_with_retry(
         self,
         ticker: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         **kwargs,
-    ) -> Optional[pl.DataFrame]:
+    ) -> pl.DataFrame | None:
         """
         Collect data with automatic retry on failure
 
@@ -123,12 +124,12 @@ class BaseDataCollector(ABC):
 
     async def collect_batch(
         self,
-        tickers: List[str],
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        tickers: list[str],
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         max_concurrent: int = 5,
         **kwargs,
-    ) -> Dict[str, pl.DataFrame]:
+    ) -> dict[str, pl.DataFrame]:
         """
         Collect data for multiple tickers concurrently
 
@@ -197,7 +198,7 @@ class BaseDataCollector(ABC):
             ]
         )
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Check if the data source is accessible
 

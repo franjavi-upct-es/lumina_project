@@ -3,28 +3,28 @@
 Machine Learning endpoints for model training, prediction, and evaluation
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Depends
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
-from datetime import datetime, timedelta
-from uuid import uuid4
-from pathlib import Path
-import torch
 import json
-from loguru import logger
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Annotated, Any
+from uuid import uuid4
 
-from ml_engine.models.lstm_advanced import AdvancedLSTM, LSTMTrainer, TimeSeriesDataset
+import torch
+from config.settings import get_settings
 from data_engine.collectors.yfinance_collector import YFinanceCollector
 from data_engine.transformers.feature_engineering import FeatureEngineer
-from workers.ml_tasks import (
-    train_model_task,
-    evaluate_model_task,
-    compute_feature_importance_task,
-)
-from config.settings import get_settings
 from db.models import get_async_session
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from loguru import logger
+from ml_engine.models.lstm_advanced import AdvancedLSTM, LSTMTrainer, TimeSeriesDataset
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from workers.ml_tasks import (
+    compute_feature_importance_task,
+    evaluate_model_task,
+    train_model_task,
+)
 
 router = APIRouter()
 settings = get_settings()
@@ -33,9 +33,9 @@ settings = get_settings()
 # Request Models
 class TrainModelRequest(BaseModel):
     ticker: str
-    model_type: str = Field("lstm", regex="^(lstm|transformer|xgboost|ensemble)$")
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
+    model_type: str = Field("lstm", pattern="^(lstm|transformer|xgboost|ensemble)$")
+    start_date: datetime | None = None
+    end_date: datetime | None = None
 
     # Model hyperparameters
     hidden_dim: int = Field(128, ge=32, le=512)
@@ -52,7 +52,7 @@ class TrainModelRequest(BaseModel):
 
     # Feature selection
     max_features: int = Field(50, ge=10, le=200)
-    feature_categories: Optional[List[str]] = None
+    feature_categories: list[str] | None = None
 
     # Options
     async_training: bool = True
@@ -61,8 +61,8 @@ class TrainModelRequest(BaseModel):
 
 class PredictRequest(BaseModel):
     ticker: str
-    model_id: Optional[str] = None
-    model_type: str = Field("lstm", regex="^(lstm|transformer|xgboost|ensemble)$")
+    model_id: str | None = None
+    model_type: str = Field("lstm", pattern="^(lstm|transformer|xgboost|ensemble)$")
     days_ahead: int = Field(5, ge=1, le=20)
     include_uncertainty: bool = True
     include_attention: bool = True
@@ -72,7 +72,7 @@ class ModelEvaluationRequest(BaseModel):
     model_id: str
     test_start_date: datetime
     test_end_date: datetime
-    metrics: Optional[List[str]] = None
+    metrics: list[str] | None = None
 
 
 # Response Models
@@ -82,7 +82,7 @@ class TrainJobResponse(BaseModel):
     model_type: str
     status: str
     message: str
-    estimated_time_minutes: Optional[int] = None
+    estimated_time_minutes: int | None = None
 
 
 class PredictionResponse(BaseModel):
@@ -90,14 +90,14 @@ class PredictionResponse(BaseModel):
     model_id: str
     model_type: str
     prediction_time: datetime
-    predictions: List[Dict[str, Any]]
-    uncertainty: Optional[Dict[str, Any]] = None
-    attention_weights: Optional[List[float]] = None
-    regime_probabilities: Optional[Dict[str, float]] = None
+    predictions: list[dict[str, Any]]
+    uncertainty: dict[str, Any] | None = None
+    attention_weights: list[float] | None = None
+    regime_probabilities: dict[str, float] | None = None
 
 
 class ModelListResponse(BaseModel):
-    models: List[Dict[str, Any]]
+    models: list[dict[str, Any]]
     total: int
 
 
@@ -107,9 +107,9 @@ class ModelDetailsResponse(BaseModel):
     model_type: str
     ticker: str
     trained_on: datetime
-    hyperparameters: Dict[str, Any]
-    performance: Dict[str, float]
-    feature_importance: Optional[Dict[str, float]] = None
+    hyperparameters: dict[str, Any]
+    performance: dict[str, float]
+    feature_importance: dict[str, float] | None = None
     is_active: bool
 
 
@@ -143,7 +143,7 @@ async def train_model(request: TrainModelRequest, background_tasks: BackgroundTa
                 job_id=job_id,
                 ticker=request.ticker,
                 model_type=request.model_type,
-                hyperparams=request.dict(),
+                hyperparams=request.model_dump(),
             )
 
             training_jobs[job_id] = {
@@ -176,7 +176,7 @@ async def train_model(request: TrainModelRequest, background_tasks: BackgroundTa
             )
     except Exception as e:
         logger.error(f"Error initiating training: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/jobs/{job_id}")
@@ -313,17 +313,17 @@ async def predict_prices(request: PredictRequest):
 
     except Exception as e:
         logger.error(f"Error in prediction: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/models", response_model=ModelListResponse)
 async def list_models(
-    ticker: Optional[str] = None,
-    model_type: Optional[str] = None,
-    is_active: Optional[bool] = None,
-    limit: int = Query(50, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-    db: AsyncSession = Depends(get_async_session),
+    ticker: str | None = None,
+    model_type: str | None = None,
+    is_active: bool | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    db: Annotated[AsyncSession, Depends(get_async_session)] = "default",
 ):
     """
     List available models with filtering
@@ -383,13 +383,13 @@ async def list_models(
 
     except Exception as e:
         logger.error(f"Error listing models: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/models/{model_id}", response_model=ModelDetailsResponse)
 async def get_model_details(
     model_id: str,
-    db: AsyncSession = Depends(get_async_session),
+    db: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """
     Get detailed information about a specific model
@@ -425,13 +425,13 @@ async def get_model_details(
         raise
     except Exception as e:
         logger.error(f"Error fetching model details: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.delete("/models/{model_id}")
 async def delete_model(
     model_id: str,
-    db: AsyncSession = Depends(get_async_session),
+    db: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """
     Delete a model (soft delete - marks as inactive)
@@ -460,7 +460,7 @@ async def delete_model(
     except Exception as e:
         logger.error(f"Error deleting model: {e}")
         await db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/models/{model_id}/evaluate")
@@ -487,13 +487,13 @@ async def evaluate_model(model_id: str, request: ModelEvaluationRequest):
 
     except Exception as e:
         logger.error(f"Error evaluating model: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/features/importance/{model_id}")
 async def get_feature_importance(
     model_id: str,
-    num_samples: int = Query(100, ge=10, le=500),
+    num_samples: Annotated[int, Query(ge=10, le=500)] = 100,
 ):
     """
     Get feature importance for a trained model using SHAP
@@ -516,7 +516,7 @@ async def get_feature_importance(
 
     except Exception as e:
         logger.error(f"Error computing feature importance: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # Helper functions
@@ -609,7 +609,7 @@ async def _train_model_sync(job_id: str, request: TrainModelRequest):
         training_jobs[job_id]["error"] = str(e)
 
 
-def _get_active_model(ticker: str, model_type: str) -> Optional[str]:
+def _get_active_model(ticker: str, model_type: str) -> str | None:
     """Get active model ID for ticker"""
     try:
         # Look for most recent model file
@@ -639,7 +639,7 @@ def _load_model(model_id: str):
         metadata_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}_metadata.json"
 
         # Load meta_data
-        with open(metadata_path, "r") as f:
+        with open(metadata_path) as f:
             metadata = json.load(f)
 
         # Load model
@@ -665,15 +665,15 @@ def _load_model(model_id: str):
 
     except Exception as e:
         logger.error(f"Error loading model: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to load model: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to load model: {str(e)}") from e
 
 
-def _get_feature_columns(model_id: str) -> List[str]:
+def _get_feature_columns(model_id: str) -> list[str]:
     """Get feature columns used by model"""
     try:
         metadata_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}_metadata.json"
 
-        with open(metadata_path, "r") as f:
+        with open(metadata_path) as f:
             metadata = json.load(f)
 
         return metadata["feature_columns"]

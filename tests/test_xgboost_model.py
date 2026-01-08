@@ -4,12 +4,13 @@ Unit tests for XGBoost model
 Run with: pytest tests/test_xgboost_model.py -v
 """
 
-import pytest
+import sys
+import tempfile
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-import sys
-from pathlib import Path
-import tempfile
+import pytest
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -313,9 +314,10 @@ class TestXGBoostIntegration:
     @pytest.mark.integration
     async def test_train_with_real_data(self):
         """Test training with real market data"""
+        from datetime import datetime, timedelta
+
         from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
         from backend.data_engine.transformers.feature_engineering import FeatureEngineer
-        from datetime import datetime, timedelta
 
         # Collect real data
         collector = YFinanceCollector()

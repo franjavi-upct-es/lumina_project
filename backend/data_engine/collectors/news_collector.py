@@ -4,16 +4,16 @@ News collector for financial news from multiple sources
 Aggregates news for sentiment analysis and event detection
 """
 
-from typing import Optional, Dict, List
+import asyncio
+import re
 from datetime import datetime, timedelta
+
 import polars as pl
 import requests
 from loguru import logger
-import asyncio
-import re
 
-from backend.data_engine.collectors.base_collector import BaseDataCollector
 from backend.config.settings import get_settings
+from backend.data_engine.collectors.base_collector import BaseDataCollector
 
 settings = get_settings()
 
@@ -29,7 +29,7 @@ class NewsCollector(BaseDataCollector):
     - RSS feeds from financial sites
     """
 
-    def __init__(self, api_key: Optional[str] = None, rate_limit: int = 100):
+    def __init__(self, api_key: str | None = None, rate_limit: int = 100):
         """
         Initialize News collector
 
@@ -60,10 +60,10 @@ class NewsCollector(BaseDataCollector):
     async def collect(
         self,
         ticker: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         **kwargs,
-    ) -> Optional[pl.DataFrame]:
+    ) -> pl.DataFrame | None:
         """
         Collect news articles about a ticker/company
 
@@ -144,7 +144,7 @@ class NewsCollector(BaseDataCollector):
                 if published_at:
                     try:
                         published_dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
-                    except:
+                    except (ValueError, TypeError):
                         published_dt = None
                 else:
                     published_dt = None
@@ -184,7 +184,7 @@ class NewsCollector(BaseDataCollector):
             logger.error(f"Error collecting news for {ticker}: {e}")
             return None
 
-    async def validate_data(self, data: Optional[pl.DataFrame]) -> bool:
+    async def validate_data(self, data: pl.DataFrame | None) -> bool:
         """
         Validate news data
         """
@@ -205,7 +205,7 @@ class NewsCollector(BaseDataCollector):
         category: str = "business",
         country: str = "us",
         page_size: int = 20,
-    ) -> Optional[pl.DataFrame]:
+    ) -> pl.DataFrame | None:
         """
         Get top headlines for a category
 
@@ -255,7 +255,7 @@ class NewsCollector(BaseDataCollector):
                 if published_at:
                     try:
                         published_dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
-                    except:
+                    except (ValueError, TypeError):
                         continue
                 else:
                     continue
@@ -286,11 +286,11 @@ class NewsCollector(BaseDataCollector):
     async def search_news(
         self,
         query: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         sort_by: str = "relevancy",
         page_size: int = 50,
-    ) -> Optional[pl.DataFrame]:
+    ) -> pl.DataFrame | None:
         """
         Search for news with custom query
 
@@ -348,7 +348,7 @@ class NewsCollector(BaseDataCollector):
                 if published_at:
                     try:
                         published_dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
-                    except:
+                    except (ValueError, TypeError):
                         continue
                 else:
                     continue
@@ -379,9 +379,9 @@ class NewsCollector(BaseDataCollector):
 
     async def get_market_news(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> Optional[pl.DataFrame]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> pl.DataFrame | None:
         """
         Get general market news
 
@@ -415,9 +415,9 @@ class NewsCollector(BaseDataCollector):
     async def get_sector_news(
         self,
         sector: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> Optional[pl.DataFrame]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> pl.DataFrame | None:
         """
         Get news for a specific sector
 
@@ -439,7 +439,7 @@ class NewsCollector(BaseDataCollector):
             page_size=50,
         )
 
-    def extract_tickers_from_text(self, text: str) -> List[str]:
+    def extract_tickers_from_text(self, text: str) -> list[str]:
         """
         Extract potential stock tickers from text
 
@@ -488,7 +488,7 @@ class NewsCollector(BaseDataCollector):
 
         return list(tickers)
 
-    async def get_trending_tickers(self, days: int = 1) -> Optional[Dict[str, int]]:
+    async def get_trending_tickers(self, days: int = 1) -> dict[str, int] | None:
         """
         Get trending tickers from recent news
 
@@ -532,8 +532,8 @@ class NewsCollector(BaseDataCollector):
             return None
 
     async def get_earnings_news(
-        self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
-    ) -> Optional[pl.DataFrame]:
+        self, start_date: datetime | None = None, end_date: datetime | None = None
+    ) -> pl.DataFrame | None:
         """
         Get earnings-related news
 

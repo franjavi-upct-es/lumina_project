@@ -5,10 +5,9 @@ Celery application configuration for distributed task execution
 
 from celery import Celery
 from celery.schedules import crontab
+from config.settings import get_settings
 from kombu import Exchange, Queue
 from loguru import logger
-
-from config.settings import get_settings
 
 settings = get_settings()
 

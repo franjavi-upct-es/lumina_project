@@ -3,19 +3,19 @@
 Backtesting endpoints for strategy testing and optimization
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Depends
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import Annotated, Any
 from uuid import uuid4
-from loguru import logger
-import numpy as np
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from workers.backtest_tasks import run_backtest_task
+import numpy as np
 from config.settings import get_settings
 from db.models import get_async_session
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from loguru import logger
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from workers.backtest_tasks import run_backtest_task
 
 router = APIRouter()
 settings = get_settings()
@@ -27,7 +27,7 @@ class BacktestRequest(BaseModel):
     strategy_code: str = Field(..., description="Python code for the strategy")
 
     # Tickers and dates
-    tickers: List[str] = Field(..., min_items=1, max_items=50)
+    tickers: list[str] = Field(..., min_length=1, max_length=50)
     start_date: datetime
     end_date: datetime
 
@@ -43,14 +43,12 @@ class BacktestRequest(BaseModel):
     slippage: float = Field(0.0005, ge=0.0, le=0.05, description="Slippage rate")
 
     # Risk management
-    stop_loss: Optional[float] = Field(None, ge=0.01, le=0.5, description="Stop loss percentage")
-    take_profit: Optional[float] = Field(
-        None, ge=0.01, le=2.0, description="Take profit percentage"
-    )
+    stop_loss: float | None = Field(None, ge=0.01, le=0.5, description="Stop loss percentage")
+    take_profit: float | None = Field(None, ge=0.01, le=2.0, description="Take profit percentage")
 
     # Backtesting options
     benchmark: str = "SPY"
-    rebalance_frequency: str = Field("daily", regex="^(daily|weekly|monthly)$")
+    rebalance_frequency: str = Field("daily", pattern="^(daily|weekly|monthly)$")
 
     # Execution
     async_execution: bool = True
@@ -61,7 +59,7 @@ class WalkForwardRequest(BaseModel):
 
     strategy_name: str
     strategy_code: str
-    tickers: List[str]
+    tickers: list[str]
     start_date: datetime
     end_date: datetime
 
@@ -71,7 +69,7 @@ class WalkForwardRequest(BaseModel):
     step_days: int = Field(21, ge=1, le=126)  # 1 month default
 
     # Parameter ranges to optimize
-    param_ranges: Dict[str, Dict[str, Any]] = Field(
+    param_ranges: dict[str, dict[str, Any]] = Field(
         default_factory=dict, description="Parameter ranges for optimization"
     )
 
@@ -85,16 +83,16 @@ class OptimizationRequest(BaseModel):
 
     strategy_name: str
     strategy_code: str
-    tickers: List[str]
+    tickers: list[str]
     start_date: datetime
     end_date: datetime
 
     # Parameters to optimize
-    param_grid: Dict[str, List[Any]] = Field(..., description="Grid of parameters to test")
+    param_grid: dict[str, list[Any]] = Field(..., description="Grid of parameters to test")
 
     # Optimization metric
     optimization_metric: str = Field(
-        "sharpe_ratio", regex="^(sharpe_ratio|sortino_ratio|calmar_ratio|total_return)$"
+        "sharpe_ratio", pattern="^(sharpe_ratio|sortino_ratio|calmar_ratio|total_return)$"
     )
 
     initial_capital: float = 100000.0
@@ -107,13 +105,13 @@ class BacktestJobResponse(BaseModel):
     strategy_name: str
     status: str
     message: str
-    estimated_time_minutes: Optional[int] = None
+    estimated_time_minutes: int | None = None
 
 
 class BacktestResultsResponse(BaseModel):
     backtest_id: str
     strategy_name: str
-    tickers: List[str]
+    tickers: list[str]
     start_date: datetime
     end_date: datetime
 
@@ -147,17 +145,17 @@ class BacktestResultsResponse(BaseModel):
     information_ratio: float
 
     # Additional metrics
-    recovery_factor: Optional[float] = None
-    payoff_ratio: Optional[float] = None
+    recovery_factor: float | None = None
+    payoff_ratio: float | None = None
 
     # Detailed data
-    equity_curve: Optional[List[Dict[str, Any]]] = None
-    trades: Optional[List[Dict[str, Any]]] = None
-    monthly_returns: Optional[Dict[str, float]] = None
+    equity_curve: list[dict[str, Any]] | None = None
+    trades: list[dict[str, Any]] | None = None
+    monthly_returns: dict[str, float] | None = None
 
 
 class BacktestListResponse(BaseModel):
-    backtests: List[Dict[str, Any]]
+    backtests: list[dict[str, Any]]
     total: int
 
 
@@ -230,10 +228,10 @@ async def run_backtest(request: BacktestRequest, background_tasks: BackgroundTas
             )
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Error initiating backtest: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/jobs/{job_id}")
@@ -272,10 +270,10 @@ async def get_backtest_job_status(job_id: str):
 @router.get("/results/{backtest_id}", response_model=BacktestResultsResponse)
 async def get_backtest_results(
     backtest_id: str,
-    include_equity_curve: bool = Query(True),
-    include_trades: bool = Query(False),
-    include_monthly_returns: bool = Query(True),
-    db: AsyncSession = Depends(get_async_session),
+    include_equity_curve: Annotated[bool, Query()] = True,
+    include_trades: Annotated[bool, Query()] = False,
+    include_monthly_returns: Annotated[bool, Query()] = True,
+    db: Annotated[AsyncSession, Depends(get_async_session)] = "default",
 ):
     """
     Get detailed results of a completed backtest
@@ -309,14 +307,14 @@ async def get_backtest_results(
             max_drawdown=backtest.max_drawdown,
             total_trades=backtest.num_trades,
             winning_trades=int(backtest.num_trades * backtest.win_rate) if backtest.win_rate else 0,
-            losing_trades=int(backtest.num_trades * (1 - backtest.win_rate))
-            if backtest.win_rate
-            else 0,
+            losing_trades=(
+                int(backtest.num_trades * (1 - backtest.win_rate)) if backtest.win_rate else 0
+            ),
             win_rate=backtest.win_rate or 0.0,
             avg_win=backtest.avg_trade if backtest.avg_trade and backtest.avg_trade > 0 else 0.0,
-            avg_loss=abs(backtest.avg_trade)
-            if backtest.avg_trade and backtest.avg_trade < 0
-            else 0.0,
+            avg_loss=(
+                abs(backtest.avg_trade) if backtest.avg_trade and backtest.avg_trade < 0 else 0.0
+            ),
             profit_factor=backtest.profit_factor or 0.0,
             benchmark="SPY",  # From config
             benchmark_return=0.0,  # Calculate separately
@@ -368,17 +366,17 @@ async def get_backtest_results(
         raise
     except Exception as e:
         logger.error(f"Error fetching backtest results: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/list", response_model=BacktestListResponse)
 async def list_backtests(
-    strategy_name: Optional[str] = None,
-    ticker: Optional[str] = None,
-    min_sharpe: Optional[float] = None,
-    limit: int = Query(50, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-    db: AsyncSession = Depends(get_async_session),
+    strategy_name: str | None = None,
+    ticker: str | None = None,
+    min_sharpe: float | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    db: Annotated[AsyncSession, Depends(get_async_session)] = "default",
 ):
     """
     List all backtests with filtering
@@ -439,13 +437,13 @@ async def list_backtests(
 
     except Exception as e:
         logger.error(f"Error listing backtests: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.delete("/results/{backtest_id}")
 async def delete_backtest(
     backtest_id: str,
-    db: AsyncSession = Depends(get_async_session),
+    db: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """
     Delete a backtest result
@@ -474,7 +472,7 @@ async def delete_backtest(
     except Exception as e:
         logger.error(f"Error deleting backtest: {e}")
         await db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/walk-forward")
@@ -539,7 +537,7 @@ async def run_walk_forward_optimization(request: WalkForwardRequest):
 
     except Exception as e:
         logger.error(f"Error in walk-forward optimization: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/optimize")
@@ -604,13 +602,13 @@ async def optimize_parameters(request: OptimizationRequest):
 
     except Exception as e:
         logger.error(f"Error in parameter optimization: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/compare")
 async def compare_strategies(
-    backtest_ids: List[str] = Query(..., description="List of backtest IDs to compare"),
-    db: AsyncSession = Depends(get_async_session),
+    backtest_ids: Annotated[list[str], Query(description="List of backtest IDs to compare")],
+    db: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """
     Compare multiple backtest results side-by-side
@@ -685,14 +683,14 @@ async def compare_strategies(
         raise
     except Exception as e:
         logger.error(f"Error comparing strategies: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{backtest_id}/trades")
 async def get_backtest_trades(
     backtest_id: str,
-    limit: int = Query(100, ge=1, le=1000),
-    db: AsyncSession = Depends(get_async_session),
+    limit: Annotated[int, Query(ge=1, le=1000)] = 100,
+    db: Annotated[AsyncSession, Depends(get_async_session)] = "default",
 ):
     """
     Get detailed trade list from a backtest
@@ -737,13 +735,13 @@ async def get_backtest_trades(
 
     except Exception as e:
         logger.error(f"Error fetching trades: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{backtest_id}/equity-curve")
 async def get_equity_curve(
     backtest_id: str,
-    db: AsyncSession = Depends(get_async_session),
+    db: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """
     Get equity curve data for visualization
@@ -784,9 +782,9 @@ async def get_equity_curve(
                         {
                             "date": trade.exit_time.isoformat(),
                             "equity": equity,
-                            "returns": trade.pnl / (equity - trade.pnl)
-                            if equity != trade.pnl
-                            else 0,
+                            "returns": (
+                                trade.pnl / (equity - trade.pnl) if equity != trade.pnl else 0
+                            ),
                         }
                     )
 
@@ -796,20 +794,18 @@ async def get_equity_curve(
         raise
     except Exception as e:
         logger.error(f"Error fetching equity curve: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{backtest_id}/drawdown")
 async def get_drawdown_analysis(
     backtest_id: str,
-    db: AsyncSession = Depends(get_async_session),
+    db: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """
     Get detailed drawdown analysis
     """
     try:
-        from db.models import BacktestResult
-
         # Get equity curve
         equity_response = await get_equity_curve(backtest_id, db)
         equity_curve = equity_response["equity_curve"]
@@ -859,7 +855,7 @@ async def get_drawdown_analysis(
             else 0.0
         )
         max_dd_duration = (
-            max([p["duration_days"] for p in drawdown_periods]) if drawdown_periods else 0
+            max(p["duration_days"] for p in drawdown_periods) if drawdown_periods else 0
         )
 
         return {
@@ -874,13 +870,13 @@ async def get_drawdown_analysis(
 
     except Exception as e:
         logger.error(f"Error calculating drawdowns: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{backtest_id}/monthly-returns")
 async def get_monthly_returns(
     backtest_id: str,
-    db: AsyncSession = Depends(get_async_session),
+    db: Annotated[AsyncSession, Depends(get_async_session)],
 ):
     """
     Get monthly returns breakdown
@@ -938,7 +934,7 @@ async def get_monthly_returns(
         raise
     except Exception as e:
         logger.error(f"Error calculating monthly returns: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # Helper functions
@@ -981,7 +977,6 @@ async def _run_backtest_sync(job_id: str, request: BacktestRequest):
         # Import required modules
         from data_engine.collectors.yfinance_collector import YFinanceCollector
         from data_engine.transformers.feature_engineering import FeatureEngineer
-        import polars as pl
 
         # Collect data for all tickers
         collector = YFinanceCollector()
@@ -1094,8 +1089,6 @@ async def _run_backtest_sync(job_id: str, request: BacktestRequest):
         sharpe = (np.mean(returns) * 252) / volatility if volatility > 0 else 0.0
 
         winning_trades = [t for t in trades if t["pnl"] > 0]
-        losing_trades = [t for t in trades if t["pnl"] < 0]
-
         win_rate = len(winning_trades) / len(trades) if trades else 0.0
 
         # Store results (in production, save to database)

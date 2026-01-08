@@ -3,20 +3,21 @@
 Portfolio management endpoints including optimization and risk analysis
 """
 
-from fastapi import APIRouter, HTTPException, Query, Depends
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
-from loguru import logger
+from typing import Annotated, Any
+
 import numpy as np
 import pandas as pd
+from fastapi import APIRouter, Depends, HTTPException, Query
+from loguru import logger
+from pydantic import BaseModel, Field
 from scipy.optimize import minimize
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config.settings import get_settings
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
-from backend.db.models import get_async_session, PortfolioPosition, PortfolioBalance
+from backend.db.models import PortfolioBalance, PortfolioPosition, get_async_session
 
 router = APIRouter()
 settings = get_settings()
@@ -24,41 +25,41 @@ settings = get_settings()
 
 # Request Models
 class PortfolioOptimizationRequest(BaseModel):
-    tickers: List[str] = Field(..., min_items=2, max_items=50)
+    tickers: list[str] = Field(..., min_length=2, max_length=50)
     start_date: datetime
     end_date: datetime
 
     # Optimization method
     method: str = Field(
         "markowitz",
-        regex="^(markowitz|black_litterman|risk_parity|min_volatility|max_sharpe|hrp)$",
+        pattern="^(markowitz|black_litterman|risk_parity|min_volatility|max_sharpe|hrp)$",
     )
 
     # Constraints
-    target_return: Optional[float] = None
-    target_volatility: Optional[float] = None
+    target_return: float | None = None
+    target_volatility: float | None = None
     max_weight: float = Field(0.3, ge=0.01, le=1.0)
     min_weight: float = Field(0.01, ge=0.0, le=0.2)
 
     # Black-Litterman specific
-    views: Optional[Dict[str, float]] = Field(
+    views: dict[str, float] | None = Field(
         None, description="Expected returns views for Black-Litterman"
     )
-    view_confidences: Optional[Dict[str, float]] = None
+    view_confidences: dict[str, float] | None = None
 
     # Risk-free rate
     risk_free_rate: float = Field(0.05, ge=0.0, le=0.5)
 
 
 class RebalanceRequest(BaseModel):
-    current_holdings: Dict[str, float]
-    target_weights: Dict[str, float]
+    current_holdings: dict[str, float]
+    target_weights: dict[str, float]
     rebalance_threshold: float = Field(0.05, ge=0.01, le=0.5)
 
 
 class RiskAnalysisRequest(BaseModel):
-    tickers: List[str]
-    weights: Dict[str, float]
+    tickers: list[str]
+    weights: dict[str, float]
     start_date: datetime
     end_date: datetime
     confidence_level: float = Field(0.95, ge=0.90, le=0.99)
@@ -67,18 +68,18 @@ class RiskAnalysisRequest(BaseModel):
 # Response Models
 class OptimizationResultResponse(BaseModel):
     method: str
-    optimal_weights: Dict[str, float]
+    optimal_weights: dict[str, float]
     expected_return: float
     expected_volatility: float
     sharpe_ratio: float
 
     # Additional metrics
-    diversification_ratio: Optional[float] = None
+    diversification_ratio: float | None = None
     max_weight: float
     min_weight: float
 
     # Efficient frontier data
-    efficient_frontier: Optional[List[Dict[str, float]]] = None
+    efficient_frontier: list[dict[str, float]] | None = None
 
 
 class PortfolioMetricsResponse(BaseModel):
@@ -99,13 +100,13 @@ class PortfolioMetricsResponse(BaseModel):
     max_drawdown: float
 
     # Holdings
-    positions: List[Dict[str, Any]]
-    concentration: Dict[str, float]
+    positions: list[dict[str, Any]]
+    concentration: dict[str, float]
 
 
 class RebalanceResponse(BaseModel):
     trades_needed: bool
-    trades: List[Dict[str, Any]]
+    trades: list[dict[str, Any]]
     estimated_cost: float
     reason: str
 
@@ -129,12 +130,12 @@ class RiskMetricsResponse(BaseModel):
 
     # Factor exposures
     market_beta: float
-    size_factor: Optional[float] = None
-    value_factor: Optional[float] = None
-    momentum_factor: Optional[float] = None
+    size_factor: float | None = None
+    value_factor: float | None = None
+    momentum_factor: float | None = None
 
     # Stress scenarios
-    stress_scenarios: Dict[str, float]
+    stress_scenarios: dict[str, float]
 
 
 # ============================================================================
@@ -209,7 +210,7 @@ async def optimize_portfolio(request: PortfolioOptimizationRequest):
             weights = np.ones(len(returns_data)) / len(returns_data)
 
         # Calculate portfolio metrics
-        optimal_weights_dict = dict(zip(returns_data.keys(), weights))
+        optimal_weights_dict = dict(zip(returns_data.keys(), weights, strict=True))
         portfolio_return = np.dot(weights, mean_returns)
         portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
         sharpe = (portfolio_return - request.risk_free_rate) / portfolio_vol
@@ -238,7 +239,7 @@ async def optimize_portfolio(request: PortfolioOptimizationRequest):
 
     except Exception as e:
         logger.error(f"Error in portfolio optimization: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 def _optimize_max_sharpe(mean_returns, cov_matrix, risk_free_rate, min_weight, max_weight):
@@ -343,7 +344,7 @@ def _generate_efficient_frontier(mean_returns, cov_matrix, risk_free_rate, num_p
 
             constraints = [
                 {"type": "eq", "fun": lambda w: np.sum(w) - 1},
-                {"type": "eq", "fun": lambda w: np.dot(w, mean_returns) - target},
+                {"type": "eq", "fun": lambda w, target=target: np.dot(w, mean_returns) - target},
             ]
             bounds = tuple((0, 1) for _ in range(n_assets))
             initial = np.ones(n_assets) / n_assets
@@ -362,7 +363,7 @@ def _generate_efficient_frontier(mean_returns, cov_matrix, risk_free_rate, num_p
                 sharpe = (ret - risk_free_rate) / vol if vol > 0 else 0
 
                 frontier.append({"return": ret, "volatility": vol, "sharpe_ratio": sharpe})
-        except:
+        except Exception:
             continue
 
     return frontier
@@ -375,8 +376,8 @@ def _generate_efficient_frontier(mean_returns, cov_matrix, risk_free_rate, num_p
 
 @router.get("/metrics", response_model=PortfolioMetricsResponse)
 async def get_portfolio_metrics(
-    user_id: str = Query("default", description="User ID"),
-    db: AsyncSession = Depends(get_async_session),
+    user_id: Annotated[str, Query(description="User ID")] = "default",
+    db: Annotated[AsyncSession, Depends(get_async_session)] = "default",
 ):
     """
     Get current portfolio metrics and performance
@@ -426,7 +427,7 @@ async def get_portfolio_metrics(
                 end_date=datetime.now(),
             )
 
-            if data and data.height > 0:
+            if data is not None and data.height > 0:
                 current_price = float(data.select("close").tail(1).item())
                 value = quantity * current_price
                 total_equity += value
@@ -475,15 +476,15 @@ async def get_portfolio_metrics(
 
         # Concentration analysis
         concentration = {
-            "top_position": max([p["weight"] for p in positions_list]) if positions_list else 0.0,
-            "top_3_concentration": sum(
-                sorted([p["weight"] for p in positions_list], reverse=True)[:3]
-            )
-            if len(positions_list) >= 3
-            else 1.0,
-            "effective_positions": 1 / sum([p["weight"] ** 2 for p in positions_list])
-            if positions_list
-            else 0.0,
+            "top_position": max(p["weight"] for p in positions_list) if positions_list else 0.0,
+            "top_3_concentration": (
+                sum(sorted((p["weight"] for p in positions_list), reverse=True)[:3])
+                if len(positions_list) >= 3
+                else 1.0
+            ),
+            "effective_positions": (
+                1 / sum(p["weight"] ** 2 for p in positions_list) if positions_list else 0.0
+            ),
         }
 
         return PortfolioMetricsResponse(
@@ -504,7 +505,7 @@ async def get_portfolio_metrics(
 
     except Exception as e:
         logger.error(f"Error fetching portfolio metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -558,14 +559,16 @@ async def check_rebalance(request: RebalanceRequest):
             trades_needed=needs_rebalance,
             trades=trades,
             estimated_cost=estimated_cost,
-            reason=f"Rebalancing needed: {len(trades)} positions exceed {request.rebalance_threshold:.1%} threshold"
-            if needs_rebalance
-            else "No rebalancing needed",
+            reason=(
+                f"Rebalancing needed: {len(trades)} positions exceed {request.rebalance_threshold:.1%} threshold"
+                if needs_rebalance
+                else "No rebalancing needed"
+            ),
         )
 
     except Exception as e:
         logger.error(f"Error checking rebalance: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -646,13 +649,13 @@ async def analyze_portfolio_risk(request: RiskAnalysisRequest):
             spy_data = await collector.collect_with_retry(
                 ticker="SPY", start_date=request.start_date, end_date=request.end_date
             )
-            if spy_data and spy_data.height > 0:
+            if spy_data is not None and spy_data.height > 0:
                 spy_returns = spy_data.select("close").to_series().pct_change().drop_nulls()
                 if len(spy_returns) == len(portfolio_returns):
                     covariance = np.cov(portfolio_returns, spy_returns)[0, 1]
                     market_variance = np.var(spy_returns)
                     market_beta = covariance / market_variance if market_variance > 0 else 1.0
-        except:
+        except Exception:
             pass
 
         # Stress scenarios
@@ -684,7 +687,7 @@ async def analyze_portfolio_risk(request: RiskAnalysisRequest):
 
     except Exception as e:
         logger.error(f"Error in risk analysis: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -694,9 +697,9 @@ async def analyze_portfolio_risk(request: RiskAnalysisRequest):
 
 @router.get("/correlation-matrix")
 async def get_correlation_matrix(
-    tickers: List[str] = Query(..., min_items=2),
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
+    tickers: Annotated[list[str], Query(min_length=2)],
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
 ):
     """
     Get correlation matrix for a set of assets
@@ -714,7 +717,7 @@ async def get_correlation_matrix(
             data = await collector.collect_with_retry(
                 ticker=ticker, start_date=start_date, end_date=end_date
             )
-            if data and data.height > 0:
+            if data is not None and data.height > 0:
                 returns_data[ticker] = data.select("close").to_series().to_numpy()
 
         # Calculate correlation
@@ -735,15 +738,15 @@ async def get_correlation_matrix(
 
     except Exception as e:
         logger.error(f"Error calculating correlation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/efficient-frontier")
 async def get_efficient_frontier(
-    tickers: List[str] = Query(..., min_items=2),
-    start_date: datetime = Query(...),
-    end_date: datetime = Query(...),
-    num_points: int = Query(50, ge=10, le=100),
+    tickers: Annotated[list[str], Query(min_length=2)],
+    start_date: Annotated[datetime, Query()],
+    end_date: Annotated[datetime, Query()],
+    num_points: Annotated[int, Query(ge=10, le=100)] = 50,
 ):
     """
     Calculate efficient frontier for portfolio optimization
@@ -759,7 +762,7 @@ async def get_efficient_frontier(
             data = await collector.collect_with_retry(
                 ticker=ticker, start_date=start_date, end_date=end_date
             )
-            if data and data.height > 0:
+            if data is not None and data.height > 0:
                 returns_data[ticker] = data.select("close").to_series().to_numpy()
 
         # Calculate returns and covariance
@@ -792,13 +795,13 @@ async def get_efficient_frontier(
         return {
             "frontier_points": frontier_points,
             "optimal_portfolio": {
-                "weights": dict(zip(tickers, max_sharpe_weights)),
+                "weights": dict(zip(tickers, max_sharpe_weights, strict=True)),
                 "return": float(max_sharpe_return),
                 "volatility": float(max_sharpe_vol),
                 "sharpe_ratio": float((max_sharpe_return - risk_free_rate) / max_sharpe_vol),
             },
             "min_variance_portfolio": {
-                "weights": dict(zip(tickers, min_vol_weights)),
+                "weights": dict(zip(tickers, min_vol_weights, strict=True)),
                 "return": float(min_vol_return),
                 "volatility": float(min_vol_vol),
                 "sharpe_ratio": float((min_vol_return - risk_free_rate) / min_vol_vol),
@@ -807,7 +810,7 @@ async def get_efficient_frontier(
 
     except Exception as e:
         logger.error(f"Error calculating efficient frontier: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -817,13 +820,13 @@ async def get_efficient_frontier(
 
 @router.post("/monte-carlo")
 async def monte_carlo_simulation(
-    tickers: List[str] = Query(...),
-    weights: Dict[str, float] = Query(...),
-    initial_value: float = Query(100000.0),
-    num_simulations: int = Query(1000, ge=100, le=10000),
-    time_horizon_days: int = Query(252, ge=30, le=1000),
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
+    tickers: Annotated[list[str], Query()],
+    weights: Annotated[dict[str, float], Query()],
+    initial_value: Annotated[float, Query()] = 100000.0,
+    num_simulations: Annotated[int, Query(ge=100, le=10000)] = 1000,
+    time_horizon_days: Annotated[int, Query(ge=30, le=1000)] = 252,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
 ):
     """
     Run Monte Carlo simulation for portfolio
@@ -843,7 +846,7 @@ async def monte_carlo_simulation(
             data = await collector.collect_with_retry(
                 ticker=ticker, start_date=start_date, end_date=end_date
             )
-            if data and data.height > 0:
+            if data is not None and data.height > 0:
                 returns_data[ticker] = data.select("close").to_series().to_numpy()
 
         # Calculate historical statistics
@@ -851,8 +854,8 @@ async def monte_carlo_simulation(
         returns_df = returns_df.pct_change().dropna()
 
         # Get mean and covariance
-        mean_returns = returns_df.mean().values
-        cov_matrix = returns_df.cov().values
+        mean_returns = returns_df.mean()
+        cov_matrix = returns_df.cov().to_numpy()
 
         # Weights array
         weights_array = np.array([weights.get(t, 0.0) for t in returns_df.columns])
@@ -903,7 +906,7 @@ async def monte_carlo_simulation(
 
     except Exception as e:
         logger.error(f"Error in Monte Carlo simulation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -913,7 +916,8 @@ async def monte_carlo_simulation(
 
 @router.get("/allocation/sector")
 async def get_sector_allocation(
-    user_id: str = Query("default"), db: AsyncSession = Depends(get_async_session)
+    db: Annotated[AsyncSession, Depends(get_async_session)],
+    user_id: Annotated[str, Query()] = "default",
 ):
     """
     Get portfolio allocation by sector
@@ -962,13 +966,13 @@ async def get_sector_allocation(
                     end_date=datetime.now(),
                 )
 
-                if data and data.height > 0:
+                if data is not None and data.height > 0:
                     current_price = float(data.select("close").tail(1).item())
                     value = quantity * current_price
 
                     sector_values[sector] = sector_values.get(sector, 0.0) + value
                     total_value += value
-            except:
+            except Exception:
                 continue
 
         # Calculate allocation percentages
@@ -982,12 +986,13 @@ async def get_sector_allocation(
 
     except Exception as e:
         logger.error(f"Error calculating sector allocation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/allocation/geography")
 async def get_geographic_allocation(
-    user_id: str = Query("default"), db: AsyncSession = Depends(get_async_session)
+    db: Annotated[AsyncSession, Depends(get_async_session)],
+    user_id: Annotated[str, Query()] = "default",
 ):
     """
     Get portfolio allocation by geography
@@ -1033,13 +1038,13 @@ async def get_geographic_allocation(
                     end_date=datetime.now(),
                 )
 
-                if data and data.height > 0:
+                if data is not None and data.height > 0:
                     current_price = float(data.select("close").tail(1).item())
                     value = quantity * current_price
 
                     geo_values[country] = geo_values.get(country, 0.0) + value
                     total_value += value
-            except:
+            except Exception:
                 continue
 
         allocation = (
@@ -1052,7 +1057,7 @@ async def get_geographic_allocation(
 
     except Exception as e:
         logger.error(f"Error calculating geographic allocation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -1062,10 +1067,10 @@ async def get_geographic_allocation(
 
 @router.get("/factor-exposure")
 async def get_factor_exposure(
-    tickers: List[str] = Query(...),
-    weights: Dict[str, float] = Query(...),
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
+    tickers: Annotated[list[str], Query()],
+    weights: Annotated[dict[str, float], Query()],
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
 ):
     """
     Calculate portfolio's exposure to common risk factors
@@ -1085,7 +1090,7 @@ async def get_factor_exposure(
             data = await collector.collect_with_retry(
                 ticker=ticker, start_date=start_date, end_date=end_date
             )
-            if data and data.height > 0:
+            if data is not None and data.height > 0:
                 returns_data[ticker] = data.select("close").to_series().to_numpy()
 
         returns_df = pd.DataFrame(returns_data)
@@ -1102,13 +1107,13 @@ async def get_factor_exposure(
 
         factors = {}
 
-        if spy_data and spy_data.height > 0:
+        if spy_data is not None and spy_data.height > 0:
             market_returns = spy_data.select("close").to_series().pct_change().drop_nulls()
 
             # Align dates
             common_dates = min(len(portfolio_returns), len(market_returns))
             port_ret = portfolio_returns[-common_dates:].values
-            mkt_ret = market_returns[-common_dates:].values
+            mkt_ret = market_returns[-common_dates:].to_numpy()
 
             # Calculate market beta
             covariance = np.cov(port_ret, mkt_ret)[0, 1]
@@ -1132,31 +1137,41 @@ async def get_factor_exposure(
 
         # Interpretations
         interpretations = {
-            "market_beta": "Higher than market"
-            if factors["market_beta"] > 1.1
-            else "Lower than market"
-            if factors["market_beta"] < 0.9
-            else "Similar to market",
-            "size": "Large-cap bias"
-            if factors["size"] < -0.1
-            else "Small-cap bias"
-            if factors["size"] > 0.1
-            else "Neutral",
-            "value": "Value tilt"
-            if factors["value"] > 0.15
-            else "Growth tilt"
-            if factors["value"] < -0.15
-            else "Neutral",
-            "momentum": "Strong momentum"
-            if factors["momentum"] > 0.25
-            else "Weak momentum"
-            if factors["momentum"] < -0.25
-            else "Neutral",
-            "quality": "Quality bias"
-            if factors["quality"] > 0.1
-            else "Low quality"
-            if factors["quality"] < -0.1
-            else "Neutral",
+            "market_beta": (
+                "Higher than market"
+                if factors["market_beta"] > 1.1
+                else "Lower than market"
+                if factors["market_beta"] < 0.9
+                else "Similar to market"
+            ),
+            "size": (
+                "Large-cap bias"
+                if factors["size"] < -0.1
+                else "Small-cap bias"
+                if factors["size"] > 0.1
+                else "Neutral"
+            ),
+            "value": (
+                "Value tilt"
+                if factors["value"] > 0.15
+                else "Growth tilt"
+                if factors["value"] < -0.15
+                else "Neutral"
+            ),
+            "momentum": (
+                "Strong momentum"
+                if factors["momentum"] > 0.25
+                else "Weak momentum"
+                if factors["momentum"] < -0.25
+                else "Neutral"
+            ),
+            "quality": (
+                "Quality bias"
+                if factors["quality"] > 0.1
+                else "Low quality"
+                if factors["quality"] < -0.1
+                else "Neutral"
+            ),
         }
 
         return {
@@ -1167,4 +1182,4 @@ async def get_factor_exposure(
 
     except Exception as e:
         logger.error(f"Error calculating factor exposure: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

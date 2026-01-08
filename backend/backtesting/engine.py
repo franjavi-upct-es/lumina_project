@@ -4,18 +4,20 @@ Main backtesting engine with support for multiple execution modes
 Orchestrates vectorized, event-driven, and Monte Carlo backtesting
 """
 
-from typing import Dict, List, Optional, Any, Callable
-from datetime import datetime
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
-import pandas as pd
+from typing import Any
+
 import numpy as np
+import pandas as pd
 from loguru import logger
 
-from backend.backtesting.transaction_costs import TransactionCostModel
-from backend.backtesting.vectorized import VectorizedBacktest
 from backend.backtesting.event_driven import EventDrivenBacktest
 from backend.backtesting.monte_carlo import MonteCarloSimulation
+from backend.backtesting.transaction_costs import TransactionCostModel
+from backend.backtesting.vectorized import VectorizedBacktest
 
 
 class BacktestMode(Enum):
@@ -44,8 +46,8 @@ class BacktestConfig:
     slippage: float = 0.0005  # 0.05%
 
     # Risk management
-    stop_loss: Optional[float] = None  # Percentage
-    take_profit: Optional[float] = None  # Percentage
+    stop_loss: float | None = None  # Percentage
+    take_profit: float | None = None  # Percentage
     max_leverage: float = 1.0
 
     # Execution
@@ -72,16 +74,16 @@ class Trade:
 
     ticker: str
     entry_time: datetime
-    exit_time: Optional[datetime]
+    exit_time: datetime | None
     direction: str  # 'long' or 'short'
     entry_price: float
-    exit_price: Optional[float]
+    exit_price: float | None
     quantity: float
     commission: float
     slippage: float
-    pnl: Optional[float] = None
-    pnl_percent: Optional[float] = None
-    exit_reason: Optional[str] = None  # 'signal', 'stop_loss', 'take_profit'
+    pnl: float | None = None
+    pnl_percent: float | None = None
+    exit_reason: str | None = None  # 'signal', 'stop_loss', 'take_profit'
 
     def close(self, exit_time: datetime, exit_price: float, reason: str = "signal"):
         """Close the trade"""
@@ -111,7 +113,7 @@ class BacktestResult:
 
     # Strategy info
     strategy_name: str
-    tickers: List[str]
+    tickers: list[str]
     start_date: datetime
     end_date: datetime
 
@@ -131,7 +133,7 @@ class BacktestResult:
     max_drawdown: float
 
     # Trade statistics
-    trades: List[Trade] = field(default_factory=list)
+    trades: list[Trade] = field(default_factory=list)
     num_trades: int = 0
     winning_trades: int = 0
     losing_trades: int = 0
@@ -145,13 +147,13 @@ class BacktestResult:
     drawdown_series: pd.Series = field(default_factory=pd.Series)
 
     # Benchmark comparison
-    benchmark_return: Optional[float] = None
-    alpha: Optional[float] = None
-    beta: Optional[float] = None
+    benchmark_return: float | None = None
+    alpha: float | None = None
+    beta: float | None = None
 
     # Additional metrics
-    recovery_factor: Optional[float] = None
-    payoff_ratio: Optional[float] = None
+    recovery_factor: float | None = None
+    payoff_ratio: float | None = None
 
     def calculate_metrics(self):
         """Calculate derived metrics from trades"""
@@ -179,8 +181,8 @@ class BacktestResult:
         self.avg_loss = np.mean([abs(t.pnl) for t in losses]) if losses else 0.0
 
         # Profit factor
-        total_wins = sum([t.pnl for t in wins])
-        total_losses = abs(sum([t.pnl for t in losses]))
+        total_wins = sum(t.pnl for t in wins)
+        total_losses = abs(sum(t.pnl for t in losses))
         self.profit_factor = total_wins / total_losses if total_losses > 0 else 0.0
 
         # Payoff ratio
@@ -190,7 +192,7 @@ class BacktestResult:
         if self.max_drawdown != 0:
             self.recovery_factor = self.total_return / abs(self.max_drawdown)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary"""
         return {
             "strategy_name": self.strategy_name,
@@ -229,7 +231,7 @@ class BacktestEngine:
     - Monte Carlo simulation (risk assessment)
     """
 
-    def __init__(self, config: Optional[BacktestConfig] = None):
+    def __init__(self, config: BacktestConfig | None = None):
         """
         Initialize backtest engine
 
@@ -245,14 +247,14 @@ class BacktestEngine:
         )
 
         # Results
-        self.results: Optional[BacktestResult] = None
+        self.results: BacktestResult | None = None
 
         logger.info(f"Initialized backtest engine in {self.config.execution_mode.value} mode")
 
     def run(
         self,
         strategy_func: Callable,
-        data: Dict[str, pd.DataFrame],
+        data: dict[str, pd.DataFrame],
         strategy_name: str = "Strategy",
     ) -> BacktestResult:
         """
@@ -329,8 +331,8 @@ class BacktestEngine:
 
     def compare_strategies(
         self,
-        strategies: List[tuple[Callable, str]],
-        data: Dict[str, pd.DataFrame],
+        strategies: list[tuple[Callable, str]],
+        data: dict[str, pd.DataFrame],
     ) -> pd.DataFrame:
         """
         Compare multiple strategies
@@ -370,10 +372,10 @@ class BacktestEngine:
     def optimize_parameters(
         self,
         strategy_func: Callable,
-        data: Dict[str, pd.DataFrame],
-        param_grid: Dict[str, List[Any]],
+        data: dict[str, pd.DataFrame],
+        param_grid: dict[str, list[Any]],
         optimization_metric: str = "sharpe_ratio",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Optimize strategy parameters using grid search
 
@@ -403,14 +405,14 @@ class BacktestEngine:
         best_metric_value = float("-inf")
 
         for i, combo in enumerate(combinations):
-            params = dict(zip(param_names, combo))
+            params = dict(zip(param_names, combo, strict=True))
 
             if (i + 1) % 10 == 0:
                 logger.info(f"Progress: {i + 1}/{len(combinations)}")
 
             try:
                 # Create strategy with parameters
-                def parameterized_strategy(data_dict):
+                def parameterized_strategy(data_dict, params=params):
                     return strategy_func(data_dict, **params)
 
                 # Run backtest
@@ -436,7 +438,7 @@ class BacktestEngine:
             logger.error("Optimization failed - no valid results")
             return {}
 
-        logger.success(f"Optimization complete!")
+        logger.success("Optimization complete!")
         logger.info(f"Best {optimization_metric}: {best_metric_value:.4f}")
         logger.info(f"Best parameters: {best_params}")
 
@@ -449,11 +451,11 @@ class BacktestEngine:
     def walk_forward_analysis(
         self,
         strategy_func: Callable,
-        data: Dict[str, pd.DataFrame],
+        data: dict[str, pd.DataFrame],
         train_size: int = 252,  # 1 year
         test_size: int = 63,  # 3 months
         step_size: int = 21,  # 1 month
-    ) -> List[BacktestResult]:
+    ) -> list[BacktestResult]:
         """
         Perform walk-forward analysis
 
@@ -493,8 +495,6 @@ class BacktestEngine:
             )
 
             # Split data
-            train_data = {ticker: df.iloc[train_start:train_end] for ticker, df in data.items()}
-
             test_data = {ticker: df.iloc[test_start:test_end] for ticker, df in data.items()}
 
             # Run backtest on test data

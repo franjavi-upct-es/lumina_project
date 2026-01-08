@@ -4,10 +4,11 @@ Pre-built trading strategies for backtesting
 Collection of common strategies with configurable parameters
 """
 
-from typing import List, Dict, Any, Optional
 from abc import ABC, abstractmethod
-import pandas as pd
+from typing import Any
+
 import numpy as np
+import pandas as pd
 from loguru import logger
 
 
@@ -16,7 +17,7 @@ class BaseStrategy(ABC):
     Base class for all trading strategies
     """
 
-    def __init__(self, name: str, params: Optional[Dict[str, Any]] = None):
+    def __init__(self, name: str, params: dict[str, Any] | None = None):
         """
         Initialize strategy
 
@@ -29,7 +30,7 @@ class BaseStrategy(ABC):
         logger.info(f"Initialized strategy: {name}")
 
     @abstractmethod
-    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> List[str]:
+    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> list[str]:
         """
         Generate trading signals
 
@@ -79,7 +80,7 @@ class RSIStrategy(BaseStrategy):
         }
         super().__init__("RSI Strategy", params)
 
-    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> List[str]:
+    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> list[str]:
         """Generate RSI-based signals"""
         signals = []
 
@@ -145,7 +146,7 @@ class MACDStrategy(BaseStrategy):
     def __init__(self, **kwargs):
         super().__init__("MACD Strategy", {})
 
-    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> List[str]:
+    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> list[str]:
         """Generate MACD-based signals"""
         signals = []
 
@@ -220,7 +221,7 @@ class MovingAverageCrossover(BaseStrategy):
         params = {"fast_period": fast_period, "slow_period": slow_period}
         super().__init__("MA Crossover Strategy", params)
 
-    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> List[str]:
+    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> list[str]:
         """Generate MA crossover signals"""
         signals = []
 
@@ -264,7 +265,7 @@ class BollingerBandsStrategy(BaseStrategy):
     def __init__(self, **kwargs):
         super().__init__("Bollinger Bands Strategy", {})
 
-    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> List[str]:
+    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> list[str]:
         """Generate Bollinger Bands signals"""
         signals = []
 
@@ -302,7 +303,7 @@ class MeanReversionStrategy(BaseStrategy):
         params = {"lookback": lookback, "std_threshold": std_threshold}
         super().__init__("Mean Reversion Strategy", params)
 
-    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> List[str]:
+    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> list[str]:
         """Generate mean reversion signals"""
         signals = []
 
@@ -344,7 +345,7 @@ class MomentumStrategy(BaseStrategy):
         params = {"lookback": lookback, "threshold": threshold}
         super().__init__("Momentum Strategy", params)
 
-    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> List[str]:
+    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> list[str]:
         """Generate momentum signals"""
         signals = []
 
@@ -391,7 +392,7 @@ class ComboStrategy(BaseStrategy):
         }
         super().__init__("Combo Strategy", params)
 
-    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> List[str]:
+    def generate_signals(self, data: pd.DataFrame, features: pd.DataFrame) -> list[str]:
         """Generate signals using multiple indicators"""
         signals = []
 
@@ -479,7 +480,7 @@ def get_strategy(strategy_name: str, **params) -> BaseStrategy:
     return strategy_class(**params)
 
 
-def list_strategies() -> Dict[str, str]:
+def list_strategies() -> dict[str, str]:
     """
     List all available strategies
 

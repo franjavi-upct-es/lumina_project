@@ -3,13 +3,13 @@
 Lumina Quant Lab 2.0 - Main Streamlit Dashboard
 """
 
-import streamlit as st
-import requests
+import os
+from datetime import datetime, timedelta
+
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
-from datetime import datetime, timedelta
-import os
+import requests
+import streamlit as st
 
 # Page configuration
 st.set_page_config(

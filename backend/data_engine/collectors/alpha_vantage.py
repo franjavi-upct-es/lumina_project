@@ -4,15 +4,16 @@ Alpha Vantage data collector for fundamental data and alternative data sources
 Provides company fundamentals, earnings, economic indicators
 """
 
-from typing import Optional, Dict, Any
+import asyncio
 from datetime import datetime
+from typing import Any
+
 import polars as pl
 import requests
 from loguru import logger
-import asyncio
 
-from backend.data_engine.collectors.base_collector import BaseDataCollector
 from backend.config.settings import get_settings
+from backend.data_engine.collectors.base_collector import BaseDataCollector
 
 settings = get_settings()
 
@@ -30,7 +31,7 @@ class AlphaVantageCollector(BaseDataCollector):
     - IPO calendar
     """
 
-    def __init__(self, api_key: Optional[str] = None, rate_limit: int = 5):
+    def __init__(self, api_key: str | None = None, rate_limit: int = 5):
         """
         Initialize Alpha Vantage collector
 
@@ -49,10 +50,10 @@ class AlphaVantageCollector(BaseDataCollector):
     async def collect(
         self,
         ticker: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         **kwargs,
-    ) -> Optional[pl.DataFrame]:
+    ) -> pl.DataFrame | None:
         """
         Collect daily price data from Alpha Vantage
 
@@ -151,7 +152,7 @@ class AlphaVantageCollector(BaseDataCollector):
             logger.error(f"Error collecting data for {ticker}: {e}")
             return None
 
-    async def validate_data(self, data: Optional[pl.DataFrame]) -> bool:
+    async def validate_data(self, data: pl.DataFrame | None) -> bool:
         """
         Validate collected data
         """
@@ -175,7 +176,7 @@ class AlphaVantageCollector(BaseDataCollector):
 
         return True
 
-    async def get_company_overview(self, ticker: str) -> Optional[Dict[str, Any]]:
+    async def get_company_overview(self, ticker: str) -> dict[str, Any] | None:
         """
         Get comprehensive company overview and fundamentals
 
@@ -267,7 +268,7 @@ class AlphaVantageCollector(BaseDataCollector):
 
     async def get_income_statement(
         self, ticker: str, quarterly: bool = False
-    ) -> Optional[pl.DataFrame]:
+    ) -> pl.DataFrame | None:
         """
         Get income statement data
 
@@ -339,9 +340,7 @@ class AlphaVantageCollector(BaseDataCollector):
             logger.error(f"Error fetching income statement for {ticker}: {e}")
             return None
 
-    async def get_balance_sheet(
-        self, ticker: str, quarterly: bool = False
-    ) -> Optional[pl.DataFrame]:
+    async def get_balance_sheet(self, ticker: str, quarterly: bool = False) -> pl.DataFrame | None:
         """
         Get balance sheet data
         """
@@ -407,7 +406,7 @@ class AlphaVantageCollector(BaseDataCollector):
             logger.error(f"Error fetching balance sheet for {ticker}: {e}")
             return None
 
-    async def get_cash_flow(self, ticker: str, quarterly: bool = False) -> Optional[pl.DataFrame]:
+    async def get_cash_flow(self, ticker: str, quarterly: bool = False) -> pl.DataFrame | None:
         """
         Get cash flow statement
         """
@@ -473,7 +472,7 @@ class AlphaVantageCollector(BaseDataCollector):
             logger.error(f"Error fetching cash flow for {ticker}: {e}")
             return None
 
-    async def get_earnings(self, ticker: str) -> Optional[pl.DataFrame]:
+    async def get_earnings(self, ticker: str) -> pl.DataFrame | None:
         """
         Get earnings data (historical and estimates)
         """
@@ -528,7 +527,7 @@ class AlphaVantageCollector(BaseDataCollector):
 
     async def get_economic_indicator(
         self, indicator: str, interval: str = "monthly"
-    ) -> Optional[pl.DataFrame]:
+    ) -> pl.DataFrame | None:
         """
         Get economic indicators from FRED via Alpha Vantage
 
@@ -585,7 +584,7 @@ class AlphaVantageCollector(BaseDataCollector):
             logger.error(f"Error fetching indicator {indicator}: {e}")
             return None
 
-    def _parse_float(self, value: Any) -> Optional[float]:
+    def _parse_float(self, value: Any) -> float | None:
         """
         Safely parse float values
         """

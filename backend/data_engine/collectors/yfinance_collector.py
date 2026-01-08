@@ -3,12 +3,13 @@
 TFinance data collector - Primary source for historical stock data
 """
 
-from typing import Optional, Dict, Any
+import asyncio
 from datetime import datetime, timedelta
+from typing import Any
+
 import polars as pl
 import yfinance as yf
 from loguru import logger
-import asyncio
 
 from backend.data_engine.collectors.base_collector import BaseDataCollector
 
@@ -25,11 +26,11 @@ class YFinanceCollector(BaseDataCollector):
     async def collect(
         self,
         ticker: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         interval: str = "1d",
         **kwargs,
-    ) -> Optional[pl.DataFrame]:
+    ) -> pl.DataFrame | None:
         """
         Collect historical price data from Yahoo Finance
 
@@ -105,7 +106,7 @@ class YFinanceCollector(BaseDataCollector):
 
         return data
 
-    async def validate_data(self, data: Optional[pl.DataFrame]) -> bool:
+    async def validate_data(self, data: pl.DataFrame | None) -> bool:
         """
         Validate the colleted data
         """
@@ -138,7 +139,7 @@ class YFinanceCollector(BaseDataCollector):
 
         return True
 
-    async def get_company_info(self, ticker: str) -> Optional[Dict[str, Any]]:
+    async def get_company_info(self, ticker: str) -> dict[str, Any] | None:
         """
         Get company information and meta_data
 
@@ -156,7 +157,7 @@ class YFinanceCollector(BaseDataCollector):
             logger.error(f"Error fetching company info for {ticker}: {e}")
             return None
 
-    def _fetch_company_info(self, ticker: str) -> Dict[str, Any]:
+    def _fetch_company_info(self, ticker: str) -> dict[str, Any]:
         """
         Synchronous fetch of company info
         """
@@ -202,8 +203,8 @@ class YFinanceCollector(BaseDataCollector):
         }
 
     async def get_options_data(
-        self, ticker: str, expiration_date: Optional[str] = None
-    ) -> Optional[Dict[str, pl.DataFrame]]:
+        self, ticker: str, expiration_date: str | None = None
+    ) -> dict[str, pl.DataFrame] | None:
         """
         Get options chain data
 
@@ -225,8 +226,8 @@ class YFinanceCollector(BaseDataCollector):
             return None
 
     def _fetch_options_data(
-        self, ticker: str, expiration_date: Optional[str]
-    ) -> Optional[Dict[str, pl.DataFrame]]:
+        self, ticker: str, expiration_date: str | None
+    ) -> dict[str, pl.DataFrame] | None:
         """
         Synchronous fetch of options data
         """
@@ -248,7 +249,7 @@ class YFinanceCollector(BaseDataCollector):
 
         return {"calls": calls, "puts": puts, "expiration": expiration_date}
 
-    async def get_institutional_holders(self, ticker: str) -> Optional[pl.DataFrame]:
+    async def get_institutional_holders(self, ticker: str) -> pl.DataFrame | None:
         """
         Get institutional holders information
         """
@@ -260,7 +261,7 @@ class YFinanceCollector(BaseDataCollector):
             logger.error(f"Error fetching institutional holders for {ticker}: {e}")
             return None
 
-    def _fetch_institutional_holders(self, ticker: str) -> Optional[pl.DataFrame]:
+    def _fetch_institutional_holders(self, ticker: str) -> pl.DataFrame | None:
         """
         Synchronous fetch of institutional holders
         """
@@ -272,7 +273,7 @@ class YFinanceCollector(BaseDataCollector):
 
         return pl.from_pandas(holders)
 
-    async def get_earnings_history(self, ticker: str) -> Optional[pl.DataFrame]:
+    async def get_earnings_history(self, ticker: str) -> pl.DataFrame | None:
         """
         Get historical earnings data
         """
@@ -284,7 +285,7 @@ class YFinanceCollector(BaseDataCollector):
             logger.error(f"Error fetching earnings for {ticker}: {e}")
             return None
 
-    def _fetch_earnings(self, ticker: str) -> Optional[pl.DataFrame]:
+    def _fetch_earnings(self, ticker: str) -> pl.DataFrame | None:
         """
         Synchronous fetch of earnings
         """

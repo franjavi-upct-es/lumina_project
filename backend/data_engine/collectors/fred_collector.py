@@ -4,15 +4,16 @@ Federal Reserve Economic Data (FRED) collector
 Provides macroeconomic data from the St. Louis Federeal Reserve
 """
 
-from typing import List, Dict, Any, Optional
+import asyncio
 from datetime import datetime
+from typing import Any
+
 import polars as pl
 import requests
 from loguru import logger
-import asyncio
 
-from backend.data_engine.collectors.base_collector import BaseDataCollector
 from backend.config.settings import get_settings
+from backend.data_engine.collectors.base_collector import BaseDataCollector
 
 settings = get_settings()
 
@@ -32,7 +33,7 @@ class FredCollector(BaseDataCollector):
     - DEXUSEU: USD/EUR Exchange Rate
     """
 
-    def __init__(self, api_key: Optional[str] = None, rate_limit: int = 120):
+    def __init__(self, api_key: str | None = None, rate_limit: int = 120):
         """
         Initialize FRED collector
 
@@ -105,10 +106,10 @@ class FredCollector(BaseDataCollector):
     async def collect(
         self,
         ticker: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         **kwargs,
-    ) -> Optional[pl.DataFrame]:
+    ) -> pl.DataFrame | None:
         """
         Collect economic data series from FRED
 
@@ -215,7 +216,7 @@ class FredCollector(BaseDataCollector):
             logger.error(f"Error collecting FRED series {series_id}: {e}")
             return None
 
-    async def validate_data(self, data: Optional[pl.DataFrame]) -> bool:
+    async def validate_data(self, data: pl.DataFrame | None) -> bool:
         """
         Validate FRED data
         """
@@ -231,7 +232,7 @@ class FredCollector(BaseDataCollector):
 
         return True
 
-    async def get_series_info(self, series_id: str) -> Optional[Dict[str, Any]]:
+    async def get_series_info(self, series_id: str) -> dict[str, Any] | None:
         """
         Get metadata about a FRED series
 
@@ -289,9 +290,7 @@ class FredCollector(BaseDataCollector):
             logger.error(f"Error fetching series info for {series_id}: {e}")
             return None
 
-    async def search_series(
-        self, search_text: str, limit: int = 10
-    ) -> Optional[List[Dict[str, Any]]]:
+    async def search_series(self, search_text: str, limit: int = 10) -> list[dict[str, Any]] | None:
         """
         Search for FRED series by keyword
 
@@ -351,10 +350,10 @@ class FredCollector(BaseDataCollector):
 
     async def get_multiple_series(
         self,
-        series_ids: List[str],
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> Optional[pl.DataFrame]:
+        series_ids: list[str],
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> pl.DataFrame | None:
         """
         Get multiple series and merge them into one DataFrame
 
@@ -393,7 +392,7 @@ class FredCollector(BaseDataCollector):
 
             # Merge all series on time
             result = None
-            for series_id, data in all_series.items():
+            for _series_id, data in all_series.items():
                 if result is None:
                     result = data
                 else:
@@ -412,9 +411,9 @@ class FredCollector(BaseDataCollector):
 
     async def get_economic_indicators_bundle(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> Optional[pl.DataFrame]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> pl.DataFrame | None:
         """
         Get a bundle of key economic indicators
 
@@ -444,7 +443,7 @@ class FredCollector(BaseDataCollector):
             end_date=end_date,
         )
 
-    def get_common_series_list(self) -> Dict[str, str]:
+    def get_common_series_list(self) -> dict[str, str]:
         """
         Get list of common FRED series with descriptions
 

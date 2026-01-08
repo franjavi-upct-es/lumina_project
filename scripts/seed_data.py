@@ -12,16 +12,16 @@ from pathlib import Path
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import pandas as pd
+from loguru import logger
+
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
 from backend.data_engine.transformers.feature_engineering import FeatureEngineer
 from backend.db.models import (
-    init_db,
-    bulk_insert_price_data,
     bulk_insert_features,
+    bulk_insert_price_data,
+    init_db,
 )
-from loguru import logger
-import pandas as pd
-
 
 # Default tickers to populate
 DEFAULT_TICKERS = [

@@ -4,19 +4,21 @@ FastAPI dependencies for dependency injection
 Provides common dependencies like database sessions, authentication, rate limiting
 """
 
-from typing import Optional, Generator, AsyncGenerator
-from fastapi import Depends, HTTPException, Header, status, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-from redis import Redis
+from collections.abc import AsyncGenerator, Generator
 from datetime import datetime, timedelta
+from typing import Annotated
+
 import jwt
+from fastapi import Depends, Header, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
+from redis import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config.settings import get_settings
-from backend.db.models import get_async_session
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
 from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+from backend.db.models import get_async_session
 
 settings = get_settings()
 
@@ -106,7 +108,7 @@ def get_feature_engineer() -> FeatureEngineer:
 # ============================================================================
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """
     Create JWT access token
 
@@ -155,22 +157,22 @@ def decode_access_token(token: str) -> dict:
             algorithms=["HS256"],
         )
         return payload
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
-        )
-    except jwt.JWTError:
+        ) from err
+    except jwt.JWTError as err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from err
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
 ) -> dict:
     """
     Get current authenticated user from JWT token
@@ -196,8 +198,8 @@ async def get_current_user(
 
 
 async def get_current_user_optional(
-    authorization: Optional[str] = Header(None),
-) -> Optional[dict]:
+    authorization: str | None = Header(None),
+) -> dict | None:
     """
     Get current user if authenticated, None otherwise
 
@@ -218,7 +220,7 @@ async def get_current_user_optional(
         payload = decode_access_token(token)
         user_id = payload.get("sub")
         return {"user_id": user_id, "payload": payload}
-    except:
+    except Exception:
         return None
 
 
@@ -298,13 +300,13 @@ class RateLimiter:
             current = int(self.redis.get(key) or 0)
             remaining = max(0, self.max_requests - current)
             return remaining
-        except:
+        except Exception:
             return self.max_requests
 
 
 async def check_rate_limit(
     request: Request,
-    redis: Redis = Depends(get_redis),
+    redis: Annotated[Redis, Depends(get_redis)],
 ) -> None:
     """
     Rate limit dependency
@@ -412,9 +414,9 @@ class DateRangeParams:
 
     def __init__(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        days: Optional[int] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        days: int | None = None,
     ):
         """
         Initialize date range
@@ -462,9 +464,9 @@ class DateRangeParams:
 
 
 def get_date_range(
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
-    days: Optional[int] = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    days: int | None = None,
 ) -> DateRangeParams:
     """
     Get validated date range parameters
@@ -488,7 +490,7 @@ def get_date_range(
 
 
 async def verify_api_key(
-    x_api_key: Optional[str] = Header(None),
+    x_api_key: str | None = Header(None),
 ) -> str:
     """
     Verify API key from header
@@ -647,7 +649,7 @@ class CacheManager:
         self.redis = redis
         self.ttl = ttl
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         """Get value from cache"""
         try:
             return self.redis.get(key)
@@ -675,7 +677,7 @@ class CacheManager:
 
 
 def get_cache_manager(
-    redis: Redis = Depends(get_redis),
+    redis: Annotated[Redis, Depends(get_redis)],
 ) -> CacheManager:
     """
     Get cache manager

@@ -4,12 +4,13 @@ Unit tests for data collection components
 Run with: pytest tests/test_data_collection.py -v
 """
 
+import asyncio
+import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+
 import pytest
 import pytest_asyncio
-import asyncio
-from datetime import datetime, timedelta
-import sys
-from pathlib import Path
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -289,7 +290,7 @@ def test_import_modules():
     try:
         from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
         from backend.data_engine.transformers.feature_engineering import FeatureEngineer
-        from backend.db.models import init_db, bulk_insert_price_data
+        from backend.db.models import bulk_insert_price_data, init_db
 
         assert True
     except ImportError as e:

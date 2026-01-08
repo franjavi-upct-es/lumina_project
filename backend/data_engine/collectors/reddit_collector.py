@@ -4,16 +4,17 @@ Reddit collector for social sentiment from financial subreddits
 Tracks mentions, sentiment, and discussions about stocks
 """
 
-from typing import Optional, Dict, Any, List
+import asyncio
+import re
 from datetime import datetime, timedelta
+from typing import Any
+
 import polars as pl
 import praw
 from loguru import logger
-import asyncio
-import re
 
-from backend.data_engine.collectors.base_collector import BaseDataCollector
 from backend.config.settings import get_settings
+from backend.data_engine.collectors.base_collector import BaseDataCollector
 
 settings = get_settings()
 
@@ -33,8 +34,8 @@ class RedditCollector(BaseDataCollector):
 
     def __init__(
         self,
-        client_id: Optional[str] = None,
-        client_secret: Optional[str] = None,
+        client_id: str | None = None,
+        client_secret: str | None = None,
         user_agent: str = "LuminaQuantLab/2.0",
         rate_limit: int = 60,
     ):
@@ -88,10 +89,10 @@ class RedditCollector(BaseDataCollector):
     async def collect(
         self,
         ticker: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         **kwargs,
-    ) -> Optional[pl.DataFrame]:
+    ) -> pl.DataFrame | None:
         """
         Collect Reddit posts and comments mentioning a ticker
 
@@ -132,8 +133,8 @@ class RedditCollector(BaseDataCollector):
                 try:
                     posts = await loop.run_in_executor(
                         None,
-                        lambda: self._search_subreddit(
-                            subreddit_name, query, limit, sort, time_filter
+                        lambda subreddit=subreddit_name: self._search_subreddit(
+                            subreddit, query, limit, sort, time_filter
                         ),
                     )
                     all_posts.extend(posts)
@@ -174,7 +175,7 @@ class RedditCollector(BaseDataCollector):
         limit: int,
         sort: str,
         time_filter: str,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Search a specific subreddit (synchronous)
         """
@@ -223,7 +224,7 @@ class RedditCollector(BaseDataCollector):
 
         return posts
 
-    async def validate_data(self, data: Optional[pl.DataFrame]) -> bool:
+    async def validate_data(self, data: pl.DataFrame | None) -> bool:
         """
         Validate Reddit data
         """
@@ -244,7 +245,7 @@ class RedditCollector(BaseDataCollector):
         subreddit: str = "wallstreetbets",
         limit: int = 100,
         time_filter: str = "day",
-    ) -> Optional[Dict[str, int]]:
+    ) -> dict[str, int] | None:
         """
         Get trending tickers from a subreddit
 
@@ -292,7 +293,7 @@ class RedditCollector(BaseDataCollector):
 
     def _get_top_posts(
         self, subreddit_name: str, limit: int, time_filter: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get top posts from subreddit (synchronous)
         """
@@ -317,7 +318,7 @@ class RedditCollector(BaseDataCollector):
 
         return posts
 
-    def _extract_tickers(self, text: str) -> List[str]:
+    def _extract_tickers(self, text: str) -> list[str]:
         """
         Extract stock tickers from text
 
@@ -374,7 +375,6 @@ class RedditCollector(BaseDataCollector):
             "WHO",
             "BOY",
             "DID",
-            "ITS",
             "LET",
             "PUT",
             "SAY",
@@ -424,7 +424,7 @@ class RedditCollector(BaseDataCollector):
         subreddit: str,
         limit: int = 100,
         time_filter: str = "day",
-    ) -> Optional[pl.DataFrame]:
+    ) -> pl.DataFrame | None:
         """
         Get posts from a subreddit for sentiment analysis
 
@@ -460,7 +460,7 @@ class RedditCollector(BaseDataCollector):
 
     def _get_subreddit_posts(
         self, subreddit_name: str, limit: int, time_filter: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get posts from subreddit (synchronous)
         """
@@ -493,7 +493,7 @@ class RedditCollector(BaseDataCollector):
         self,
         ticker: str,
         days: int = 7,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Get sentiment summary for a ticker
 

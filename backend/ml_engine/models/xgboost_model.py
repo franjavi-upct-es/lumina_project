@@ -4,16 +4,17 @@ XGBoost model for financial time series prediction
 Optimized for tabular feature data with built-in feature importance
 """
 
-from typing import Dict, Any, Optional, Tuple, Union
+import pickle
 from pathlib import Path
+from typing import Any
+
+import mlflow
 import numpy as np
 import pandas as pd
 import xgboost as xgb
+from loguru import logger
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.preprocessing import StandardScaler
-import pickle
-from loguru import logger
-import mlflow
 
 from backend.ml_engine.models.base_model import BaseModel, ModelMetadata
 
@@ -33,7 +34,7 @@ class XGBoostFinancialModel(BaseModel):
     def __init__(
         self,
         model_name: str,
-        hyperparameters: Optional[Dict[str, Any]] = None,
+        hyperparameters: dict[str, Any] | None = None,
     ):
         """
         Initialize XGBoost model
@@ -65,14 +66,14 @@ class XGBoostFinancialModel(BaseModel):
             model_name=model_name, model_type="xgboost", hyperparameters=default_params
         )
 
-        self.model: Optional[xgb.XGBRegressor] = None
+        self.model: xgb.XGBRegressor | None = None
         self.scaler = StandardScaler()
         self.prediction_horizon = self.hyperparameters.get("prediction_horizon", 1)
 
         # For multi-step prediction
-        self.models_per_horizon: Dict[int, xgb.XGBRegressor] = {}
+        self.models_per_horizon: dict[int, xgb.XGBRegressor] = {}
 
-    def build(self, input_shape: Tuple[int, ...], **kwargs) -> xgb.XGBRegressor:
+    def build(self, input_shape: tuple[int, ...], **kwargs) -> xgb.XGBRegressor:
         """
         Build XGBoost model
 
@@ -92,12 +93,12 @@ class XGBoostFinancialModel(BaseModel):
 
     def fit(
         self,
-        X_train: Union[np.ndarray, pd.DataFrame],
-        y_train: Union[np.ndarray, pd.Series],
-        X_val: Optional[Union[np.ndarray, pd.DataFrame]] = None,
-        y_val: Optional[Union[np.ndarray, pd.Series]] = None,
+        X_train: np.ndarray | pd.DataFrame,
+        y_train: np.ndarray | pd.Series,
+        X_val: np.ndarray | pd.DataFrame | None = None,
+        y_val: np.ndarray | pd.Series | None = None,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Train XGBoost model
 
@@ -223,12 +224,12 @@ class XGBoostFinancialModel(BaseModel):
 
     def fit_multistep(
         self,
-        X_train: Union[np.ndarray, pd.DataFrame],
-        y_train: Union[np.ndarray, pd.DataFrame],
-        X_val: Optional[Union[np.ndarray, pd.DataFrame]] = None,
-        y_val: Optional[Union[np.ndarray, pd.DataFrame]] = None,
+        X_train: np.ndarray | pd.DataFrame,
+        y_train: np.ndarray | pd.DataFrame,
+        X_val: np.ndarray | pd.DataFrame | None = None,
+        y_val: np.ndarray | pd.DataFrame | None = None,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Train separate models for each prediction horizon
 
@@ -242,7 +243,7 @@ class XGBoostFinancialModel(BaseModel):
         Returns:
             Training results for all horizons
         """
-        logger.info(f"Training multi-step XGBoost models")
+        logger.info("Training multi-step XGBoost models")
 
         # Ensure y is 2D
         if isinstance(y_train, pd.Series):
@@ -262,7 +263,7 @@ class XGBoostFinancialModel(BaseModel):
             logger.info(f"Training model for horizon {horizon + 1}/{num_horizons}")
 
             # Create separate model for this horizon
-            model = xgb.XGBRegressor(**self.hyperparameters)
+            self.model = xgb.XGBRegressor(**self.hyperparameters)
 
             # Prepare target for this horizon
             y_train_h = y_train[:, horizon]
@@ -286,9 +287,7 @@ class XGBoostFinancialModel(BaseModel):
 
         return results
 
-    def predict(
-        self, X: Union[np.ndarray, pd.DataFrame], **kwargs
-    ) -> Union[np.ndarray, Dict[str, np.ndarray]]:
+    def predict(self, X: np.ndarray | pd.DataFrame, **kwargs) -> np.ndarray | dict[str, np.ndarray]:
         """
         Make predictions
 
@@ -345,8 +344,8 @@ class XGBoostFinancialModel(BaseModel):
         return predictions
 
     def predict_with_uncertainty(
-        self, X: Union[np.ndarray, pd.DataFrame], **kwargs
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        self, X: np.ndarray | pd.DataFrame, **kwargs
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Make predictions with uncertainty estimates
 
@@ -368,10 +367,10 @@ class XGBoostFinancialModel(BaseModel):
 
     def evaluate(
         self,
-        X: Union[np.ndarray, pd.DataFrame],
-        y: Union[np.ndarray, pd.Series],
+        X: np.ndarray | pd.DataFrame,
+        y: np.ndarray | pd.Series,
         **kwargs,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Evaluate model performance
 
@@ -394,7 +393,7 @@ class XGBoostFinancialModel(BaseModel):
 
         return metrics
 
-    def get_feature_importance(self) -> Optional[Dict[str, float]]:
+    def get_feature_importance(self) -> dict[str, float] | None:
         """
         Get feature importance scores
 
@@ -410,7 +409,8 @@ class XGBoostFinancialModel(BaseModel):
 
         # Create dictionary
         feature_importance = {
-            name: float(score) for name, score in zip(self.feature_names, importance_scores)
+            name: float(score)
+            for name, score in zip(self.feature_names, importance_scores, strict=True)
         }
 
         # Sort by importance
@@ -481,11 +481,11 @@ class XGBoostFinancialModel(BaseModel):
 
     def cross_validate(
         self,
-        X: Union[np.ndarray, pd.DataFrame],
-        y: Union[np.ndarray, pd.Series],
+        X: np.ndarray | pd.DataFrame,
+        y: np.ndarray | pd.Series,
         n_splits: int = 5,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Perform time series cross-validation
 

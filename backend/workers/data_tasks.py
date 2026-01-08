@@ -4,22 +4,22 @@ Celery tasks for data collection and processing.
 Scheduled tasks for updating market data, features, and maintenance.
 """
 
-from celery import shared_task, group
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
-from loguru import logger
 import asyncio
-import pandas as pd
+from datetime import datetime, timedelta
+from typing import Any
 
+import pandas as pd
+from celery import group, shared_task
+from config.settings import get_settings
 from data_engine.collectors.yfinance_collector import YFinanceCollector
 from data_engine.transformers.feature_engineering import FeatureEngineer
 from db.models import (
     bulk_insert_features,
     bulk_insert_price_data,
-    get_latest_price,
     execute_raw_sql,
+    get_latest_price,
 )
-from config.settings import get_settings
+from loguru import logger
 
 settings = get_settings()
 
@@ -71,7 +71,7 @@ DEFAULT_TICKERS = [
 )
 def update_ticker_data(
     self, ticker: str, days: int = 7, include_features: bool = True
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Update price data and features for a single ticker.
 
@@ -184,11 +184,11 @@ def update_ticker_data(
     except Exception as e:
         logger.error(f"Error updating {ticker}: {e}")
         # Retry the task
-        raise self.retry(exc=e)
+        raise self.retry(exc=e) from e
 
 
 @shared_task(name="workers.data_tasks.update_all_tickers")
-def update_all_tickers(tickers: Optional[List[str]] = None, days: int = 1) -> Dict[str, Any]:
+def update_all_tickers(tickers: list[str] | None = None, days: int = 1) -> dict[str, Any]:
     """
     Update data for all tracked tickers in parallel
 
@@ -250,7 +250,7 @@ def update_all_tickers(tickers: Optional[List[str]] = None, days: int = 1) -> Di
 
 
 @shared_task(name="workers.data_tasks.update_all_features")
-def update_all_features(tickers: Optional[List[str]] = None, days: int = 90) -> Dict[str, Any]:
+def update_all_features(tickers: list[str] | None = None, days: int = 90) -> dict[str, Any]:
     """
     Recalculate features for all tickers
 
@@ -326,7 +326,7 @@ def update_all_features(tickers: Optional[List[str]] = None, days: int = 90) -> 
                     count = loop.run_until_complete(bulk_insert_features(feature_data))
                     total_rows += count
                     successful += 1
-                    logger.success(f"✅ {ticker}: {e}")
+                    logger.success(f"✅ {ticker}: {count} feature rows")
             except Exception as e:
                 logger.error(f"Error processing {ticker}: {e}")
 
@@ -349,7 +349,7 @@ def update_all_features(tickers: Optional[List[str]] = None, days: int = 90) -> 
 
 
 @shared_task(name="workers.data_tasks.health_check_task")
-def health_check_task() -> Dict[str, Any]:
+def health_check_task() -> dict[str, Any]:
     """
     Periodic health check for data services
 
@@ -439,7 +439,7 @@ def health_check_task() -> Dict[str, Any]:
 
 
 @shared_task(name="workers.data_tasks.cleanup_old_results")
-def cleanup_old_results(days_to_keep: int = 90) -> Dict[str, Any]:
+def cleanup_old_results(days_to_keep: int = 90) -> dict[str, Any]:
     """
     Cleanup old daa to manage storage
 
@@ -506,7 +506,7 @@ def cleanup_old_results(days_to_keep: int = 90) -> Dict[str, Any]:
 
 
 @shared_task(name="workers.data_tasks.sync_ticker_list")
-def sync_ticker_list() -> Dict[str, Any]:
+def sync_ticker_list() -> dict[str, Any]:
     """
     Sync list of tracked tickers from various sources
 
@@ -566,7 +566,7 @@ def _get_feature_category(feature_name: str) -> str:
 
 # Task for manual trigger
 @shared_task(name="workers.data_tasks.force_update_ticker")
-def force_update_ticker(ticker: str, days: int = 365) -> Dict[str, Any]:
+def force_update_ticker(ticker: str, days: int = 365) -> dict[str, Any]:
     """
     Force full update of a ticker (including historical data)
 
@@ -589,7 +589,7 @@ def force_update_ticker(ticker: str, days: int = 365) -> Dict[str, Any]:
 
 # Monitoring task
 @shared_task(name="workers.data_tasks.generate_data_report")
-def generate_data_report() -> Dict[str, Any]:
+def generate_data_report() -> dict[str, Any]:
     """
     Generate daily data quality report
 

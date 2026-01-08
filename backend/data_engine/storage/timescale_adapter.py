@@ -4,20 +4,20 @@ TimescaleDB adapter for time series data storage
 Optimized for hypertables and continuous aggregates
 """
 
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any
 
-import polars as pl
 import pandas as pd
-from sqlalchemy import text, select, and_
+import polars as pl
 from loguru import logger
+from sqlalchemy import and_, select, text
 
+from backend.config.settings import get_settings
 from backend.db.models import (
     PriceData,
-    get_async_session_factory,
     bulk_insert_price_data,
+    get_async_session_factory,
 )
-from backend.config.settings import get_settings
 
 settings = get_settings()
 
@@ -82,8 +82,8 @@ class TimescaleAdapter:
         ticker: str,
         start_date: datetime,
         end_date: datetime,
-        columns: Optional[List[str]] = None,
-    ) -> Optional[pl.DataFrame]:
+        columns: list[str] | None = None,
+    ) -> pl.DataFrame | None:
         """
         Query price data from TimescaleDB
 
@@ -149,7 +149,7 @@ class TimescaleAdapter:
         source_table: str,
         time_column: str,
         bucket_width: str,
-        aggregations: Dict[str, str],
+        aggregations: dict[str, str],
     ) -> bool:
         """
         Create TimescaleDB continuous aggregate
@@ -198,8 +198,8 @@ class TimescaleAdapter:
     async def refresh_continuous_aggregate(
         self,
         view_name: str,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
     ) -> bool:
         """
         Manually refresh continuous aggregate
@@ -295,7 +295,7 @@ class TimescaleAdapter:
             logger.error(f"Error adding retention policy: {e}")
             return False
 
-    async def get_hypertable_stats(self, table_name: str) -> Optional[Dict[str, Any]]:
+    async def get_hypertable_stats(self, table_name: str) -> dict[str, Any] | None:
         """
         Get statistics about hypertable
 
@@ -336,8 +336,8 @@ class TimescaleAdapter:
         start_date: datetime,
         end_date: datetime,
         interval: str = "1 day",
-        aggregations: Optional[Dict[str, str]] = None,
-    ) -> Optional[pl.DataFrame]:
+        aggregations: dict[str, str] | None = None,
+    ) -> pl.DataFrame | None:
         """
         Query aggregated time series data
 
@@ -391,7 +391,7 @@ class TimescaleAdapter:
                     return None
 
                 # Convert to DataFrame
-                data = [dict(zip(result.keys(), row)) for row in rows]
+                data = [dict(zip(result.keys(), row, strict=True)) for row in rows]
                 return pl.DataFrame(data)
 
         except Exception as e:
@@ -400,7 +400,7 @@ class TimescaleAdapter:
 
 
 # Global adapter instance
-_timescale_adapter: Optional[TimescaleAdapter] = None
+_timescale_adapter: TimescaleAdapter | None = None
 
 
 def get_timescale_adapter() -> TimescaleAdapter:

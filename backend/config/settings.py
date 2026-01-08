@@ -3,13 +3,12 @@
 Configuration settings using Pydantic for type safety and validation
 """
 
-from pydantic_settings import BaseSettings
-from pydantic import ConfigDict
-from pydantic import Field, PostgresDsn, RedisDsn, field_validator
-from typing import List, Optional
+import secrets
 from functools import lru_cache
 from pathlib import Path
-import secrets
+
+from pydantic import ConfigDict, Field, field_validator
+from pydantic_settings import BaseSettings
 
 # Load backend-specific env file (stable across local and container paths)
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
@@ -41,7 +40,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
     # CORS
-    ALLOWED_ORIGINS: List[str] = [
+    ALLOWED_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:8501",  # Streamlit
         "http://localhost:8888",  # Jupyter
@@ -69,12 +68,12 @@ class Settings(BaseSettings):
 
     # Data Sources
     YFINANCE_RATE_LIMIT: int = 2000  # requests per hour
-    ALPHA_VANTAGE_API_KEY: Optional[str] = None
-    FRED_API_KEY: Optional[str] = None
-    NEWS_API_KEY: Optional[str] = None
-    REDDIT_CLIENT_ID: Optional[str] = None
-    REDDIT_CLIENT_SECRET: Optional[str] = None
-    TWITTER_BEARER_TOKEN: Optional[str] = None
+    ALPHA_VANTAGE_API_KEY: str | None = None
+    FRED_API_KEY: str | None = None
+    NEWS_API_KEY: str | None = None
+    REDDIT_CLIENT_ID: str | None = None
+    REDDIT_CLIENT_SECRET: str | None = None
+    TWITTER_BEARER_TOKEN: str | None = None
 
     # ML/AI
     MLFLOW_TRACKING_URI: str = "http://localhost:5000"
@@ -104,7 +103,7 @@ class Settings(BaseSettings):
     VAR_CONFIDENCE_LEVEL: float = 0.95
 
     # Monitoring
-    SENTRY_DNS: Optional[str] = None
+    SENTRY_DNS: str | None = None
     PROMETHEUS_PORT: int = 9090
 
     @field_validator("ENVIRONMENT")
@@ -142,7 +141,7 @@ class Settings(BaseSettings):
         return url
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """
     Get cached settings instance

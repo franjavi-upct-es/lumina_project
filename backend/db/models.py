@@ -4,34 +4,34 @@ SQLAlchemy models for Lumina Quant Lab
 Uses async SQLAlchemy with asyncpg for PostgreSQL/TimescaleDB
 """
 
-from typing import Optional, AsyncGenerator
-from datetime import datetime
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from uuid import uuid4
-import pandas as pd
 
+import pandas as pd
+from loguru import logger
 from sqlalchemy import (
-    String,
-    Integer,
+    ARRAY,
     BigInteger,
     Boolean,
+    CheckConstraint,
     Date,
     ForeignKey,
-    Text,
-    ARRAY,
     Index,
-    CheckConstraint,
+    Integer,
+    String,
+    Text,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB, DOUBLE_PRECISION, TIMESTAMP
+from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION, JSONB, TIMESTAMP, UUID
 from sqlalchemy.ext.asyncio import (
-    AsyncSession,
     AsyncEngine,
-    create_async_engine,
+    AsyncSession,
     async_sessionmaker,
+    create_async_engine,
 )
-from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.pool import NullPool
-from loguru import logger
 
 from backend.config.settings import get_settings
 
@@ -62,14 +62,14 @@ class PriceData(Base):
         TIMESTAMP(timezone=True), primary_key=True, nullable=False
     )
     ticker: Mapped[str] = mapped_column(String(10), primary_key=True, nullable=False)
-    open: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    high: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    low: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    close: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    volume: Mapped[Optional[int]] = mapped_column(BigInteger)
-    adjusted_close: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    dividends: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    stock_splits: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
+    open: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    high: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    low: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    close: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    volume: Mapped[int | None] = mapped_column(BigInteger)
+    adjusted_close: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    dividends: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    stock_splits: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
 
     __table_args__ = (
         Index("idx_price_ticker", "ticker", "time", postgresql_using="btree"),
@@ -93,8 +93,8 @@ class Feature(Base):
     )
     ticker: Mapped[str] = mapped_column(String(10), primary_key=True, nullable=False)
     feature_name: Mapped[str] = mapped_column(String(100), primary_key=True, nullable=False)
-    feature_value: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    feature_category: Mapped[Optional[str]] = mapped_column(
+    feature_value: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    feature_category: Mapped[str | None] = mapped_column(
         String(50)
     )  # 'technical', 'fundamental', 'sentiment', 'macro'
 
@@ -136,11 +136,11 @@ class SentimentData(Base):
     source: Mapped[str] = mapped_column(
         String(50), primary_key=True, nullable=False
     )  # 'news', 'reddit', 'twitter', 'finbert'
-    sentiment_score: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    confidence: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    volume: Mapped[Optional[int]] = mapped_column(Integer)  # Number of mentions/articles
-    text_snippet: Mapped[Optional[str]] = mapped_column(Text)
-    meta_data: Mapped[Optional[dict]] = mapped_column(JSONB)
+    sentiment_score: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    confidence: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    volume: Mapped[int | None] = mapped_column(Integer)  # Number of mentions/articles
+    text_snippet: Mapped[str | None] = mapped_column(Text)
+    meta_data: Mapped[dict | None] = mapped_column(JSONB)
 
     __table_args__ = (
         Index("idx_sentiment_ticker", "ticker", "time", postgresql_using="btree"),
@@ -166,15 +166,13 @@ class Prediction(Base):
     ticker: Mapped[str] = mapped_column(String(10), primary_key=True, nullable=False)
     model_name: Mapped[str] = mapped_column(String(50), primary_key=True, nullable=False)
     horizon_days: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
-    model_version: Mapped[Optional[str]] = mapped_column(String(20))
-    predicted_price: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    confidence_lower: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    confidence_upper: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    uncertainty: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    actual_price: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)  # NULL until realized
-    error: Mapped[Optional[float]] = mapped_column(
-        DOUBLE_PRECISION
-    )  # Computed when actual available
+    model_version: Mapped[str | None] = mapped_column(String(20))
+    predicted_price: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    confidence_lower: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    confidence_upper: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    uncertainty: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    actual_price: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)  # NULL until realized
+    error: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)  # Computed when actual available
 
     __table_args__ = (
         Index(
@@ -208,11 +206,11 @@ class MarketRegime(Base):
         TIMESTAMP(timezone=True), primary_key=True, nullable=False
     )
     ticker: Mapped[str] = mapped_column(String(10), primary_key=True, nullable=False)
-    regime_type: Mapped[Optional[str]] = mapped_column(String(20))  # 'bull', 'bear', 'sideways'
-    probability: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    volatility: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    expected_duration_days: Mapped[Optional[int]] = mapped_column(Integer)
-    meta_data: Mapped[Optional[dict]] = mapped_column(JSONB)
+    regime_type: Mapped[str | None] = mapped_column(String(20))  # 'bull', 'bear', 'sideways'
+    probability: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    volatility: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    expected_duration_days: Mapped[int | None] = mapped_column(Integer)
+    meta_data: Mapped[dict | None] = mapped_column(JSONB)
 
     __table_args__ = (
         Index("idx_regimes_ticker", "ticker", "time", postgresql_using="btree"),
@@ -250,11 +248,11 @@ class BacktestResult(Base):
     sortino_ratio: Mapped[float] = mapped_column(DOUBLE_PRECISION)
     calmar_ratio: Mapped[float] = mapped_column(DOUBLE_PRECISION)
     max_drawdown: Mapped[float] = mapped_column(DOUBLE_PRECISION)
-    win_rate: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    profit_factor: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
+    win_rate: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    profit_factor: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
     num_trades: Mapped[int] = mapped_column(Integer)
-    avg_trade: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    config: Mapped[Optional[dict]] = mapped_column(JSONB)  # Store backtest configuration
+    avg_trade: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    config: Mapped[dict | None] = mapped_column(JSONB)  # Store backtest configuration
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
 
     # Relationship to trades
@@ -290,17 +288,17 @@ class BacktestTrade(Base):
         nullable=False,
     )
     entry_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    exit_time: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP(timezone=True))
+    exit_time: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
     ticker: Mapped[str] = mapped_column(String(10), nullable=False)
     direction: Mapped[str] = mapped_column(String(10))  # 'long', 'short'
     entry_price: Mapped[float] = mapped_column(DOUBLE_PRECISION)
-    exit_price: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
+    exit_price: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
     quantity: Mapped[float] = mapped_column(DOUBLE_PRECISION)
-    pnl: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    pnl_percent: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    commission: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    slippage: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    meta_data: Mapped[Optional[dict]] = mapped_column(JSONB)
+    pnl: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    pnl_percent: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    commission: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    slippage: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    meta_data: Mapped[dict | None] = mapped_column(JSONB)
 
     # Relationship to backtest
     backtest: Mapped["BacktestResult"] = relationship("BacktestResult", back_populates="trades")
@@ -334,22 +332,22 @@ class Model(Base):
     )  # 'lstm', 'transformer', 'xgboost', 'ensemble'
     version: Mapped[str] = mapped_column(String(20))
     trained_on: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
-    ticker: Mapped[Optional[str]] = mapped_column(String(10))
+    ticker: Mapped[str | None] = mapped_column(String(10))
     training_samples: Mapped[int] = mapped_column(Integer)
     validation_samples: Mapped[int] = mapped_column(Integer)
 
     # Performance metrics
-    mae: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    rmse: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    r2_score: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
-    sharpe_backtest: Mapped[Optional[float]] = mapped_column(DOUBLE_PRECISION)
+    mae: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    rmse: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    r2_score: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
+    sharpe_backtest: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
 
     # Configuration
-    hyperparameters: Mapped[Optional[dict]] = mapped_column(JSONB)
-    feature_importance: Mapped[Optional[dict]] = mapped_column(JSONB)
+    hyperparameters: Mapped[dict | None] = mapped_column(JSONB)
+    feature_importance: Mapped[dict | None] = mapped_column(JSONB)
 
     # MLflow integration
-    mlflow_run_id: Mapped[Optional[str]] = mapped_column(String(100))
+    mlflow_run_id: Mapped[str | None] = mapped_column(String(100))
 
     # Status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -440,8 +438,8 @@ class PortfolioBalance(Base):
 # ============================================================================
 
 # Global engine and session factory
-_engine: Optional[AsyncEngine] = None
-_async_session_factory: Optional[async_sessionmaker[AsyncSession]] = None
+_engine: AsyncEngine | None = None
+_async_session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
 def get_async_engine() -> AsyncEngine:
@@ -647,7 +645,7 @@ async def bulk_insert_price_data(data: list[dict]) -> int:
 
     try:
         # Normalize timestamps to tz-aware UTC for TIMESTAMP(timezone=True)
-        from datetime import timezone
+
         import pandas as pd
 
         for row in data:
@@ -661,11 +659,7 @@ async def bulk_insert_price_data(data: list[dict]) -> int:
                     else t.tz_convert("UTC").to_pydatetime()
                 )
             elif isinstance(t, datetime):
-                row["time"] = (
-                    t.replace(tzinfo=timezone.utc)
-                    if t.tzinfo is None
-                    else t.astimezone(timezone.utc)
-                )
+                row["time"] = t.replace(tzinfo=UTC) if t.tzinfo is None else t.astimezone(UTC)
 
         session_factory = get_async_session_factory()
 
@@ -700,7 +694,7 @@ async def bulk_insert_features(data: list[dict]) -> int:
 
     try:
         # Normalize timestamps to tz-aware UTC for TIMESTAMP(timezone=True)
-        from datetime import timezone
+
         from sqlalchemy.dialects.postgresql import insert
 
         for row in data:
@@ -714,11 +708,7 @@ async def bulk_insert_features(data: list[dict]) -> int:
                     else t.tz_convert("UTC").to_pydatetime()
                 )
             elif isinstance(t, datetime):
-                row["time"] = (
-                    t.replace(tzinfo=timezone.utc)
-                    if t.tzinfo is None
-                    else t.astimezone(timezone.utc)
-                )
+                row["time"] = t.replace(tzinfo=UTC) if t.tzinfo is None else t.astimezone(UTC)
 
         session_factory = get_async_session_factory()
 
@@ -747,7 +737,7 @@ async def bulk_insert_features(data: list[dict]) -> int:
 # ============================================================================
 
 
-async def get_latest_price(ticker: str) -> Optional[PriceData]:
+async def get_latest_price(ticker: str) -> PriceData | None:
     """
     Get most recent price data for a ticker
 
@@ -757,7 +747,7 @@ async def get_latest_price(ticker: str) -> Optional[PriceData]:
     Returns:
         PriceData instance or None
     """
-    from sqlalchemy import select, desc
+    from sqlalchemy import desc, select
 
     session_factory = get_async_session_factory()
 
@@ -787,7 +777,7 @@ async def get_price_history(
     Returns:
         List of PriceData instances
     """
-    from sqlalchemy import select, and_
+    from sqlalchemy import and_, select
 
     session_factory = get_async_session_factory()
 
@@ -808,7 +798,7 @@ async def get_price_history(
         return list(result.scalars().all())
 
 
-async def get_active_models(ticker: Optional[str] = None) -> list[Model]:
+async def get_active_models(ticker: str | None = None) -> list[Model]:
     """
     Get all active models, optionally filtered by ticker
 
@@ -818,12 +808,12 @@ async def get_active_models(ticker: Optional[str] = None) -> list[Model]:
     Returns:
         List of Model instances
     """
-    from sqlalchemy import select, and_
+    from sqlalchemy import select
 
     session_factory = get_async_session_factory()
 
     async with session_factory() as session:
-        query = select(Model).where(Model.is_active == True)
+        query = select(Model).where(Model.is_active.is_(True))
 
         if ticker:
             query = query.where(Model.ticker == ticker)
@@ -846,7 +836,7 @@ async def delete_features_by_ticker(ticker: str, start_date: datetime, end_date:
     Returns:
         Number of rows deleted
     """
-    from sqlalchemy import delete, and_
+    from sqlalchemy import and_, delete
 
     session_factory = get_async_session_factory()
 

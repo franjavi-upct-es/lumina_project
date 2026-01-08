@@ -4,14 +4,13 @@ Advanced LSTM model with attention mechanism for financial prediction
 Multi-variate, multi-task learning with uncertainty quantification
 """
 
-from typing import Tuple, Dict, List
+import numpy as np
+import polars as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-from torch.utils.data import Dataset, DataLoader
 from loguru import logger
-import polars as pl
+from torch.utils.data import DataLoader, Dataset
 
 
 class Attention(nn.Module):
@@ -20,7 +19,7 @@ class Attention(nn.Module):
     """
 
     def __init__(self, hidden_dim: int):
-        super(Attention, self).__init__()
+        super().__init__()
         self.attention = nn.Linear(hidden_dim, 1)
 
     def forward(self, lstm_output):
@@ -60,7 +59,7 @@ class AdvancedLSTM(nn.Module):
         output_horizon: int = 5,
         bidirectional: bool = True,
     ):
-        super(AdvancedLSTM, self).__init__()
+        super().__init__()
 
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
@@ -166,7 +165,7 @@ class TimeSeriesDataset(Dataset):
     def __init__(
         self,
         data: pl.DataFrame,
-        feature_columns: List[str],
+        feature_columns: list[str],
         target_column: str = "close",
         sequence_length: int = 60,
         prediction_horizon: int = 5,
@@ -197,7 +196,7 @@ class TimeSeriesDataset(Dataset):
 
         logger.info(f"Created dataset with {len(self.indices)} sequences")
 
-    def _create_indices(self) -> List[int]:
+    def _create_indices(self) -> list[int]:
         """
         Create valid sequence start indices
         """
@@ -207,7 +206,7 @@ class TimeSeriesDataset(Dataset):
     def __len__(self) -> int:
         return len(self.indices)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
         Get a single sequence
 
@@ -275,7 +274,7 @@ class LSTMTrainer:
         price_loss_weight: float = 1.0,
         volatility_loss_weight: float = 0.3,
         regime_loss_weight: float = 0.2,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Train for one epoch
         """
@@ -335,7 +334,7 @@ class LSTMTrainer:
         price_loss_weight: float = 1.0,
         volatility_loss_weight: float = 0.3,
         regime_loss_weight: float = 0.2,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Validate the model
         """
@@ -436,7 +435,7 @@ class LSTMTrainer:
         return self.history
 
     @torch.no_grad()
-    def predict(self, features: torch.Tensor) -> Dict[str, np.ndarray]:
+    def predict(self, features: torch.Tensor) -> dict[str, np.ndarray]:
         """
         Make predictions with uncertainty
 

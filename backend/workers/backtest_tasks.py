@@ -3,25 +3,25 @@
 Celery tasks for backtesting strategies
 """
 
-from celery import shared_task
-from typing import Dict, Any, List
+import itertools
 from datetime import datetime, timedelta
-from loguru import logger
+from typing import Any
+from uuid import uuid4
+
 import numpy as np
 import pandas as pd
-from uuid import uuid4
-import itertools
-
+from celery import shared_task
+from config.settings import get_settings
 from data_engine.collectors.yfinance_collector import YFinanceCollector
 from data_engine.transformers.feature_engineering import FeatureEngineer
-from config.settings import get_settings
+from loguru import logger
 
 settings = get_settings()
 
 
 @shared_task(bind=True, name="workers.backtest_tasks.run_backtest_task")
 def run_backtest_task(
-    self, job_id: str, strategy_name: str, strategy_code: str, config: Dict[str, Any]
+    self, job_id: str, strategy_name: str, strategy_code: str, config: dict[str, Any]
 ):
     """
     Execute a backtest asynchronously
@@ -258,8 +258,8 @@ def run_backtest_task(
         avg_win = np.mean([t["pnl"] for t in winning_trades]) if winning_trades else 0.0
         avg_loss = np.mean([abs(t["pnl"]) for t in losing_trades]) if losing_trades else 0.0
 
-        total_wins = sum([t["pnl"] for t in winning_trades]) if winning_trades else 0.0
-        total_losses = abs(sum([t["pnl"] for t in losing_trades])) if losing_trades else 0.0
+        total_wins = sum(t["pnl"] for t in winning_trades) if winning_trades else 0.0
+        total_losses = abs(sum(t["pnl"] for t in losing_trades)) if losing_trades else 0.0
         profit_factor = total_wins / total_losses if total_losses > 0 else 0.0
 
         # Monthly returns
@@ -318,13 +318,13 @@ def walk_forward_optimization_task(
     job_id: str,
     strategy_name: str,
     strategy_code: str,
-    tickers: List[str],
+    tickers: list[str],
     start_date: str,
     end_date: str,
     train_period_days: int,
     test_period_days: int,
     step_days: int,
-    param_ranges: Dict[str, Dict[str, Any]],
+    param_ranges: dict[str, dict[str, Any]],
     initial_capital: float,
     commission: float,
     slippage: float,
@@ -457,10 +457,10 @@ def optimize_parameters_task(
     job_id: str,
     strategy_name: str,
     strategy_code: str,
-    tickers: List[str],
+    tickers: list[str],
     start_date: str,
     end_date: str,
-    param_grid: Dict[str, List[Any]],
+    param_grid: dict[str, list[Any]],
     optimization_metric: str,
     initial_capital: float,
     commission: float,
@@ -482,7 +482,7 @@ def optimize_parameters_task(
         results = []
 
         for idx, combo in enumerate(combinations):
-            params = dict(zip(param_names, combo))
+            params = dict(zip(param_names, combo, strict=True))
 
             self.update_state(
                 state="PROGRESS",
@@ -582,14 +582,14 @@ def optimize_parameters_task(
 # Helper functions
 def _optimize_on_period(
     strategy_code: str,
-    tickers: List[str],
+    tickers: list[str],
     start_date: datetime,
     end_date: datetime,
-    param_ranges: Dict[str, Dict[str, Any]],
+    param_ranges: dict[str, dict[str, Any]],
     initial_capital: float,
     commission: float,
     slippage: float,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Optimize parameters on a specific period
     """
@@ -624,7 +624,7 @@ def _optimize_on_period(
     return result["best_parameters"]
 
 
-def _inject_parameters(strategy_code: str, params: Dict[str, Any]) -> str:
+def _inject_parameters(strategy_code: str, params: dict[str, Any]) -> str:
     """
     Inject parameters into strategy code
     """

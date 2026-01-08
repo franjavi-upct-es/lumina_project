@@ -4,19 +4,19 @@ Feature Store for storing and retrieving engineered features
 Supports both in-memory and persistent storage with TimescaleDB
 """
 
-from typing import Dict, List, Optional, Any, Union
-from datetime import datetime, timedelta
-from pathlib import Path
 import asyncio
 import json
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
 
-import polars as pl
 import pandas as pd
+import polars as pl
 from loguru import logger
-from sqlalchemy import select, and_, delete
+from sqlalchemy import and_, delete, select
 
-from backend.db.models import Feature, bulk_insert_features, get_async_session_factory
 from backend.config.settings import get_settings
+from backend.db.models import Feature, bulk_insert_features, get_async_session_factory
 
 settings = get_settings()
 
@@ -34,10 +34,10 @@ class FeatureStore:
     """
 
     def __init__(self):
-        self.cache: Dict[str, pl.DataFrame] = {}
+        self.cache: dict[str, pl.DataFrame] = {}
         self.cache_ttl = timedelta(hours=settings.FEATURE_CACHE_HOURS)
-        self.cache_timestamps: Dict[str, datetime] = {}
-        self.metadata: Dict[str, Dict[str, Any]] = {}
+        self.cache_timestamps: dict[str, datetime] = {}
+        self.metadata: dict[str, dict[str, Any]] = {}
 
         # Storage path for local cache
         self.storage_path = Path(settings.FEATURE_STORE_PATH)
@@ -49,9 +49,9 @@ class FeatureStore:
         self,
         ticker: str,
         features: pl.DataFrame,
-        feature_names: Optional[List[str]] = None,
-        categories: Optional[Dict[str, str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        feature_names: list[str] | None = None,
+        categories: dict[str, str] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         """
         Store features for a ticker
@@ -137,11 +137,11 @@ class FeatureStore:
     async def get_features(
         self,
         ticker: str,
-        feature_names: Optional[List[str]] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        feature_names: list[str] | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         use_cache: bool = True,
-    ) -> Optional[pl.DataFrame]:
+    ) -> pl.DataFrame | None:
         """
         Retrieve features for a ticker
 
@@ -229,11 +229,11 @@ class FeatureStore:
 
     async def get_features_batch(
         self,
-        tickers: List[str],
-        feature_names: Optional[List[str]] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> Dict[str, pl.DataFrame]:
+        tickers: list[str],
+        feature_names: list[str] | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> dict[str, pl.DataFrame]:
         """
         Retrieve features for multiple tickers
 
@@ -260,7 +260,7 @@ class FeatureStore:
             features_list = await asyncio.gather(*tasks, return_exceptions=True)
 
             # Build results dict
-            for ticker, features in zip(tickers, features_list):
+            for ticker, features in zip(tickers, features_list, strict=True):
                 if isinstance(features, Exception):
                     logger.error(f"Error for {ticker}: {features}")
                 elif features is not None:
@@ -276,9 +276,9 @@ class FeatureStore:
     async def delete_features(
         self,
         ticker: str,
-        feature_names: Optional[List[str]] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        feature_names: list[str] | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> int:
         """
         Delete features for a ticker
@@ -326,8 +326,8 @@ class FeatureStore:
             raise
 
     async def list_available_features(
-        self, ticker: Optional[str] = None, category: Optional[str] = None
-    ) -> Dict[str, List[str]]:
+        self, ticker: str | None = None, category: str | None = None
+    ) -> dict[str, list[str]]:
         """
         List available features
 
@@ -342,7 +342,7 @@ class FeatureStore:
             session_factory = get_async_session_factory()
 
             async with session_factory() as session:
-                from sqlalchemy import func, distinct
+                from sqlalchemy import func
 
                 query = select(
                     Feature.ticker,
@@ -383,9 +383,9 @@ class FeatureStore:
         self,
         ticker: str,
         feature_name: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> Optional[Dict[str, float]]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> dict[str, float] | None:
         """
         Get statistics for a specific feature
 
@@ -435,7 +435,7 @@ class FeatureStore:
             logger.error(f"Error getting feature statistics: {e}")
             return None
 
-    def clear_cache(self, ticker: Optional[str] = None):
+    def clear_cache(self, ticker: str | None = None):
         """
         Clear feature cache
 
@@ -453,7 +453,7 @@ class FeatureStore:
             self.cache_timestamps.clear()
             logger.info("Cleared all feature cache")
 
-    def save_metadata(self, filepath: Optional[str] = None):
+    def save_metadata(self, filepath: str | None = None):
         """Save metadata to disk"""
         if filepath is None:
             filepath = self.storage_path / "metadata.json"
@@ -465,14 +465,14 @@ class FeatureStore:
         except Exception as e:
             logger.error(f"Error saving metadata: {e}")
 
-    def load_metadata(self, filepath: Optional[str] = None):
+    def load_metadata(self, filepath: str | None = None):
         """Load metadata from disk"""
         if filepath is None:
             filepath = self.storage_path / "metadata.json"
 
         try:
             if Path(filepath).exists():
-                with open(filepath, "r") as f:
+                with open(filepath) as f:
                     self.metadata = json.load(f)
                 logger.info(f"Loaded metadata from {filepath}")
         except Exception as e:
@@ -482,7 +482,7 @@ class FeatureStore:
         self,
         ticker: str,
         features: pl.DataFrame,
-        feature_names: List[str],
+        feature_names: list[str],
         upsert: bool = True,
     ) -> int:
         """
@@ -513,7 +513,7 @@ class FeatureStore:
             logger.error(f"Error updating features: {e}")
             raise
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Check health of feature store
 
@@ -550,7 +550,7 @@ class FeatureStore:
 
 
 # Global feature store instance
-_feature_store: Optional[FeatureStore] = None
+_feature_store: FeatureStore | None = None
 
 
 def get_feature_store() -> FeatureStore:

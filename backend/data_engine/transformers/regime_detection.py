@@ -4,16 +4,16 @@ Market regime detection using various methods
 Identifies bull, bear, and sideways market conditions
 """
 
-from typing import Optional, List, Tuple
-import polars as pl
-import pandas as pd
-import numpy as np
-from sklearn.cluster import KMeans
-from sklearn.mixture import GaussianMixture
-from hmmlearn import hmm
-from loguru import logger
 import pickle
 from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import polars as pl
+from hmmlearn import hmm
+from loguru import logger
+from sklearn.cluster import KMeans
+from sklearn.mixture import GaussianMixture
 
 
 class RegimeDetector:
@@ -37,9 +37,9 @@ class RegimeDetector:
         """
         self.n_regimes = n_regimes
         self.model = None
-        self.method: Optional[str] = None
+        self.method: str | None = None
         self.is_fitted = False
-        self.feature_names: List[str] = []
+        self.feature_names: list[str] = []
 
         # Regime labels
         self.regime_labels = {
@@ -51,7 +51,7 @@ class RegimeDetector:
     def fit_hmm(
         self,
         data: pl.DataFrame,
-        feature_columns: List[str],
+        feature_columns: list[str],
         n_iter: int = 100,
         covariance_type: str = "full",
     ) -> "RegimeDetector":
@@ -96,7 +96,7 @@ class RegimeDetector:
     def fit_kmeans(
         self,
         data: pl.DataFrame,
-        feature_columns: List[str],
+        feature_columns: list[str],
         n_init: int = 10,
     ) -> "RegimeDetector":
         """
@@ -135,7 +135,7 @@ class RegimeDetector:
     def fit_gmm(
         self,
         data: pl.DataFrame,
-        feature_columns: List[str],
+        feature_columns: list[str],
         covariance_type: str = "full",
     ) -> "RegimeDetector":
         """
@@ -265,7 +265,7 @@ class RegimeDetector:
     def fit_predict(
         self,
         data: pl.DataFrame,
-        feature_columns: List[str],
+        feature_columns: list[str],
         method: str = "hmm",
         **kwargs,
     ) -> pl.DataFrame:
@@ -533,9 +533,9 @@ class RuleBasedRegimeDetector:
 def detect_regimes(
     data: pl.DataFrame,
     method: str = "hmm",
-    feature_columns: Optional[List[str]] = None,
+    feature_columns: list[str] | None = None,
     **kwargs,
-) -> Tuple[pl.DataFrame, RegimeDetector]:
+) -> tuple[pl.DataFrame, RegimeDetector]:
     """
     Convenience function to detect market regimes
 
@@ -573,7 +573,7 @@ def detect_regimes(
 
 def combine_regime_signals(
     data: pl.DataFrame,
-    regime_columns: List[str],
+    regime_columns: list[str],
     method: str = "majority",
 ) -> pl.DataFrame:
     """

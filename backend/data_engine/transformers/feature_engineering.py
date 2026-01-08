@@ -4,11 +4,10 @@ Comprehensive feature engineering for financial time series
 Creates 100+ technical, statistical, and derived features
 """
 
-from typing import Optional, List, Dict
-import polars as pl
 import numpy as np
-from loguru import logger
 import pandas as pd
+import polars as pl
+from loguru import logger
 
 
 class FeatureEngineer:
@@ -466,7 +465,7 @@ class FeatureEngineer:
 
         return df
 
-    def _add_lagged_features(self, df: pd.DataFrame, lags: List[int] = None) -> pd.DataFrame:
+    def _add_lagged_features(self, df: pd.DataFrame, lags: list[int] = None) -> pd.DataFrame:
         """Add lagged features for capturing temporal patterns"""
         if lags is None:
             lags = [1, 2, 3, 5, 10, 20]
@@ -527,18 +526,18 @@ class FeatureEngineer:
 
         return df
 
-    def get_feature_names_by_category(self, category: str) -> List[str]:
+    def get_feature_names_by_category(self, category: str) -> list[str]:
         """Get list of features by category"""
         normalized = "momentum" if category == "momemtum" else category
         return self.feature_categories.get(normalized, [])
 
-    def get_feature_categories(self) -> Dict[str, List[str]]:
+    def get_feature_categories(self) -> dict[str, list[str]]:
         """Get dictionary of feature categories"""
         return self.feature_categories
 
-    def get_all_feature_names(self) -> List[str]:
+    def get_all_feature_names(self) -> list[str]:
         """Get list of all created features"""
-        all_features: List[str] = []
+        all_features: list[str] = []
         seen = set()
         for features in self.feature_categories.values():
             for feature in features:

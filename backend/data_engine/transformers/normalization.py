@@ -4,19 +4,20 @@ Data normalization and scaling transformers
 Prepares data for machine learning models
 """
 
-from typing import Optional, List, Dict, Any, Tuple
-import polars as pl
-import numpy as np
-from sklearn.preprocessing import (
-    StandardScaler,
-    MinMaxScaler,
-    RobustScaler,
-    QuantileTransformer,
-    PowerTransformer,
-)
-from loguru import logger
 import pickle
 from pathlib import Path
+from typing import Any
+
+import numpy as np
+import polars as pl
+from loguru import logger
+from sklearn.preprocessing import (
+    MinMaxScaler,
+    PowerTransformer,
+    QuantileTransformer,
+    RobustScaler,
+    StandardScaler,
+)
 
 
 class DataNormalizer:
@@ -35,15 +36,15 @@ class DataNormalizer:
 
     def __init__(self):
         """Initialize normalizer"""
-        self.scalers: Dict[str, Any] = {}
-        self.fitted_columns: List[str] = []
-        self.method: Optional[str] = None
+        self.scalers: dict[str, Any] = {}
+        self.fitted_columns: list[str] = []
+        self.method: str | None = None
         self.is_fitted = False
 
     def fit(
         self,
         data: pl.DataFrame,
-        columns: Optional[List[str]] = None,
+        columns: list[str] | None = None,
         method: str = "standard",
         **kwargs,
     ) -> "DataNormalizer":
@@ -189,7 +190,7 @@ class DataNormalizer:
     def fit_transform(
         self,
         data: pl.DataFrame,
-        columns: Optional[List[str]] = None,
+        columns: list[str] | None = None,
         method: str = "standard",
         **kwargs,
     ) -> pl.DataFrame:
@@ -307,14 +308,14 @@ class TimeSeriesNormalizer:
 
     def __init__(self):
         """Initialize time series normalizer"""
-        self.method: Optional[str] = None
-        self.window: Optional[int] = None
-        self.params: Dict[str, Any] = {}
+        self.method: str | None = None
+        self.window: int | None = None
+        self.params: dict[str, Any] = {}
 
     def rolling_normalize(
         self,
         data: pl.DataFrame,
-        columns: List[str],
+        columns: list[str],
         window: int = 20,
         method: str = "zscore",
     ) -> pl.DataFrame:
@@ -360,7 +361,7 @@ class TimeSeriesNormalizer:
     def expanding_normalize(
         self,
         data: pl.DataFrame,
-        columns: List[str],
+        columns: list[str],
         min_periods: int = 20,
         method: str = "zscore",
     ) -> pl.DataFrame:
@@ -460,7 +461,7 @@ class TimeSeriesNormalizer:
     def percentage_change(
         self,
         data: pl.DataFrame,
-        columns: List[str],
+        columns: list[str],
         periods: int = 1,
     ) -> pl.DataFrame:
         """
@@ -492,10 +493,10 @@ class TimeSeriesNormalizer:
 
 def normalize_features(
     data: pl.DataFrame,
-    feature_columns: List[str],
+    feature_columns: list[str],
     method: str = "standard",
     **kwargs,
-) -> Tuple[pl.DataFrame, DataNormalizer]:
+) -> tuple[pl.DataFrame, DataNormalizer]:
     """
     Convenience function to normalize features
 
@@ -516,8 +517,8 @@ def normalize_features(
 
 def create_rolling_features(
     data: pl.DataFrame,
-    columns: List[str],
-    windows: List[int] = [5, 10, 20, 60],
+    columns: list[str],
+    windows: list[int] | None = None,
 ) -> pl.DataFrame:
     """
     Create rolling statistical features
@@ -530,6 +531,9 @@ def create_rolling_features(
     Returns:
         DataFrame with rolling features
     """
+    if windows is None:
+        windows = [5, 10, 20, 60]
+
     logger.info(f"Creating rolling features for {len(columns)} columns")
 
     result = data.clone()

@@ -4,17 +4,18 @@ Base model class for all ML models in Lumina
 Provides common interface and utilities for model training, evaluation, and deployment
 """
 
-from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, Tuple, Union
-from datetime import datetime
-from pathlib import Path
 import json
 import pickle
+from abc import ABC, abstractmethod
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+import mlflow
 import numpy as np
 import pandas as pd
 from loguru import logger
-from pydantic import BaseModel, Field, ConfigDict
-import mlflow
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ModelMetadata(BaseModel):
@@ -28,10 +29,10 @@ class ModelMetadata(BaseModel):
     model_type: str
     version: str = "1.0.0"
     created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: Optional[datetime] = None
-    hyperparameters: Dict[str, Any] = Field(default_factory=dict)
-    metrics: Dict[str, Any] = Field(default_factory=dict)
-    feature_names: Optional[list] = None
+    updated_at: datetime | None = None
+    hyperparameters: dict[str, Any] = Field(default_factory=dict)
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    feature_names: list | None = None
 
 
 class BaseModel(ABC):
@@ -46,7 +47,7 @@ class BaseModel(ABC):
         self,
         model_name: str,
         model_type: str,
-        hyperparameters: Optional[Dict[str, Any]] = None,
+        hyperparameters: dict[str, Any] | None = None,
     ):
         """
         Initialize base model
@@ -62,22 +63,22 @@ class BaseModel(ABC):
 
         # Model state
         self.is_trained = False
-        self.meta_data: Optional[ModelMetadata] = None
+        self.meta_data: ModelMetadata | None = None
 
         # Training history
-        self.training_history: Dict[str, List[float]] = {
+        self.training_history: dict[str, list[float]] = {
             "train_loss": [],
             "val_loss": [],
             "learning_rate": [],
         }
 
         # Feature names (set during training)
-        self.feature_names: List[str] = []
+        self.feature_names: list[str] = []
 
         logger.info(f"Initialized {model_type} model: {model_name}")
 
     @abstractmethod
-    def build(self, input_shape: Tuple[int, ...], **kwargs) -> Any:
+    def build(self, input_shape: tuple[int, ...], **kwargs) -> Any:
         """
         Build the model architecture
 
@@ -93,12 +94,12 @@ class BaseModel(ABC):
     @abstractmethod
     def fit(
         self,
-        X_train: Union[np.ndarray, pd.DataFrame],
-        y_train: Union[np.ndarray, pd.Series],
-        X_val: Optional[Union[np.ndarray, pd.DataFrame]] = None,
-        y_val: Optional[Union[np.ndarray, pd.Series]] = None,
+        X_train: np.ndarray | pd.DataFrame,
+        y_train: np.ndarray | pd.Series,
+        X_val: np.ndarray | pd.DataFrame | None = None,
+        y_val: np.ndarray | pd.Series | None = None,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Train the model
 
@@ -115,9 +116,7 @@ class BaseModel(ABC):
         pass
 
     @abstractmethod
-    def predict(
-        self, X: Union[np.ndarray, pd.DataFrame], **kwargs
-    ) -> Union[np.ndarray, Dict[str, np.ndarray]]:
+    def predict(self, X: np.ndarray | pd.DataFrame, **kwargs) -> np.ndarray | dict[str, np.ndarray]:
         """
         Make predictions
 
@@ -133,10 +132,10 @@ class BaseModel(ABC):
     @abstractmethod
     def evaluate(
         self,
-        X: Union[np.ndarray, pd.DataFrame],
-        y: Union[np.ndarray, pd.Series],
+        X: np.ndarray | pd.DataFrame,
+        y: np.ndarray | pd.Series,
         **kwargs,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Evaluate model performance
 
@@ -151,8 +150,8 @@ class BaseModel(ABC):
         pass
 
     def predict_with_uncertainty(
-        self, X: Union[np.ndarray, pd.DataFrame], **kwargs
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        self, X: np.ndarray | pd.DataFrame, **kwargs
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Make predictions with uncertainty estimates
 
@@ -170,7 +169,7 @@ class BaseModel(ABC):
         uncertainties = np.zeros_like(predictions)
         return predictions, uncertainties
 
-    def get_feature_importance(self) -> Optional[Dict[str, float]]:
+    def get_feature_importance(self) -> dict[str, float] | None:
         """
         Get feature importance scores
 
@@ -182,7 +181,7 @@ class BaseModel(ABC):
         logger.warning(f"{self.model_type} does not support feature importance")
         return None
 
-    def save(self, path: Union[str, Path]) -> str:
+    def save(self, path: str | Path) -> str:
         """
         Save model to disk
 
@@ -227,7 +226,7 @@ class BaseModel(ABC):
         """
         pass
 
-    def load(self, path: Union[str, Path]) -> "BaseModel":
+    def load(self, path: str | Path) -> "BaseModel":
         """
         Load model from disk
 
@@ -246,20 +245,20 @@ class BaseModel(ABC):
         # Load meta_data
         metadata_path = path / f"{self.model_name}_metadata.json"
         if metadata_path.exists():
-            with open(metadata_path, "r") as f:
+            with open(metadata_path) as f:
                 metadata_dict = json.load(f)
                 self.meta_data = ModelMetadata(**metadata_dict)
 
         # Load training history
         history_path = path / f"{self.model_name}_history.json"
         if history_path.exists():
-            with open(history_path, "r") as f:
+            with open(history_path) as f:
                 self.training_history = json.load(f)
 
         # Load feature names
         features_path = path / f"{self.model_name}_features.json"
         if features_path.exists():
-            with open(features_path, "r") as f:
+            with open(features_path) as f:
                 self.feature_names = json.load(f)
 
         self.is_trained = True
@@ -275,7 +274,7 @@ class BaseModel(ABC):
         """
         pass
 
-    def save_to_mlflow(self, experiment_name: str, run_name: Optional[str] = None) -> str:
+    def save_to_mlflow(self, experiment_name: str, run_name: str | None = None) -> str:
         """
         Save model to MLflow
 
@@ -327,7 +326,7 @@ class BaseModel(ABC):
 
     def compute_metrics(
         self, y_true: np.ndarray, y_pred: np.ndarray, prefix: str = ""
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Compute standard regression metrics
 
@@ -371,7 +370,7 @@ class BaseModel(ABC):
 
         return metrics
 
-    def get_model_summary(self) -> Dict[str, Any]:
+    def get_model_summary(self) -> dict[str, Any]:
         """
         Get summary of model information
 
@@ -410,7 +409,7 @@ class EnsembleModel(BaseModel):
     Base class for ensemble models that combine multiple models
     """
 
-    def __init__(self, model_name: str, base_models: Optional[List[BaseModel]] = None, **kwargs):
+    def __init__(self, model_name: str, base_models: list[BaseModel] | None = None, **kwargs):
         """
         Initialize ensemble model
 
@@ -421,14 +420,14 @@ class EnsembleModel(BaseModel):
         """
         super().__init__(model_name, "ensemble", kwargs)
         self.base_models = base_models or []
-        self.weights: Optional[np.ndarray] = None
+        self.weights: np.ndarray | None = None
 
     def add_model(self, model: BaseModel):
         """Add a model to the ensemble"""
         self.base_models.append(model)
         logger.info(f"Added {model.model_name} to ensemble")
 
-    def predict(self, X: Union[np.ndarray, pd.DataFrame], **kwargs) -> np.ndarray:
+    def predict(self, X: np.ndarray | pd.DataFrame, **kwargs) -> np.ndarray:
         """
         Make predictions by combining all base models
 
@@ -460,8 +459,8 @@ class EnsembleModel(BaseModel):
 
     def optimize_weights(
         self,
-        X_val: Union[np.ndarray, pd.DataFrame],
-        y_val: Union[np.ndarray, pd.Series],
+        X_val: np.ndarray | pd.DataFrame,
+        y_val: np.ndarray | pd.Series,
     ):
         """
         Optimize ensemble weights using validation data
@@ -505,7 +504,7 @@ class EnsembleModel(BaseModel):
         self.weights = result.x
         logger.info(f"Optimized ensemble weights: {self.weights}")
 
-    def build(self, input_shape: Tuple[int, ...], **kwargs):
+    def build(self, input_shape: tuple[int, ...], **kwargs):
         """Build is not needed for ensemble"""
         pass
 
@@ -515,7 +514,7 @@ class EnsembleModel(BaseModel):
             self.optimize_weights(X_val, y_val)
         return {}
 
-    def evaluate(self, X, y, **kwargs) -> Dict[str, float]:
+    def evaluate(self, X, y, **kwargs) -> dict[str, float]:
         """Evaluate ensemble"""
         predictions = self.predict(X)
         return self.compute_metrics(y, predictions)

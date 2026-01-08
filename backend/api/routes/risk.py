@@ -4,13 +4,14 @@ Risk Analysis endpoints for portfolio and individual securities
 Comprehensive risk metrics including VaR, CVaR, stress testing, and more
 """
 
-from fastapi import APIRouter, HTTPException, Query
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
-from loguru import logger
+from typing import Annotated, Any
+
 import numpy as np
 import pandas as pd
+from fastapi import APIRouter, HTTPException, Query
+from loguru import logger
+from pydantic import BaseModel, Field
 from scipy import stats
 
 from backend.config.settings import get_settings
@@ -28,13 +29,11 @@ settings = get_settings()
 class VaRCalculationRequest(BaseModel):
     """Request for VaR calculation"""
 
-    tickers: List[str] = Field(..., min_items=1, max_items=50)
-    weights: Optional[Dict[str, float]] = None
+    tickers: list[str] = Field(..., min_items=1, max_items=50)
+    weights: dict[str, float] | None = None
     start_date: datetime
     end_date: datetime
-    confidence_levels: List[float] = Field(
-        [0.95, 0.99], description="Confidence levels for VaR"
-    )
+    confidence_levels: list[float] = Field([0.95, 0.99], description="Confidence levels for VaR")
     method: str = Field("historical", regex="^(historical|parametric|monte_carlo)$")
     holding_period: int = Field(1, ge=1, le=30, description="Holding period in days")
 
@@ -42,17 +41,17 @@ class VaRCalculationRequest(BaseModel):
 class StressTestRequest(BaseModel):
     """Request for stress testing"""
 
-    tickers: List[str] = Field(..., min_items=1)
-    weights: Dict[str, float]
-    scenarios: Optional[Dict[str, float]] = None  # Custom scenarios
+    tickers: list[str] = Field(..., min_items=1)
+    weights: dict[str, float]
+    scenarios: dict[str, float] | None = None  # Custom scenarios
     include_historical: bool = True
 
 
 class DrawdownAnalysisRequest(BaseModel):
     """Request for drawdown analysis"""
 
-    tickers: List[str] = Field(..., min_items=1)
-    weights: Optional[Dict[str, float]] = None
+    tickers: list[str] = Field(..., min_items=1)
+    weights: dict[str, float] | None = None
     start_date: datetime
     end_date: datetime
     top_n_drawdowns: int = Field(10, ge=1, le=50)
@@ -61,17 +60,17 @@ class DrawdownAnalysisRequest(BaseModel):
 class CorrelationBreakdownRequest(BaseModel):
     """Request for correlation breakdown analysis"""
 
-    tickers: List[str] = Field(..., min_items=2)
+    tickers: list[str] = Field(..., min_items=2)
     start_date: datetime
     end_date: datetime
-    rolling_window: Optional[int] = Field(None, ge=20, le=252)
+    rolling_window: int | None = Field(None, ge=20, le=252)
 
 
 class TailRiskRequest(BaseModel):
     """Request for tail risk analysis"""
 
-    tickers: List[str]
-    weights: Dict[str, float]
+    tickers: list[str]
+    weights: dict[str, float]
     start_date: datetime
     end_date: datetime
     threshold_percentile: float = Field(5.0, ge=1.0, le=10.0)
@@ -87,20 +86,20 @@ class VaRResponse(BaseModel):
 
     method: str
     holding_period: int
-    var_metrics: Dict[str, Dict[str, float]]  # {confidence_level: {var, cvar, etc}}
-    portfolio_value: Optional[float] = None
-    var_amount: Dict[str, float]  # Dollar amounts
+    var_metrics: dict[str, dict[str, float]]  # {confidence_level: {var, cvar, etc}}
+    portfolio_value: float | None = None
+    var_amount: dict[str, float]  # Dollar amounts
     summary: str
 
 
 class StressTestResponse(BaseModel):
     """Stress test response"""
 
-    scenarios: Dict[str, Dict[str, Any]]
-    worst_case: Dict[str, float]
-    best_case: Dict[str, float]
-    current_exposure: Dict[str, float]
-    recommendations: List[str]
+    scenarios: dict[str, dict[str, Any]]
+    worst_case: dict[str, float]
+    best_case: dict[str, float]
+    current_exposure: dict[str, float]
+    recommendations: list[str]
 
 
 class DrawdownResponse(BaseModel):
@@ -110,18 +109,18 @@ class DrawdownResponse(BaseModel):
     max_drawdown_duration: int
     avg_drawdown: float
     current_drawdown: float
-    recovery_time: Optional[int]
-    top_drawdowns: List[Dict[str, Any]]
-    drawdown_series: List[Dict[str, Any]]
+    recovery_time: int | None
+    top_drawdowns: list[dict[str, Any]]
+    drawdown_series: list[dict[str, Any]]
 
 
 class CorrelationResponse(BaseModel):
     """Correlation analysis response"""
 
-    correlation_matrix: Dict[str, Dict[str, float]]
+    correlation_matrix: dict[str, dict[str, float]]
     average_correlation: float
-    rolling_correlations: Optional[List[Dict[str, Any]]] = None
-    correlation_breakdown: Dict[str, Any]
+    rolling_correlations: list[dict[str, Any]] | None = None
+    correlation_breakdown: dict[str, Any]
 
 
 class TailRiskResponse(BaseModel):
@@ -131,17 +130,17 @@ class TailRiskResponse(BaseModel):
     right_tail_mean: float
     tail_ratio: float
     expected_shortfall: float
-    tail_events: List[Dict[str, Any]]
-    tail_statistics: Dict[str, float]
+    tail_events: list[dict[str, Any]]
+    tail_statistics: dict[str, float]
 
 
 class RiskContributionResponse(BaseModel):
     """Risk contribution analysis"""
 
     total_risk: float
-    marginal_risk: Dict[str, float]
-    component_risk: Dict[str, float]
-    percentage_contribution: Dict[str, float]
+    marginal_risk: dict[str, float]
+    component_risk: dict[str, float]
+    percentage_contribution: dict[str, float]
     diversification_ratio: float
 
 
@@ -178,9 +177,7 @@ async def calculate_var(request: VaRCalculationRequest):
                 returns_data[ticker] = data.select("close").to_series().to_numpy()
 
         if not returns_data:
-            raise HTTPException(
-                status_code=400, detail="No data available for any ticker"
-            )
+            raise HTTPException(status_code=400, detail="No data available for any ticker")
 
         # Calculate returns
         returns_df = pd.DataFrame(returns_data)
@@ -188,9 +185,7 @@ async def calculate_var(request: VaRCalculationRequest):
 
         # Portfolio weights
         if request.weights:
-            weights = np.array(
-                [request.weights.get(t, 0.0) for t in returns_df.columns]
-            )
+            weights = np.array([request.weights.get(t, 0.0) for t in returns_df.columns])
             weights = weights / weights.sum()  # Normalize
         else:
             weights = np.ones(len(returns_df.columns)) / len(returns_df.columns)
@@ -207,21 +202,13 @@ async def calculate_var(request: VaRCalculationRequest):
 
         for confidence_level in request.confidence_levels:
             if request.method == "historical":
-                var, cvar = _calculate_historical_var(
-                    portfolio_returns, confidence_level
-                )
+                var, cvar = _calculate_historical_var(portfolio_returns, confidence_level)
             elif request.method == "parametric":
-                var, cvar = _calculate_parametric_var(
-                    portfolio_returns, confidence_level
-                )
+                var, cvar = _calculate_parametric_var(portfolio_returns, confidence_level)
             elif request.method == "monte_carlo":
-                var, cvar = _calculate_monte_carlo_var(
-                    portfolio_returns, confidence_level
-                )
+                var, cvar = _calculate_monte_carlo_var(portfolio_returns, confidence_level)
             else:
-                var, cvar = _calculate_historical_var(
-                    portfolio_returns, confidence_level
-                )
+                var, cvar = _calculate_historical_var(portfolio_returns, confidence_level)
 
             var_metrics[f"{confidence_level:.0%}"] = {
                 "var": float(var),
@@ -259,7 +246,7 @@ async def calculate_var(request: VaRCalculationRequest):
 
     except Exception as e:
         logger.error(f"Error calculating VaR: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 def _calculate_historical_var(returns: pd.Series, confidence_level: float) -> tuple:
@@ -385,9 +372,7 @@ async def stress_test(request: StressTestRequest):
 
             # Apply shock to portfolio
             portfolio_return = (returns_df.mean() * weights).sum()
-            portfolio_vol = np.sqrt(
-                np.dot(weights.T, np.dot(returns_df.cov(), weights))
-            )
+            portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(returns_df.cov(), weights)))
 
             stressed_return = portfolio_return + shock
             stressed_vol = portfolio_vol * vol_mult
@@ -431,7 +416,7 @@ async def stress_test(request: StressTestRequest):
 
     except Exception as e:
         logger.error(f"Error in stress testing: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -469,9 +454,7 @@ async def analyze_drawdown(request: DrawdownAnalysisRequest):
 
         # Portfolio weights
         if request.weights:
-            weights = np.array(
-                [request.weights.get(t, 0.0) for t in returns_df.columns]
-            )
+            weights = np.array([request.weights.get(t, 0.0) for t in returns_df.columns])
             weights = weights / weights.sum()
         else:
             weights = np.ones(len(returns_df.columns)) / len(returns_df.columns)
@@ -503,7 +486,7 @@ async def analyze_drawdown(request: DrawdownAnalysisRequest):
         start_idx = None
         peak_value = None
 
-        for i, (dd, cum_val) in enumerate(zip(drawdown, cumulative)):
+        for i, (dd, _cum_val) in enumerate(zip(drawdown, cumulative, strict=True)):
             if dd < 0 and not in_drawdown:
                 # Start of drawdown
                 in_drawdown = True
@@ -516,12 +499,16 @@ async def analyze_drawdown(request: DrawdownAnalysisRequest):
 
                 drawdown_periods.append(
                     {
-                        "start_date": returns_df.index[start_idx].isoformat()
-                        if hasattr(returns_df.index[start_idx], "isoformat")
-                        else str(start_idx),
-                        "end_date": returns_df.index[i].isoformat()
-                        if hasattr(returns_df.index[i], "isoformat")
-                        else str(i),
+                        "start_date": (
+                            returns_df.index[start_idx].isoformat()
+                            if hasattr(returns_df.index[start_idx], "isoformat")
+                            else str(start_idx)
+                        ),
+                        "end_date": (
+                            returns_df.index[i].isoformat()
+                            if hasattr(returns_df.index[i], "isoformat")
+                            else str(i)
+                        ),
                         "duration_days": i - start_idx,
                         "drawdown": float(drawdown.iloc[start_idx:i].min()),
                         "peak_value": float(peak_value),
@@ -535,9 +522,7 @@ async def analyze_drawdown(request: DrawdownAnalysisRequest):
 
         # Maximum drawdown duration
         max_dd_duration = (
-            max([p["duration_days"] for p in drawdown_periods])
-            if drawdown_periods
-            else 0
+            max([p["duration_days"] for p in drawdown_periods]) if drawdown_periods else 0
         )
 
         # Recovery time (if currently in drawdown)
@@ -569,7 +554,7 @@ async def analyze_drawdown(request: DrawdownAnalysisRequest):
 
     except Exception as e:
         logger.error(f"Error in drawdown analysis: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -623,9 +608,11 @@ async def analyze_correlation(request: CorrelationBreakdownRequest):
                 avg_window_corr = float(window_corr.where(mask).mean().mean())
                 rolling_corr_data.append(
                     {
-                        "date": returns_df.index[i].isoformat()
-                        if hasattr(returns_df.index[i], "isoformat")
-                        else str(i),
+                        "date": (
+                            returns_df.index[i].isoformat()
+                            if hasattr(returns_df.index[i], "isoformat")
+                            else str(i)
+                        ),
                         "avg_correlation": avg_window_corr,
                     }
                 )
@@ -656,9 +643,7 @@ async def analyze_correlation(request: CorrelationBreakdownRequest):
                     breakdown["negative_correlation_pairs"].append(pair)
 
         # Sort pairs
-        breakdown["high_correlation_pairs"].sort(
-            key=lambda x: x["correlation"], reverse=True
-        )
+        breakdown["high_correlation_pairs"].sort(key=lambda x: x["correlation"], reverse=True)
         breakdown["low_correlation_pairs"].sort(key=lambda x: x["correlation"])
         breakdown["negative_correlation_pairs"].sort(key=lambda x: x["correlation"])
 
@@ -671,7 +656,7 @@ async def analyze_correlation(request: CorrelationBreakdownRequest):
 
     except Exception as e:
         logger.error(f"Error in correlation analysis: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -712,9 +697,7 @@ async def analyze_tail_risk(request: TailRiskRequest):
 
         # Define tail threshold
         left_threshold = np.percentile(portfolio_returns, request.threshold_percentile)
-        right_threshold = np.percentile(
-            portfolio_returns, 100 - request.threshold_percentile
-        )
+        right_threshold = np.percentile(portfolio_returns, 100 - request.threshold_percentile)
 
         # Left tail (losses)
         left_tail = portfolio_returns[portfolio_returns <= left_threshold]
@@ -725,9 +708,7 @@ async def analyze_tail_risk(request: TailRiskRequest):
         right_tail_mean = float(right_tail.mean())
 
         # Tail ratio
-        tail_ratio = (
-            float(abs(right_tail_mean / left_tail_mean)) if left_tail_mean != 0 else 0
-        )
+        tail_ratio = float(abs(right_tail_mean / left_tail_mean)) if left_tail_mean != 0 else 0
 
         # Expected shortfall (CVaR at threshold)
         expected_shortfall = float(-left_tail.mean())
@@ -738,14 +719,10 @@ async def analyze_tail_risk(request: TailRiskRequest):
             if ret <= left_threshold:
                 tail_events.append(
                     {
-                        "date": idx.isoformat()
-                        if hasattr(idx, "isoformat")
-                        else str(idx),
+                        "date": idx.isoformat() if hasattr(idx, "isoformat") else str(idx),
                         "return": float(ret),
                         "return_pct": float(ret * 100),
-                        "severity": "extreme"
-                        if ret < left_threshold * 1.5
-                        else "moderate",
+                        "severity": "extreme" if ret < left_threshold * 1.5 else "moderate",
                     }
                 )
 
@@ -772,7 +749,7 @@ async def analyze_tail_risk(request: TailRiskRequest):
 
     except Exception as e:
         logger.error(f"Error in tail risk analysis: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -782,10 +759,10 @@ async def analyze_tail_risk(request: TailRiskRequest):
 
 @router.post("/risk-contribution", response_model=RiskContributionResponse)
 async def analyze_risk_contribution(
-    tickers: List[str] = Query(...),
-    weights: Dict[str, float] = Query(...),
-    start_date: datetime = Query(...),
-    end_date: datetime = Query(...),
+    tickers: Annotated[list[str], Query()],
+    weights: Annotated[dict[str, float], Query()],
+    start_date: Annotated[datetime, Query()],
+    end_date: Annotated[datetime, Query()],
 ):
     """
     Analyze risk contribution of each asset to portfolio risk
@@ -840,17 +817,17 @@ async def analyze_risk_contribution(
         # Format results
         marginal_risk = {
             ticker: float(contrib)
-            for ticker, contrib in zip(returns_df.columns, marginal_contrib)
+            for ticker, contrib in zip(returns_df.columns, marginal_contrib, strict=True)
         }
 
         component_risk = {
             ticker: float(contrib)
-            for ticker, contrib in zip(returns_df.columns, component_contrib)
+            for ticker, contrib in zip(returns_df.columns, component_contrib, strict=True)
         }
 
         percentage_contribution = {
             ticker: float(contrib * 100)
-            for ticker, contrib in zip(returns_df.columns, pct_contrib)
+            for ticker, contrib in zip(returns_df.columns, pct_contrib, strict=True)
         }
 
         return RiskContributionResponse(
@@ -863,7 +840,7 @@ async def analyze_risk_contribution(
 
     except Exception as e:
         logger.error(f"Error in risk contribution analysis: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -874,8 +851,8 @@ async def analyze_risk_contribution(
 @router.get("/liquidity-risk/{ticker}")
 async def analyze_liquidity_risk(
     ticker: str,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
 ):
     """
     Analyze liquidity risk for a specific security
@@ -909,9 +886,7 @@ async def analyze_liquidity_risk(
         volume_volatility = float(data_pd["volume"].std() / avg_volume)
 
         # Estimate bid-ask spread (simplified using high-low spread)
-        avg_spread = float(
-            ((data_pd["high"] - data_pd["low"]) / data_pd["close"]).mean()
-        )
+        avg_spread = float(((data_pd["high"] - data_pd["low"]) / data_pd["close"]).mean())
 
         # Liquidity score (0-100, higher is better)
         # Based on volume and spread
@@ -933,11 +908,7 @@ async def analyze_liquidity_risk(
             "liquidity_score": liquidity_score,
             "days_to_liquidate_100k": days_to_liquidate,
             "liquidity_rating": (
-                "High"
-                if liquidity_score > 70
-                else "Medium"
-                if liquidity_score > 40
-                else "Low"
+                "High" if liquidity_score > 70 else "Medium" if liquidity_score > 40 else "Low"
             ),
             "warnings": (
                 ["Low liquidity - may face slippage"]
@@ -950,7 +921,7 @@ async def analyze_liquidity_risk(
 
     except Exception as e:
         logger.error(f"Error analyzing liquidity risk: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -960,11 +931,11 @@ async def analyze_liquidity_risk(
 
 @router.post("/scenario-analysis")
 async def scenario_analysis(
-    tickers: List[str] = Query(...),
-    weights: Dict[str, float] = Query(...),
-    market_change: float = Query(..., description="Market change in %"),
-    volatility_change: float = Query(0.0, description="Volatility change multiplier"),
-    correlation_change: float = Query(0.0, description="Correlation change"),
+    tickers: Annotated[list[str], Query()],
+    weights: Annotated[dict[str, float], Query()],
+    market_change: Annotated[float, Query(description="Market change in %")],
+    volatility_change: Annotated[float, Query(description="Volatility change multiplier")] = 0.0,
+    correlation_change: Annotated[float, Query(description="Correlation change")] = 0.0,
 ):
     """
     Analyze portfolio under custom scenario
@@ -996,9 +967,7 @@ async def scenario_analysis(
 
         current_return = float((returns_df.mean() * weights_array).sum() * 252)
         current_vol = float(
-            np.sqrt(
-                np.dot(weights_array.T, np.dot(returns_df.cov() * 252, weights_array))
-            )
+            np.sqrt(np.dot(weights_array.T, np.dot(returns_df.cov() * 252, weights_array)))
         )
 
         # Apply scenario
@@ -1041,7 +1010,7 @@ async def scenario_analysis(
 
     except Exception as e:
         logger.error(f"Error in scenario analysis: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============================================================================
@@ -1051,10 +1020,10 @@ async def scenario_analysis(
 
 @router.get("/dashboard")
 async def risk_dashboard(
-    tickers: List[str] = Query(...),
-    weights: Dict[str, float] = Query(...),
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
+    tickers: Annotated[list[str], Query()],
+    weights: Annotated[dict[str, float], Query()],
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
 ):
     """
     Comprehensive risk dashboard with all key metrics
@@ -1112,9 +1081,7 @@ async def risk_dashboard(
         avg_correlation = float(corr_matrix.where(mask).mean().mean())
 
         # Tail risk
-        left_tail = portfolio_returns[
-            portfolio_returns <= np.percentile(portfolio_returns, 5)
-        ]
+        left_tail = portfolio_returns[portfolio_returns <= np.percentile(portfolio_returns, 5)]
         tail_mean = float(left_tail.mean())
 
         # Beta vs market
@@ -1123,33 +1090,23 @@ async def risk_dashboard(
                 ticker="SPY", start_date=start_date, end_date=end_date
             )
             if spy_data and spy_data.height > 0:
-                spy_returns = (
-                    spy_data.select("close").to_series().pct_change().drop_nulls()
-                )
+                spy_returns = spy_data.select("close").to_series().pct_change().drop_nulls()
                 common_len = min(len(portfolio_returns), len(spy_returns))
-                covariance = np.cov(
-                    portfolio_returns[-common_len:], spy_returns[-common_len:]
-                )[0, 1]
+                covariance = np.cov(portfolio_returns[-common_len:], spy_returns[-common_len:])[
+                    0, 1
+                ]
                 market_variance = np.var(spy_returns[-common_len:])
-                beta = (
-                    float(covariance / market_variance) if market_variance > 0 else 1.0
-                )
+                beta = float(covariance / market_variance) if market_variance > 0 else 1.0
             else:
                 beta = 1.0
-        except:
+        except Exception:
             beta = 1.0
 
         return {
             "summary": {
-                "risk_score": float(
-                    min(100, max(0, 100 - (annual_vol * 200)))
-                ),  # 0-100 scale
+                "risk_score": float(min(100, max(0, 100 - (annual_vol * 200)))),  # 0-100 scale
                 "risk_level": (
-                    "Low"
-                    if annual_vol < 0.15
-                    else "Medium"
-                    if annual_vol < 0.25
-                    else "High"
+                    "Low" if annual_vol < 0.15 else "Medium" if annual_vol < 0.25 else "High"
                 ),
             },
             "value_at_risk": {
@@ -1184,12 +1141,12 @@ async def risk_dashboard(
 
     except Exception as e:
         logger.error(f"Error generating risk dashboard: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 def _generate_risk_warnings(
     volatility: float, max_dd: float, sharpe: float, correlation: float
-) -> List[str]:
+) -> list[str]:
     """Generate risk warnings based on metrics"""
     warnings = []
 

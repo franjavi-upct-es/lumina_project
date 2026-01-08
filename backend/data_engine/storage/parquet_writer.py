@@ -4,10 +4,10 @@ Parquet file writer for efficient storage of time series data
 Optimized for fast writes and efficient querying
 """
 
-from typing import Optional, List, Dict, Any
+import shutil
 from datetime import datetime
 from pathlib import Path
-import shutil
+from typing import Any
 
 import polars as pl
 import pyarrow.parquet as pq
@@ -32,9 +32,9 @@ class ParquetWriter:
 
     def __init__(
         self,
-        base_path: Optional[str] = None,
+        base_path: str | None = None,
         compression: str = "snappy",
-        partition_cols: Optional[List[str]] = None,
+        partition_cols: list[str] | None = None,
     ):
         """
         Initialize Parquet writer
@@ -59,7 +59,7 @@ class ParquetWriter:
         data: pl.DataFrame,
         dataset_name: str,
         mode: str = "append",
-        partition_by: Optional[List[str]] = None,
+        partition_by: list[str] | None = None,
     ) -> str:
         """
         Write DataFrame to parquet
@@ -114,9 +114,9 @@ class ParquetWriter:
     def read(
         self,
         dataset_name: str,
-        filters: Optional[List[tuple]] = None,
-        columns: Optional[List[str]] = None,
-    ) -> Optional[pl.DataFrame]:
+        filters: list[tuple] | None = None,
+        columns: list[str] | None = None,
+    ) -> pl.DataFrame | None:
         """
         Read parquet dataset
 
@@ -157,10 +157,10 @@ class ParquetWriter:
         self,
         dataset_name: str,
         ticker: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        columns: Optional[List[str]] = None,
-    ) -> Optional[pl.DataFrame]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        columns: list[str] | None = None,
+    ) -> pl.DataFrame | None:
         """
         Read data for specific ticker
 
@@ -193,7 +193,7 @@ class ParquetWriter:
         self,
         data: pl.DataFrame,
         dataset_name: str,
-        partition_by: Optional[List[str]] = None,
+        partition_by: list[str] | None = None,
     ) -> str:
         """
         Append data to existing dataset
@@ -212,7 +212,7 @@ class ParquetWriter:
         self,
         data: pl.DataFrame,
         dataset_name: str,
-        partition_by: Optional[List[str]] = None,
+        partition_by: list[str] | None = None,
     ) -> str:
         """
         Overwrite existing dataset
@@ -255,8 +255,8 @@ class ParquetWriter:
     def delete_partition(
         self,
         dataset_name: str,
-        ticker: Optional[str] = None,
-        date: Optional[datetime] = None,
+        ticker: str | None = None,
+        date: datetime | None = None,
     ) -> bool:
         """
         Delete specific partition
@@ -287,7 +287,7 @@ class ParquetWriter:
             logger.error(f"Error deleting partition: {e}")
             return False
 
-    def list_datasets(self) -> List[str]:
+    def list_datasets(self) -> list[str]:
         """
         List available datasets
 
@@ -306,7 +306,7 @@ class ParquetWriter:
             logger.error(f"Error listing datasets: {e}")
             return []
 
-    def get_dataset_info(self, dataset_name: str) -> Optional[Dict[str, Any]]:
+    def get_dataset_info(self, dataset_name: str) -> dict[str, Any] | None:
         """
         Get information about dataset
 
@@ -382,7 +382,7 @@ class ParquetWriter:
             logger.error(f"Error compacting dataset: {e}")
             return False
 
-    def validate_schema(self, data: pl.DataFrame, expected_schema: Dict[str, str]) -> bool:
+    def validate_schema(self, data: pl.DataFrame, expected_schema: dict[str, str]) -> bool:
         """
         Validate DataFrame schema
 
@@ -411,7 +411,7 @@ class ParquetWriter:
             logger.error(f"Error validating schema: {e}")
             return False
 
-    def optimize_for_query(self, dataset_name: str, sort_by: List[str]) -> bool:
+    def optimize_for_query(self, dataset_name: str, sort_by: list[str]) -> bool:
         """
         Optimize dataset for specific query pattern
 
@@ -444,7 +444,7 @@ class ParquetWriter:
             logger.error(f"Error optimizing dataset: {e}")
             return False
 
-    def get_statistics(self, dataset_name: str) -> Optional[Dict[str, Any]]:
+    def get_statistics(self, dataset_name: str) -> dict[str, Any] | None:
         """
         Get statistics about dataset
 
@@ -492,7 +492,7 @@ class ParquetWriter:
 
 
 # Global parquet writer instance
-_parquet_writer: Optional[ParquetWriter] = None
+_parquet_writer: ParquetWriter | None = None
 
 
 def get_parquet_writer() -> ParquetWriter:

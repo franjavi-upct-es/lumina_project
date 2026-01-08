@@ -4,20 +4,20 @@ Lumina Quant Lab 2.0 - FastAPI Application
 Main entry point for the API
 """
 
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 import logging
 import sys
 from pathlib import Path
 
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.config.settings import settings
 
 # from backend.config.logging_config import setup_logging
-from backend.api.routes import data, ml, portfolio, risk, backtest
+from backend.api.routes import backtest, data, ml, portfolio, risk
 
 # Setup logging
 # setup_logging()

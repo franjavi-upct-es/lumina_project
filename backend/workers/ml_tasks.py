@@ -3,26 +3,27 @@
 Celery tasks for machine learning model training and inference
 """
 
-from celery import shared_task
-from typing import Dict, Any
 from datetime import datetime, timedelta
-from torch.utils.data import DataLoader, random_split
-from loguru import logger
+from typing import Any
+
 import mlflow
 import numpy as np
-import torch
 import shap
+import torch
+from celery import shared_task
+from loguru import logger
+from torch.utils.data import DataLoader, random_split
 
-from ml_engine.models.lstm_advanced import AdvancedLSTM, LSTMTrainer, TimeSeriesDataset
-from data_engine.collectors.yfinance_collector import YFinanceCollector
-from data_engine.transformers.feature_engineering import FeatureEngineer
-from config.settings import get_settings
+from backend.config.settings import get_settings
+from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
+from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+from backend.ml_engine.models.lstm_advanced import AdvancedLSTM, LSTMTrainer, TimeSeriesDataset
 
 settings = get_settings()
 
 
 @shared_task(bind=True, name="workers.ml_tasks.train_model_task")
-def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparams: Dict[str, Any]):
+def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparams: dict[str, Any]):
     """
     Train a machine learning model asynchronously
 

@@ -3,15 +3,15 @@
 Data endpoints for price data, features, and market information
 """
 
-from fastapi import APIRouter, Query, HTTPException, Depends
-from typing import Optional, List
 from datetime import datetime, timedelta
-from pydantic import BaseModel, Field
-from loguru import logger
+from typing import Annotated
 
+from config.settings import get_settings
 from data_engine.collectors.yfinance_collector import YFinanceCollector
 from data_engine.transformers.feature_engineering import FeatureEngineer
-from config.settings import get_settings
+from fastapi import APIRouter, Depends, HTTPException, Query
+from loguru import logger
+from pydantic import BaseModel, Field
 
 router = APIRouter()
 settings = get_settings()
@@ -24,33 +24,33 @@ class PriceDataResponse(BaseModel):
     end_date: datetime
     interval: str
     data_points: int
-    data: List[dict]
+    data: list[dict]
 
 
 class FeatureResponse(BaseModel):
     ticker: str
-    features: List[str]
+    features: list[str]
     categories: dict
     data_points: int
-    data: Optional[List[dict]] = None
+    data: list[dict] | None = None
 
 
 class CompanyInfoResponse(BaseModel):
     ticker: str
-    name: Optional[str]
-    sector: Optional[str]
-    industry: Optional[str]
-    market_cap: Optional[float]
-    pe_ratio: Optional[float]
-    dividend_yield: Optional[float]
-    beta: Optional[float]
-    description: Optional[str]
+    name: str | None
+    sector: str | None
+    industry: str | None
+    market_cap: float | None
+    pe_ratio: float | None
+    dividend_yield: float | None
+    beta: float | None
+    description: str | None
 
 
 class BatchDataRequest(BaseModel):
-    tickers: List[str] = Field(..., min_items=1, max_items=100)
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
+    tickers: list[str] = Field(..., min_length=1, max_length=100)
+    start_date: datetime | None = None
+    end_date: datetime | None = None
     interval: str = "1d"
 
 
@@ -72,10 +72,10 @@ async def data_health_check():
 @router.get("/{ticker}/prices", response_model=PriceDataResponse)
 async def get_historical_prices(
     ticker: str,
-    start_date: Optional[datetime] = Query(None, description="Start date (YYYY-MM-DD)"),
-    end_date: Optional[datetime] = Query(None, description="End date (YYYY-MM-DD)"),
-    interval: str = Query("1d", regex="^(1d|1h|5m|15m|30m|1wk|1mo)$"),
-    collector: YFinanceCollector = Depends(get_collector),
+    start_date: Annotated[datetime | None, Query(description="Start date (YYYY-MM-DD)")] = None,
+    end_date: Annotated[datetime | None, Query(description="End date (YYYY-MM-DD)")] = None,
+    interval: Annotated[str, Query(pattern="^(1d|1h|5m|15m|30m|1wk|1mo)$")] = "1d",
+    collector: Annotated[YFinanceCollector, Depends(get_collector)] = "default",
 ):
     """
     Get historical price data for a ticker
@@ -118,12 +118,13 @@ async def get_historical_prices(
 
     except Exception as e:
         logger.error(f"Error fetching prices for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/batch/prices")
 async def get_batch_prices(
-    request: BatchDataRequest, collector: YFinanceCollector = Depends(get_collector)
+    request: BatchDataRequest,
+    collector: Annotated[YFinanceCollector, Depends(get_collector)],
 ):
     """
     Get historical prices for multiple tickers in parallel
@@ -159,20 +160,22 @@ async def get_batch_prices(
 
     except Exception as e:
         logger.error(f"Error in batch collection: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{ticker}/features", response_model=FeatureResponse)
 async def get_features(
     ticker: str,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
-    categories: Optional[str] = Query(
-        None,
-        description="Comma-separated categories: price,volume,volatility,momentum,trend,statistical",
-    ),
-    include_data: bool = Query(False, description="Include feature values in response"),
-    collector: YFinanceCollector = Depends(get_collector),
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    categories: Annotated[
+        str | None,
+        Query(
+            description="Comma-separated categories: price,volume,volatility,momentum,trend,statistical"
+        ),
+    ] = None,
+    include_data: Annotated[bool, Query(description="Include feature values in response")] = False,
+    collector: Annotated[YFinanceCollector, Depends(get_collector)] = "default",
 ):
     """
     Get computed features for a ticker
@@ -230,11 +233,14 @@ async def get_features(
 
     except Exception as e:
         logger.error(f"Error computing features for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{ticker}/info", response_model=CompanyInfoResponse)
-async def get_company_info(ticker: str, collector: YFinanceCollector = Depends(get_collector)):
+async def get_company_info(
+    ticker: str,
+    collector: Annotated[YFinanceCollector, Depends(get_collector)],
+):
     """
     Get company information and fundamental metrics
     """
@@ -250,14 +256,16 @@ async def get_company_info(ticker: str, collector: YFinanceCollector = Depends(g
 
     except Exception as e:
         logger.error(f"Error fetching company info for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{ticker}/options")
 async def get_options_chain(
     ticker: str,
-    expiration_date: Optional[str] = Query(None, description="Expiration date (YYYY-MM-DD)"),
-    collector: YFinanceCollector = Depends(get_collector),
+    expiration_date: Annotated[
+        str | None, Query(description="Expiration date (YYYY-MM-DD)")
+    ] = None,
+    collector: Annotated[YFinanceCollector, Depends(get_collector)] = "default",
 ):
     """
     Get options chain data for a ticker
@@ -277,12 +285,13 @@ async def get_options_chain(
 
     except Exception as e:
         logger.error(f"Error fetching options for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{ticker}/institutional-holders")
 async def get_institutional_holders(
-    ticker: str, collector: YFinanceCollector = Depends(get_collector)
+    ticker: str,
+    collector: Annotated[YFinanceCollector, Depends(get_collector)],
 ):
     """
     Get institutional holders information
@@ -300,11 +309,14 @@ async def get_institutional_holders(
 
     except Exception as e:
         logger.error(f"Error fetching institutional holders for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{ticker}/earnings")
-async def get_earnings_history(ticker: str, collector: YFinanceCollector = Depends(get_collector)):
+async def get_earnings_history(
+    ticker: str,
+    collector: Annotated[YFinanceCollector, Depends(get_collector)],
+):
     """
     Get historical earnings data
     """
@@ -318,7 +330,7 @@ async def get_earnings_history(ticker: str, collector: YFinanceCollector = Depen
 
     except Exception as e:
         logger.error(f"Error fetching earnings for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/market/status")
@@ -347,4 +359,4 @@ async def get_market_status():
 
     except Exception as e:
         logger.error(f"Error checking market status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
