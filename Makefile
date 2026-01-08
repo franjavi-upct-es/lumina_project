@@ -18,7 +18,7 @@ build:
 	cd docker && docker-compose build
 
 build-ml:
-	cd docker && docker-compose build ml_service
+	cd docker && docker-compose build ml-worker
 
 up:
 	cd docker && docker-compose up -d
@@ -33,7 +33,7 @@ logs:
 	cd docker && docker-compose logs -f
 
 logs-ml:
-	cd docker && docker-compose logs -f ml_service
+	cd docker && docker-compose logs -f ml-worker
 
 clean:
 	cd docker && docker-compose down -v
