@@ -3,6 +3,7 @@
 Celery tasks for machine learning model training and inference
 """
 
+import os
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -159,9 +160,26 @@ def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparam
                 }
             )
 
-            # Save model
+            # Save model with metadata
             model_path = f"{settings.MODEL_STORAGE_PATH}/{ticker}_{model_type}_{job_id}.pt"
-            trainer.save_checkpoint(model_path)
+
+            # Add metadata to checkpoint
+            checkpoint_data = {
+                "model_state_dict": model.state_dict(),
+                "meta_data": {
+                    "input_dim": len(feature_columns),
+                    "hidden_dim": hyperparams.get("hidden_dim", 128),
+                    "num_layers": hyperparams.get("num_layers", 3),
+                    "dropout": hyperparams.get("dropout", 0.3),
+                    "sequence_length": sequence_length,
+                    "prediction_horizon": prediction_horizon,
+                    "feature_columns": feature_columns,
+                    "ticker": ticker,
+                    "trained_at": datetime.now().isoformat(),
+                },
+            }
+
+            torch.save(checkpoint_data, model_path)
             mlflow.log_artifact(model_path)
 
             run_id = mlflow.active_run().info.run_id
@@ -201,25 +219,42 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
     try:
         logger.info(f"Prediction task for {ticker} using model {model_id}")
 
-        # 1. Load model
+        # Update task state
+        self.update_state(state="PROGRESS", meta={"step": "loading_model", "progress": 10})
+
+        # 1. Load model and metadata
         model_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}.pt"
 
-        # Load checkpoint
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Model file not found: {model_path}")
+
         checkpoint = torch.load(model_path, map_location="cpu")
 
-        # Reconstruct model (need to get hyperparams from DB or MLflow)
-        # For now, use default params
+        # Extract metadata from checkpoint
+        meta_data = checkpoint.get("meta_data", {})
+        input_dim = meta_data.get("input_dim", 50)
+        hidden_dim = meta_data.get("hidden_dim", 128)
+        num_layers = meta_data.get("num_layers", 3)
+        dropout = meta_data.get("dropout", 0.3)
+        sequence_length = meta_data.get("sequence_length", 60)
+        feature_columns = meta_data.get("feature_columns", None)
+
+        # Reconstruct model with saved parameters
         model = AdvancedLSTM(
-            input_dim=50,  # Should load from meta_data
-            hidden_dim=128,
-            num_layers=3,
-            dropout=0.3,
+            input_dim=input_dim,
+            hidden_dim=hidden_dim,
+            num_layers=num_layers,
+            dropout=dropout,
             output_horizon=days_ahead,
+            bidirectional=True,
         )
         model.load_state_dict(checkpoint["model_state_dict"])
         model.eval()
 
         trainer = LSTMTrainer(model)
+
+        # Update progress
+        self.update_state(state="PROGRESS", meta={"step": "collecting_data", "progress": 30})
 
         # 2. Collect recent data
         import asyncio
@@ -228,10 +263,12 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
+        # Collect enough data for feature engineering and sequence
+        lookback_days = max(sequence_length * 2, 90)
         data = loop.run_until_complete(
             collector.collect_with_retry(
                 ticker=ticker,
-                start_date=datetime.now() - timedelta(days=90),
+                start_date=datetime.now() - timedelta(days=lookback_days),
                 end_date=datetime.now(),
             )
         )
@@ -240,62 +277,129 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
         if data is None or data.height == 0:
             raise ValueError(f"No data available for {ticker}")
 
+        logger.info(f"Collected {data.height} data points")
+
+        # Update progress
+        self.update_state(state="PROGRESS", meta={"step": "feature_engineering", "progress": 50})
+
         # 3. Engineer features
         fe = FeatureEngineer()
-        enriched_data = fe.create_all_features(data)
+        enriched_data = fe.create_all_features(data, add_lags=True, add_rolling=True)
 
-        # Get feature columns (should load from model meta_data)
-        feature_columns = fe.get_all_feature_names()[:50]
+        # Use saved feature columns or generate them
+        if feature_columns is None:
+            feature_columns = fe.get_all_feature_names()[:input_dim]
+            logger.warning(f"Using default feature columns: {len(feature_columns)} features")
+
+        # Validate features exist
+        missing_features = [f for f in feature_columns if f not in enriched_data.columns]
+        if missing_features:
+            logger.warning(f"Missing features: {missing_features}")
+            # Use available features
+            feature_columns = [f for f in feature_columns if f in enriched_data.columns]
+
         features = enriched_data.select(feature_columns).to_numpy()
 
+        # Update progress
+        self.update_state(state="PROGRESS", meta={"step": "preparing_sequence", "progress": 70})
+
         # 4. Prepare input sequence
-        sequence_length = 60
         if len(features) < sequence_length:
             raise ValueError(f"Not enough data points. Need {sequence_length}, got {len(features)}")
 
-        input_sequence = torch.FloatTensor(features[-sequence_length:])
+        # Use the most recent sequence
+        input_sequence = torch.FloatTensor(features[-sequence_length:]).unsqueeze(0)
+
+        # Update progress
+        self.update_state(state="PROGRESS", meta={"step": "generating_predictions", "progress": 85})
 
         # 5. Generate predictions
-        predictions = trainer.predict(input_sequence)
+        with torch.no_grad():
+            predictions = trainer.predict(input_sequence)
 
         # 6. Format predictions
         current_price = float(data["close"].tail(1).item())
+        last_date = data["date"].tail(1).item()
 
         formatted_predictions = []
         for i in range(days_ahead):
             pred_price = float(predictions["price"][0][i])
+            pred_date = last_date + timedelta(days=i + 1)
+
+            # Skip weekends for stock predictions
+            while pred_date.weekday() >= 5:  # Saturday=5, Sunday=6
+                pred_date += timedelta(days=1)
+
             formatted_predictions.append(
                 {
                     "day": i + 1,
-                    "date": (datetime.now() + timedelta(days=i + 1)).isoformat(),
-                    "predicted_price": pred_price,
-                    "change": pred_price - current_price,
-                    "change_percent": ((pred_price - current_price) / current_price) * 100,
-                    "confidence_lower": float(predictions["price_lower"][0][i]),
-                    "confidence_upper": float(predictions["price_upper"][0][i]),
-                    "uncertainty": float(predictions["uncertainty"][0][i]),
+                    "date": pred_date.isoformat(),
+                    "predicted_price": round(pred_price, 2),
+                    "change": round(pred_price - current_price, 2),
+                    "change_percent": round(
+                        ((pred_price - current_price) / current_price) * 100, 2
+                    ),
+                    "confidence_lower": round(float(predictions["price_lower"][0][i]), 2),
+                    "confidence_upper": round(float(predictions["price_upper"][0][i]), 2),
+                    "uncertainty": round(float(predictions["uncertainty"][0][i]), 4),
                 }
             )
+
+        # Calculate prediction summary statistics
+        avg_predicted_price = np.mean([p["predicted_price"] for p in formatted_predictions])
+        total_change_percent = (
+            (formatted_predictions[-1]["predicted_price"] - current_price) / current_price * 100
+        )
 
         result = {
             "ticker": ticker,
             "model_id": model_id,
-            "current_price": current_price,
+            "current_price": round(current_price, 2),
+            "current_date": last_date.isoformat(),
             "predictions": formatted_predictions,
             "regime_probabilities": {
-                "bear": float(predictions["regime_probs"][0][0]),
-                "sideways": float(predictions["regime_probs"][0][1]),
-                "bull": float(predictions["regime_probs"][0][2]),
+                "bear": round(float(predictions["regime_probs"][0][0]), 4),
+                "sideways": round(float(predictions["regime_probs"][0][1]), 4),
+                "bull": round(float(predictions["regime_probs"][0][2]), 4),
             },
-            "volatility_forecast": float(predictions["volatility"][0][0]),
+            "volatility_forecast": round(float(predictions["volatility"][0][0]), 4),
+            "summary": {
+                "avg_predicted_price": round(avg_predicted_price, 2),
+                "total_change_percent": round(total_change_percent, 2),
+                "trend": (
+                    "bullish"
+                    if total_change_percent > 1
+                    else "bearish"
+                    if total_change_percent < -1
+                    else "neutral"
+                ),
+            },
+            "metadata": {
+                "model_type": "lstm",
+                "sequence_length": sequence_length,
+                "num_features": len(feature_columns),
+                "prediction_horizon": days_ahead,
+            },
             "completed_at": datetime.now().isoformat(),
         }
+
+        # Update progress
+        self.update_state(state="PROGRESS", meta={"step": "completed", "progress": 100})
 
         logger.success(f"Predictions generated for {ticker}")
         return result
 
+    except FileNotFoundError as e:
+        logger.error(f"Model not found: {e}")
+        self.update_state(state="FAILURE", meta={"error": str(e), "type": "model_not_found"})
+        raise
+    except ValueError as e:
+        logger.error(f"Data validation error: {e}")
+        self.update_state(state="FAILURE", meta={"error": str(e), "type": "data_error"})
+        raise
     except Exception as e:
         logger.error(f"Prediction failed: {e}")
+        self.update_state(state="FAILURE", meta={"error": str(e), "type": "unknown"})
         raise
 
 
