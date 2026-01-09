@@ -8,7 +8,6 @@ from typing import Annotated, Any
 from uuid import uuid4
 
 import numpy as np
-from config.settings import get_settings
 from db.models import get_async_session
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from loguru import logger
@@ -16,6 +15,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from workers.backtest_tasks import run_backtest_task
+
+from backend.config.settings import get_settings
 
 router = APIRouter()
 settings = get_settings()

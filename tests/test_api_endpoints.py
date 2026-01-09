@@ -9,7 +9,6 @@ Usage:
 
 import os
 import sys
-import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -328,7 +327,7 @@ class TestPortfolioEndpoints:
 
             if response.status_code in [200, 202]:
                 data = response.json()
-                print(f"✓ Efficient frontier calculated")
+                print("✓ Efficient frontier calculated")
             else:
                 print(f"⚠ Efficient frontier endpoint: {response.status_code}")
         except requests.RequestException as e:

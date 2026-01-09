@@ -10,7 +10,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock ./
 
 # Install API + DB dependencies
-RUN uv sync --frozen --no-cache --no-install-project --group api --group db
+RUN uv sync --frozen --no-cache --no-install-project --group api --group db --group ml
 
 # Production stage
 FROM python:3.11-slim

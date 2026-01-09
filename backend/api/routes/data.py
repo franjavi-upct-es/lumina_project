@@ -6,12 +6,13 @@ Data endpoints for price data, features, and market information
 from datetime import datetime, timedelta
 from typing import Annotated
 
-from config.settings import get_settings
-from data_engine.collectors.yfinance_collector import YFinanceCollector
-from data_engine.transformers.feature_engineering import FeatureEngineer
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field
+
+from backend.config.settings import get_settings
+from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
+from backend.data_engine.transformers.feature_engineering import FeatureEngineer
 
 router = APIRouter()
 settings = get_settings()

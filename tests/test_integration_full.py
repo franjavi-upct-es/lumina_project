@@ -141,7 +141,7 @@ class TestFullMLPipeline:
 
             result = task.result
             model_id = f"{ticker}_lstm_{job_id}"
-            logger.success(f"✓ Model trained successfully")
+            logger.success("✓ Model trained successfully")
             logger.info(f"  Model ID: {model_id}")
             logger.info(f"  Metrics: {result.get('metrics', {})}")
         except ImportError as e:
@@ -329,7 +329,7 @@ class TestBacktestIntegration:
             task = run_backtest_task.delay(backtest_id=backtest_id, config=config)
             result = task.get(timeout=300)
 
-            logger.success(f"✓ Mean reversion backtest completed")
+            logger.success("✓ Mean reversion backtest completed")
         except Exception as e:
             logger.warning(f"Mean reversion backtest: {e}")
 

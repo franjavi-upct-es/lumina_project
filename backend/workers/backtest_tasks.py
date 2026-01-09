@@ -11,10 +11,11 @@ from uuid import uuid4
 import numpy as np
 import pandas as pd
 from celery import shared_task
-from config.settings import get_settings
-from data_engine.collectors.yfinance_collector import YFinanceCollector
-from data_engine.transformers.feature_engineering import FeatureEngineer
 from loguru import logger
+
+from backend.config.settings import get_settings
+from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
+from backend.data_engine.transformers.feature_engineering import FeatureEngineer
 
 settings = get_settings()
 

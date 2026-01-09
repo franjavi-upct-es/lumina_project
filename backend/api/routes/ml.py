@@ -10,17 +10,18 @@ from typing import Annotated, Any
 from uuid import uuid4
 
 import torch
-from config.settings import get_settings
-from data_engine.collectors.yfinance_collector import YFinanceCollector
-from data_engine.transformers.feature_engineering import FeatureEngineer
-from db.models import get_async_session
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from loguru import logger
-from ml_engine.models.lstm_advanced import AdvancedLSTM, LSTMTrainer, TimeSeriesDataset
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from workers.ml_tasks import (
+
+from backend.config.settings import get_settings
+from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
+from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+from backend.db.models import get_async_session
+from backend.ml_engine.models.lstm_advanced import AdvancedLSTM, LSTMTrainer, TimeSeriesDataset
+from backend.workers.ml_tasks import (
     compute_feature_importance_task,
     evaluate_model_task,
     train_model_task,

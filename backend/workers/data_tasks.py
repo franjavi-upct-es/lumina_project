@@ -10,16 +10,17 @@ from typing import Any
 
 import pandas as pd
 from celery import group, shared_task
-from config.settings import get_settings
-from data_engine.collectors.yfinance_collector import YFinanceCollector
-from data_engine.transformers.feature_engineering import FeatureEngineer
-from db.models import (
+from loguru import logger
+
+from backend.config.settings import get_settings
+from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
+from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+from backend.db.models import (
     bulk_insert_features,
     bulk_insert_price_data,
     execute_raw_sql,
     get_latest_price,
 )
-from loguru import logger
 
 settings = get_settings()
 
