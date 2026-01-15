@@ -109,14 +109,21 @@ DEBUG=True
 LOG_LEVEL=INFO
 
 # Database
-DATABASE_URL=postgresql://lumina_user:lumina_password@localhost:5433/lumina_quant
+DATABASE_URL=postgresql://localhost:5433/lumina_quant
 
 # Redis
-REDIS_URL=redis://:lumina_redis_2024@localhost:6379/0
+REDIS_URL=redis://localhost:6379/0
 
 # Celery
-CELERY_BROKER_URL=redis://:lumina_redis_2024@localhost:6379/1
-CELERY_RESULT_BACKEND=redis://:lumina_redis_2024@localhost:6379/2
+CELERY_BROKER_URL=redis://localhost:6379/1
+CELERY_RESULT_BACKEND=redis://localhost:6379/2
+
+# Security
+SECRET_KEY=change-me-use-a-long-random-secret
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8501,http://localhost:8888
+API_KEYS=
+API_KEY_HASHES=
+REQUIRE_API_KEY=false
 
 # API Keys (add your own)
 ALPHA_VANTAGE_API_KEY=

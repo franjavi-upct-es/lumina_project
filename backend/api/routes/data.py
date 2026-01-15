@@ -10,11 +10,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from backend.api.dependencies import check_rate_limit, verify_api_key
 from backend.config.settings import get_settings
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
 from backend.data_engine.transformers.feature_engineering import FeatureEngineer
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(check_rate_limit), Depends(verify_api_key)])
 settings = get_settings()
 
 

@@ -3,11 +3,10 @@
 Configuration settings using Pydantic for type safety and validation
 """
 
-import secrets
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import AliasChoices, ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 # Load backend-specific env file (stable across local and container paths)
@@ -36,19 +35,35 @@ class Settings(BaseSettings):
 
     # API
     API_V2_PREFIX: str = "/api/v2"
-    SECRET_KEY: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
+    SECRET_KEY: str = Field(min_length=32)
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
     # CORS
-    ALLOWED_ORIGINS: list[str] = [
-        "http://localhost:3000",
-        "http://localhost:8501",  # Streamlit
-        "http://localhost:8888",  # Jupyter
-    ]
+    ALLOWED_ORIGINS: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://localhost:8501",  # Streamlit
+            "http://localhost:8888",  # Jupyter
+        ],
+        validation_alias=AliasChoices("ALLOWED_ORIGINS", "CORS_ORIGINS"),
+    )
+    CORS_ALLOW_CREDENTIALS: bool = Field(default=True)
+
+    # API Keys
+    API_KEYS: list[str] = Field(
+        default_factory=list,
+        validation_alias=AliasChoices("API_KEYS", "API_KEY"),
+    )
+    API_KEY_HASHES: list[str] = Field(default_factory=list)
+    REQUIRE_API_KEY: bool = Field(default=False)
+
+    # Rate limiting
+    RATE_LIMIT_MAX_REQUESTS: int = 100
+    RATE_LIMIT_WINDOW_SECONDS: int = 60
 
     # Database
     DATABASE_URL: str = Field(
-        default="postgresql://lumina_user:lumina_password@localhost:5433/lumina_quant"
+        default="postgresql://localhost:5432/lumina_quant"
     )
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 10
@@ -57,12 +72,12 @@ class Settings(BaseSettings):
     DB_ECHO: bool = False
 
     # Redis
-    REDIS_URL: str = Field(default="redis://:lumina_redis_2024@localhost:6379/0")
+    REDIS_URL: str = Field(default="redis://localhost:6379/0")
     REDIS_CACHE_TTL: int = 3600  # 1 hour
 
     # Celery
-    CELERY_BROKER_URL: str = Field(default="redis://:lumina_redis_2024@localhost:6379/1")
-    CELERY_RESULT_BACKEND: str = Field(default="redis://:lumina_redis_2024@localhost:6379/2")
+    CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/1")
+    CELERY_RESULT_BACKEND: str = Field(default="redis://localhost:6379/2")
     CELERY_TASK_TIME_LIMIT: int = 3600  # 1 hour
     CELERY_TASK_SOFT_TIME_LIMIT: int = 3300  # 55 hour
 
@@ -106,6 +121,12 @@ class Settings(BaseSettings):
     SENTRY_DNS: str | None = None
     PROMETHEUS_PORT: int = 9090
 
+    # Logging
+    LOG_FORMAT: str = Field(default="text", pattern="^(text|json)$")
+    LOG_FILE_PATH: str | None = None
+    LOG_MAX_BYTES: int = 10485760
+    LOG_BACKUP_COUNT: int = 5
+
     @field_validator("ENVIRONMENT")
     @classmethod
     def validate_enviroment(cls, v):
@@ -120,6 +141,24 @@ class Settings(BaseSettings):
         if not str(v).startswith("postgresql"):
             raise ValueError("DATABASE_URL must be a PostgreSQL connection string")
         return v
+
+    @field_validator("ALLOWED_ORIGINS", "API_KEYS", "API_KEY_HASHES", mode="before")
+    @classmethod
+    def split_csv_values(cls, v):
+        if v is None:
+            return []
+        if isinstance(v, str):
+            return [item.strip() for item in v.split(",") if item.strip()]
+        return list(v)
+
+    @model_validator(mode="after")
+    def validate_security_settings(self):
+        if self.is_production:
+            if "*" in self.ALLOWED_ORIGINS:
+                raise ValueError("ALLOWED_ORIGINS cannot include '*' in production")
+            if not (self.API_KEYS or self.API_KEY_HASHES):
+                raise ValueError("API_KEYS or API_KEY_HASHES must be set in production")
+        return self
 
     @property
     def is_production(self) -> bool:

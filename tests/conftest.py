@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 TEST_CONFIG = {
     # Database
     "DATABASE_URL": os.getenv(
-        "DATABASE_URL", "postgresql://lumina:lumina_password@localhost:5435/lumina_db"
+        "DATABASE_URL", "postgresql://localhost:5435/lumina_db"
     ),
     # Redis
     "REDIS_URL": os.getenv("REDIS_URL", "redis://localhost:6379/0"),

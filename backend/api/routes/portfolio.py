@@ -15,11 +15,12 @@ from scipy.optimize import minimize
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.dependencies import check_rate_limit, verify_api_key
 from backend.config.settings import get_settings
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
 from backend.db.models import PortfolioBalance, PortfolioPosition, get_async_session
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(check_rate_limit), Depends(verify_api_key)])
 settings = get_settings()
 
 

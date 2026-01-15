@@ -16,9 +16,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from workers.backtest_tasks import run_backtest_task
 
+from backend.api.dependencies import check_rate_limit, verify_api_key
 from backend.config.settings import get_settings
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(check_rate_limit), Depends(verify_api_key)])
 settings = get_settings()
 
 

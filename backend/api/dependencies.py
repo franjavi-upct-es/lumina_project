@@ -6,6 +6,8 @@ Provides common dependencies like database sessions, authentication, rate limiti
 
 from collections.abc import AsyncGenerator, Generator
 from datetime import datetime, timedelta
+import hashlib
+import hmac
 from typing import Annotated
 
 import jwt
@@ -317,19 +319,19 @@ async def check_rate_limit(
             ...
     """
     # Use IP address as identifier
-    client_ip = request.client.host
+    client_ip = request.client.host if request.client else "unknown"
 
     limiter = RateLimiter(
         redis=redis,
-        max_requests=100,
-        window_seconds=60,
+        max_requests=settings.RATE_LIMIT_MAX_REQUESTS,
+        window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS,
     )
 
     if not await limiter.check_rate_limit(client_ip):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Rate limit exceeded. Please try again later.",
-            headers={"Retry-After": "60"},
+            headers={"Retry-After": str(settings.RATE_LIMIT_WINDOW_SECONDS)},
         )
 
 
@@ -501,17 +503,31 @@ async def verify_api_key(
             ...
     """
     if not x_api_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="API key required",
-        )
+        if settings.is_production or settings.REQUIRE_API_KEY:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="API key required",
+            )
+        return ""
 
-    # In production, verify against database
-    # For now, just check if it exists
-    if len(x_api_key) < 10:
+    if settings.API_KEYS or settings.API_KEY_HASHES:
+        if x_api_key in settings.API_KEYS:
+            return x_api_key
+
+        hashed_key = hashlib.sha256(x_api_key.encode("utf-8")).hexdigest()
+        for stored_hash in settings.API_KEY_HASHES:
+            if hmac.compare_digest(hashed_key, stored_hash):
+                return x_api_key
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",
+        )
+
+    if settings.is_production or settings.REQUIRE_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="API key validation is not configured",
         )
 
     return x_api_key

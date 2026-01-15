@@ -7,9 +7,9 @@ services:
     container_name: lumina-timescaledb
     restart: unless-stopped
     environment:
-      POSTGRES_USER: lumina
-      POSTGRES_PASSWORD: lumina_password
-      POSTGRES_DB: lumina_db
+      POSTGRES_USER: ${POSTGRES_USER:-lumina}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-lumina_db}
     volumes:
       - timescale_data:/var/lib/postgresql/data
       - ../backend/db/timescale_setup.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -49,8 +49,8 @@ services:
     container_name: lumina-api
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://lumina:lumina_password@timescaledb:5432/lumina_db
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-lumina_db}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       MLFLOW_TRACKING_URI: http://mlflow:5000
       ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
       FRED_API_KEY: ${FRED_API_KEY:-}
@@ -78,8 +78,8 @@ services:
     container_name: lumina-ml-worker
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://lumina:lumina_password@timescaledb:5432/lumina_db
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-lumina_db}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       MLFLOW_TRACKING_URI: http://mlflow:5000
       CUDA_VISIBLE_DEVICES: "0"
     volumes:
@@ -121,8 +121,8 @@ services:
         "data_queue,backtest_queue",
       ]
     environment:
-      DATABASE_URL: postgresql://lumina:lumina_password@timescaledb:5432/lumina_db
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-lumina_db}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     volumes:
       - ../data:/app/data
       - ../logs:/app/logs
@@ -152,8 +152,8 @@ services:
         "--loglevel=info",
       ]
     environment:
-      DATABASE_URL: postgresql://lumina:lumina_password@timescaledb:5432/lumina_db
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-lumina_db}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     depends_on:
       - celery-worker
     networks:
@@ -167,7 +167,7 @@ services:
     container_name: lumina-mlflow
     restart: unless-stopped
     environment:
-      MLFLOW_BACKEND_STORE_URI: postgresql://lumina:lumina_password@timescaledb:5432/lumina_mlflow
+      MLFLOW_BACKEND_STORE_URI: ${MLFLOW_BACKEND_STORE_URI:-postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${MLFLOW_DB:-lumina_mlflow}}
     volumes:
       - mlflow_artifacts:/app/mlartifacts
     ports:
@@ -187,7 +187,7 @@ services:
     restart: unless-stopped
     environment:
       API_URL: http://api:8000
-      DATABASE_URL: postgresql://lumina:lumina_password@timescaledb:5432/lumina_db
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-lumina_db}
     ports:
       - "8501:8501"
     depends_on:
@@ -203,7 +203,7 @@ services:
     container_name: lumina-jupyter
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://lumina:lumina_password@timescaledb:5432/lumina_db
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-lumina_db}
       MLFLOW_TRACKING_URI: http://mlflow:5000
     volumes:
       - ../notebooks:/app/notebooks

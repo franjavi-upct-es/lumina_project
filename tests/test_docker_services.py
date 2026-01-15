@@ -24,7 +24,7 @@ DOCKER_CONFIG = {
     "POSTGRES_HOST": os.getenv("POSTGRES_HOST", "localhost"),
     "POSTGRES_PORT": int(os.getenv("POSTGRES_PORT", "5435")),
     "POSTGRES_USER": os.getenv("POSTGRES_USER", "lumina"),
-    "POSTGRES_PASSWORD": os.getenv("POSTGRES_PASSWORD", "lumina_password"),
+    "POSTGRES_PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
     "POSTGRES_DB": os.getenv("POSTGRES_DB", "lumina_db"),
     "REDIS_HOST": os.getenv("REDIS_HOST", "localhost"),
     "REDIS_PORT": int(os.getenv("REDIS_PORT", "6379")),
@@ -43,9 +43,11 @@ class TestTimescaleDBService:
     @pytest.fixture
     def db_connection_string(self):
         """Build PostgreSQL connection string"""
+        password = DOCKER_CONFIG["POSTGRES_PASSWORD"]
+        user = DOCKER_CONFIG["POSTGRES_USER"]
+        userinfo = f"{user}:{password}" if password else user
         return (
-            f"postgresql://{DOCKER_CONFIG['POSTGRES_USER']}:"
-            f"{DOCKER_CONFIG['POSTGRES_PASSWORD']}@"
+            f"postgresql://{userinfo}@"
             f"{DOCKER_CONFIG['POSTGRES_HOST']}:"
             f"{DOCKER_CONFIG['POSTGRES_PORT']}/"
             f"{DOCKER_CONFIG['POSTGRES_DB']}"

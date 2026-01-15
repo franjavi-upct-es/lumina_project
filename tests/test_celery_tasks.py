@@ -24,7 +24,7 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("CELERY_BROKER_URL", "redis://localhost:6379/1")
 os.environ.setdefault("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
 os.environ.setdefault(
-    "DATABASE_URL", "postgresql://lumina:lumina_password@localhost:5435/lumina_db"
+    "DATABASE_URL", "postgresql://localhost:5435/lumina_db"
 )
 
 
