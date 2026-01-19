@@ -5,6 +5,7 @@ Generates thousands of possible future scenarios based on historical statistics
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -221,7 +222,7 @@ class MonteCarloSimulator:
 
         return paths
 
-    def calculate_metrics(self) -> dict[str, any]:
+    def calculate_metrics(self) -> dict[str, Any]:
         """
         Calculate comprehensive metrics from simulation results
 
@@ -337,7 +338,7 @@ class MonteCarloSimulator:
 
         return median, lower, upper
 
-    def analyze_drawdown(self) -> dict[str, any]:
+    def analyze_drawdown(self) -> dict[str, Any]:
         """
         Analyze drawdowns across all simulated paths
 
@@ -438,7 +439,7 @@ def run_portfolio_monte_carlo(
     initial_value: float = 100000.0,
     num_simulations: int = 10000,
     time_horizon_days: int = 252,
-) -> dict[str, any]:
+) -> dict[str, Any]:
     """
     Convenience function to run Monte Carlo for a portfolio
 

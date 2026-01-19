@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from queue import PriorityQueue
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -32,7 +33,7 @@ class Event:
     timestamp: datetime
     event_type: EventType = field(compare=False)
     priority: int = field(default=0, compare=True)
-    data: dict[str, any] = field(default_factory=dict, compare=False)
+    data: dict[str, Any] = field(default_factory=dict, compare=False)
 
     def __post_init__(self):
         # Ensure timestamp is timezone-aware
@@ -175,8 +176,8 @@ class Portfolio:
         self.avg_costs: dict[str, float] = {}  # ticker -> avg cost
 
         # Performance tracking
-        self.equity_curve: list[dict[str, any]] = []
-        self.trades: list[dict[str, any]] = []
+        self.equity_curve: list[dict[str, Any]] = []
+        self.trades: list[dict[str, Any]] = []
         self.current_prices: dict[str, float] = {}
 
     def update_market_value(self, ticker: str, price: float):
@@ -359,7 +360,7 @@ class EventDrivenBacktester:
         self.market_data[ticker] = data.copy()
         logger.info(f"Loaded {len(data)} bars for {ticker}")
 
-    def run(self) -> dict[str, any]:
+    def run(self) -> dict[str, Any]:
         """
         Run the backtest
 

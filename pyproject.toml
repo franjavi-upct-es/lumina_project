@@ -68,6 +68,7 @@ dependencies = [
     "prometheus-client>=0.20.0",
     "typing-extensions>=4.11.0",
     "scipy>=1.13.0",
+    "jwt>=1.4.0",
 ]
 
 [dependency-groups]

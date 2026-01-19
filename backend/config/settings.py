@@ -62,9 +62,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_WINDOW_SECONDS: int = 60
 
     # Database
-    DATABASE_URL: str = Field(
-        default="postgresql://localhost:5432/lumina_quant"
-    )
+    DATABASE_URL: str = Field(default="postgresql://localhost:5432/lumina_quant")
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 10
     DB_POOL_TIMEOUT: int = 30

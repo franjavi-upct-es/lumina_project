@@ -18,11 +18,10 @@ from sqlalchemy import text
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
+from backend.api.routes import backtest, data, ml, portfolio, risk
 from backend.config.logging_config import setup_logging
 from backend.config.settings import get_settings
 from backend.db.models import get_async_engine
-
-from backend.api.routes import backtest, data, ml, portfolio, risk
 
 # Setup logging
 settings = get_settings()
