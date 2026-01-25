@@ -6,8 +6,8 @@ Configuration settings using Pydantic for type safety and validation
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import AliasChoices, ConfigDict, Field, field_validator, model_validator
-from pydantic_settings import BaseSettings
+from pydantic import AliasChoices, Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Load backend-specific env file (stable across local and container paths)
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     Application settings with validation
     """
 
-    model_config = ConfigDict(
+    model_config = SettingsConfigDict(
         extra="ignore",
         env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
@@ -62,7 +62,11 @@ class Settings(BaseSettings):
     RATE_LIMIT_WINDOW_SECONDS: int = 60
 
     # Database
-    DATABASE_URL: str = Field(default="postgresql://localhost:5432/lumina_quant")
+    DATABASE_URL: str
+    REDIS_URL: str
+    SECRET_KEY: str
+    POSTGRES_USER: str
+
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 10
     DB_POOL_TIMEOUT: int = 30

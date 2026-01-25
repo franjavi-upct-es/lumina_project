@@ -20,7 +20,7 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH" \
-    PYTHONPATH="/app"
+    PYTHONPATH="/app:/app/backend"
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

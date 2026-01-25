@@ -105,14 +105,21 @@ main() {
         cat >$PROJECT_ROOT/backend/.env <<'EOF'
 # Environment
 ENVIRONMENT=development
-DEBUG=True
+DEBUG=true
 LOG_LEVEL=INFO
 
 # Database
-DATABASE_URL=postgresql://localhost:5433/lumina_quant
+POSTGRES_USER=lumina
+POSTGRES_PASSWORD=lumina_password
+POSTGRES_DB=lumina_db
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5435
+DATABASE_URL=postgresql://lumina:lumina_password@localhost:5435/lumina_db
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
+REDIS_HOST=localhost
+REDIS_PORT=6379
 
 # Celery
 CELERY_BROKER_URL=redis://localhost:6379/1
@@ -120,9 +127,9 @@ CELERY_RESULT_BACKEND=redis://localhost:6379/2
 
 # Security
 SECRET_KEY=change-me-use-a-long-random-secret
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8501,http://localhost:8888
-API_KEYS=
-API_KEY_HASHES=
+ALLOWED_ORIGINS='["http://localhost:3000","http://localhost:8501","http://localhost:8000","http://localhost:8888"]'
+API_KEYS=[]
+API_KEY_HASHES=[]
 REQUIRE_API_KEY=false
 
 # API Keys (add your own)
@@ -139,12 +146,21 @@ MLFLOW_TRACKING_URI=http://localhost:5000
 MODEL_STORAGE_PATH=./models
 FEATURE_STORE_PATH=./data/features
 PARQUET_STORAGE_PATH=./data/parquet
+LOG_FILE_PATH=./logs/lumina.log
 EOF
 
         print_success ".env file created"
         print_warning "Please edit .env and add your API keys if needed"
     else
         print_info ".env file already exists, skipping..."
+    fi
+
+    # Cargar variables de entorno de backend/.env de forma segura
+    if [ -f "$PROJECT_ROOT/backend/.env" ]; then
+        print_info "Cargando variables de entorno de backend/.env..."
+        set -a
+        source "$PROJECT_ROOT/backend/.env"
+        set +a
     fi
 
     # Step 4: Create Python virtual environment

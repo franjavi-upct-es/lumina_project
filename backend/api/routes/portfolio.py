@@ -140,6 +140,17 @@ class RiskMetricsResponse(BaseModel):
 
 
 # ============================================================================
+# HELPERS
+# ============================================================================
+
+
+def _weights_from_query(tickers: list[str], weights: list[float]) -> dict[str, float]:
+    if len(weights) != len(tickers):
+        raise HTTPException(status_code=400, detail="weights must match tickers length")
+    return dict(zip(tickers, weights, strict=True))
+
+
+# ============================================================================
 # OPTIMIZATION IMPLEMENTATIONS
 # ============================================================================
 
@@ -822,7 +833,7 @@ async def get_efficient_frontier(
 @router.post("/monte-carlo")
 async def monte_carlo_simulation(
     tickers: Annotated[list[str], Query()],
-    weights: Annotated[dict[str, float], Query()],
+    weights: Annotated[list[float], Query()],
     initial_value: Annotated[float, Query()] = 100000.0,
     num_simulations: Annotated[int, Query(ge=100, le=10000)] = 1000,
     time_horizon_days: Annotated[int, Query(ge=30, le=1000)] = 252,
@@ -834,6 +845,7 @@ async def monte_carlo_simulation(
     """
     try:
         logger.info(f"Monte Carlo: {num_simulations} simulations over {time_horizon_days} days")
+        weights_map = _weights_from_query(tickers, weights)
 
         # Collect historical data
         if start_date is None:
@@ -859,7 +871,7 @@ async def monte_carlo_simulation(
         cov_matrix = returns_df.cov().to_numpy()
 
         # Weights array
-        weights_array = np.array([weights.get(t, 0.0) for t in returns_df.columns])
+        weights_array = np.array([weights_map.get(t, 0.0) for t in returns_df.columns])
 
         # Run simulations
         simulations = np.zeros((num_simulations, time_horizon_days))
@@ -1069,7 +1081,7 @@ async def get_geographic_allocation(
 @router.get("/factor-exposure")
 async def get_factor_exposure(
     tickers: Annotated[list[str], Query()],
-    weights: Annotated[dict[str, float], Query()],
+    weights: Annotated[list[float], Query()],
     start_date: datetime | None = None,
     end_date: datetime | None = None,
 ):
@@ -1078,6 +1090,7 @@ async def get_factor_exposure(
     """
     try:
         logger.info("Calculating factor exposures")
+        weights_map = _weights_from_query(tickers, weights)
 
         if start_date is None:
             end_date = datetime.now()
@@ -1098,7 +1111,7 @@ async def get_factor_exposure(
         returns_df = returns_df.pct_change().dropna()
 
         # Calculate portfolio returns
-        weights_array = np.array([weights.get(t, 0.0) for t in returns_df.columns])
+        weights_array = np.array([weights_map.get(t, 0.0) for t in returns_df.columns])
         portfolio_returns = (returns_df * weights_array).sum(axis=1)
 
         # Get market factor (SPY)

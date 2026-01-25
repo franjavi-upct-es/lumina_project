@@ -23,6 +23,17 @@ settings = get_settings()
 
 
 # ============================================================================
+# HELPERS
+# ============================================================================
+
+
+def _weights_from_query(tickers: list[str], weights: list[float]) -> dict[str, float]:
+    if len(weights) != len(tickers):
+        raise HTTPException(status_code=400, detail="weights must match tickers length")
+    return dict(zip(tickers, weights, strict=True))
+
+
+# ============================================================================
 # REQUEST MODELS
 # ============================================================================
 
@@ -761,7 +772,7 @@ async def analyze_tail_risk(request: TailRiskRequest):
 @router.post("/risk-contribution", response_model=RiskContributionResponse)
 async def analyze_risk_contribution(
     tickers: Annotated[list[str], Query()],
-    weights: Annotated[dict[str, float], Query()],
+    weights: Annotated[list[float], Query()],
     start_date: Annotated[datetime, Query()],
     end_date: Annotated[datetime, Query()],
 ):
@@ -775,6 +786,7 @@ async def analyze_risk_contribution(
     """
     try:
         logger.info("Analyzing risk contribution")
+        weights_map = _weights_from_query(tickers, weights)
 
         # Collect data
         collector = YFinanceCollector()
@@ -791,7 +803,7 @@ async def analyze_risk_contribution(
         returns_df = returns_df.pct_change().dropna()
 
         # Weights array
-        weights_array = np.array([weights.get(t, 0.0) for t in returns_df.columns])
+        weights_array = np.array([weights_map.get(t, 0.0) for t in returns_df.columns])
         weights_array = weights_array / weights_array.sum()
 
         # Covariance matrix
@@ -933,7 +945,7 @@ async def analyze_liquidity_risk(
 @router.post("/scenario-analysis")
 async def scenario_analysis(
     tickers: Annotated[list[str], Query()],
-    weights: Annotated[dict[str, float], Query()],
+    weights: Annotated[list[float], Query()],
     market_change: Annotated[float, Query(description="Market change in %")],
     volatility_change: Annotated[float, Query(description="Volatility change multiplier")] = 0.0,
     correlation_change: Annotated[float, Query(description="Correlation change")] = 0.0,
@@ -945,6 +957,7 @@ async def scenario_analysis(
     """
     try:
         logger.info("Running custom scenario analysis")
+        weights_map = _weights_from_query(tickers, weights)
 
         # Collect historical data
         collector = YFinanceCollector()
@@ -963,7 +976,7 @@ async def scenario_analysis(
         returns_df = returns_df.pct_change().dropna()
 
         # Current portfolio metrics
-        weights_array = np.array([weights.get(t, 0.0) for t in returns_df.columns])
+        weights_array = np.array([weights_map.get(t, 0.0) for t in returns_df.columns])
         weights_array = weights_array / weights_array.sum()
 
         current_return = float((returns_df.mean() * weights_array).sum() * 252)
@@ -1022,7 +1035,7 @@ async def scenario_analysis(
 @router.get("/dashboard")
 async def risk_dashboard(
     tickers: Annotated[list[str], Query()],
-    weights: Annotated[dict[str, float], Query()],
+    weights: Annotated[list[float], Query()],
     start_date: datetime | None = None,
     end_date: datetime | None = None,
 ):
@@ -1033,6 +1046,7 @@ async def risk_dashboard(
     """
     try:
         logger.info("Generating risk dashboard")
+        weights_map = _weights_from_query(tickers, weights)
 
         if start_date is None:
             end_date = datetime.now()
@@ -1053,7 +1067,7 @@ async def risk_dashboard(
         returns_df = returns_df.pct_change().dropna()
 
         # Portfolio setup
-        weights_array = np.array([weights.get(t, 0.0) for t in returns_df.columns])
+        weights_array = np.array([weights_map.get(t, 0.0) for t in returns_df.columns])
         weights_array = weights_array / weights_array.sum()
         portfolio_returns = (returns_df * weights_array).sum(axis=1)
 

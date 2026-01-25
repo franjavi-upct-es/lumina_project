@@ -192,7 +192,7 @@ async def get_training_job_status(job_id: str):
     job = training_jobs[job_id]
 
     # Check Celery task status
-    from workers.celery_app import celery_app
+    from backend.workers.celery_app import celery_app
 
     task = celery_app.AsyncResult(job["task_id"])
 

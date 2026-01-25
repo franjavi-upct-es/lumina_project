@@ -14,7 +14,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from workers.backtest_tasks import run_backtest_task
+from backend.workers.backtest_tasks import run_backtest_task
 
 from backend.api.dependencies import check_rate_limit, verify_api_key
 from backend.config.settings import get_settings
@@ -247,7 +247,7 @@ async def get_backtest_job_status(job_id: str):
     job = backtest_jobs[job_id]
 
     # Check Celery task status
-    from workers.celery_app import celery_app
+    from backend.workers.celery_app import celery_app
 
     task = celery_app.AsyncResult(job["task_id"])
 
@@ -503,7 +503,7 @@ async def run_walk_forward_optimization(request: WalkForwardRequest):
         logger.info(f"Walk-forward will test {num_windows} windows")
 
         # Submit walk-forward task
-        from workers.backtest_tasks import walk_forward_optimization_task
+        from backend.workers.backtest_tasks import walk_forward_optimization_task
 
         task = walk_forward_optimization_task.delay(
             job_id=job_id,
@@ -571,7 +571,7 @@ async def optimize_parameters(request: OptimizationRequest):
         logger.info(f"Testing {total_combinations} parameter combinations")
 
         # Submit optimization task
-        from workers.backtest_tasks import optimize_parameters_task
+        from backend.workers.backtest_tasks import optimize_parameters_task
 
         task = optimize_parameters_task.delay(
             job_id=job_id,

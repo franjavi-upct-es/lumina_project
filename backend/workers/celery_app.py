@@ -17,7 +17,11 @@ celery_app = Celery(
     "lumina_workers",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
-    include=["workers.data_tasks", "workers.ml_tasks", "workers.backtest_tasks"],
+    include=[
+        "backend.workers.data_tasks",
+        "backend.workers.ml_tasks",
+        "backend.workers.backtest_tasks",
+    ],
 )
 
 # Configuration
@@ -86,8 +90,8 @@ celery_app.conf.update(
 
 # Logging
 logger.info("Celery app configured successfully")
-logger.info(f"Broker: {settings.CELERY_BROKER_URL.split('@')[1]}")
-logger.info(f"Backend: {settings.CELERY_RESULT_BACKEND.split('@')[1]}")
+logger.info(f"Broker: {settings.CELERY_BROKER_URL.split('@', 1)[-1]}")
+logger.info(f"Backend: {settings.CELERY_RESULT_BACKEND.split('@', 1)[-1]}")
 
 
 @celery_app.task(bind=True)

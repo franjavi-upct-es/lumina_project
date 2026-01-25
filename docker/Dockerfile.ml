@@ -56,7 +56,7 @@ COPY pyproject.toml uv.lock* ./
 # CRITICAL: Install PyTorch FIRST with correct CUDA version
 # ============================================================================
 RUN echo "Installing PyTorch ${PYTORCH_VERSION} with CUDA ${CUDA_VERSION}..." && \
-    pip install --no-cache-dir --timeout 300 \
+    pip install --no-cache-dir --timeout 300 --retries 10 \
     torch==${PYTORCH_VERSION}+${CUDA_VERSION} \
     torchvision==0.20.1+${CUDA_VERSION} \
     torchaudio==${PYTORCH_VERSION}+${CUDA_VERSION} \
@@ -98,6 +98,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app:/app/backend" \
     CUDA_HOME=/usr/local/cuda \
     TORCH_CUDA_ARCH_LIST="9.0" \
     PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True" \
