@@ -59,7 +59,7 @@ st.markdown("---")
 with st.sidebar:
     st.image(
         "https://via.placeholder.com/200x80/1f77b4/ffffff?text=LUMINA",
-        use_column_width=True,
+        width="stretch",
     )
     st.markdown("### Navigation")
 
@@ -81,7 +81,7 @@ with st.sidebar:
 
     ticker_input = st.text_input("Ticker Symbol", "AAPL", key="sidebar_ticker")
 
-    if st.button("🔍 Quick Analysis", use_container_width=True):
+    if st.button("🔍 Quick Analysis", width="stretch"):
         st.session_state["quick_ticker"] = ticker_input
         st.rerun()
 
@@ -197,7 +197,7 @@ if page == "🏠 Home":
             height=400,
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     except Exception as e:
         st.error(f"Error loading market data: {e}")

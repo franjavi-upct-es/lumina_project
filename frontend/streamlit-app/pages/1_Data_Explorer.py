@@ -105,10 +105,10 @@ with st.sidebar:
 
     # Actions
     st.markdown("### ⚡ Actions")
-    if st.button("🔄 Refresh Data", use_container_width=True):
+    if st.button("🔄 Refresh Data", width="stretch"):
         st.rerun()
 
-    if st.button("💾 Export Data", use_container_width=True):
+    if st.button("💾 Export Data", width="stretch"):
         st.session_state["export_requested"] = True
 
 # Main content
@@ -252,7 +252,7 @@ try:
         fig.update_yaxes(title_text="Price ($)", row=1, col=1)
         fig.update_yaxes(title_text="Volume", row=2, col=1)
 
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # Statistics
         col1, col2 = st.columns(2)
@@ -286,7 +286,7 @@ try:
                     ],
                 }
             )
-            st.dataframe(stats_df, hide_index = True, use_container_width=True)
+            st.dataframe(stats_df, hide_index = True, width="stretch")
 
         with col2:
             st.markdown("### 📈 Returns Analysis")
@@ -312,14 +312,14 @@ try:
                         f"{annual_return * 100:.2f}%",
                         f"{returns.std() * 100:.4f}%",
                         f"{sharpe:.2f}",
-                        f"${returns.max()*100:.2f}%",
-                        f"${returns.min()*100:.2f}%",
+                        f"{returns.max()*100:.2f}%",
+                        f"{returns.min()*100:.2f}%",
                         f"{(returns > 0).mean()*100:.1f}%",
-                        len(df),
+                        f"{len(df)}",
                     ],
                 }
             )
-            st.dataframe(returns_df, hide_index = True, use_container_width=True)
+            st.dataframe(returns_df, hide_index = True, width="stretch")
 
         # Returns distribution
         st.markdown("### 📊 Returns Distribution")
@@ -339,7 +339,7 @@ try:
             annotation_text="Mean",
         )
 
-        st.plotly_chart(fig_hist, use_container_width=True)
+        st.plotly_chart(fig_hist, width="stretch")
 
         # Features section
         if show_features:
@@ -416,7 +416,7 @@ try:
                             template = "plotly_dark",
                         )
 
-                        st.plotly_chart(fig_features, use_container_width = True)
+                        st.plotly_chart(fig_features, width="stretch")
 
                     # Feature correlation
                     if len(selected_features) > 1:
@@ -433,13 +433,13 @@ try:
                             template = "plotly_dark",
                         )
 
-                        st.plotly_chart(fig_corr, use_container_width = True)
+                        st.plotly_chart(fig_corr, width="stretch")
 
         # Raw data table
         with st.expander("📋 View Raw Data"):
             st.dataframe(
                 df[["time", "open", "high", "low", "close", "volume"]].tail(100),
-                use_container_width = True,
+                width="stretch",
             )
 
         # Export functionality
@@ -455,7 +455,7 @@ try:
                     csv,
                     f"{ticker}_data.csv",
                     "text/csv",
-                    use_container_width = True,
+                    width="stretch",
                 )
             elif export_format == "JSON":
                 json_str = df.to_json(orient = "records", date_format = "iso")
@@ -464,7 +464,7 @@ try:
                     json_str,
                     f"{ticker}_data.json",
                     "application/json",
-                    use_container_width = True,
+                    width="stretch",
                 )
             else:  # Excel
                 st.info("Excel export requires pandas with openpyxl")

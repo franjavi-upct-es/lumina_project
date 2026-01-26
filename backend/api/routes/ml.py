@@ -134,12 +134,12 @@ async def train_model(request: TrainModelRequest, background_tasks: BackgroundTa
     - async_training: If True, returns immediately with job_id
     - save_model: If True, saves model to MLflow
     """
-    try:
-        job_id = str(uuid4())
+    job_id = str(uuid4())
 
-        logger.info(f"Received training request for {request.ticker} ({request.model_type})")
+    logger.info(f"Received training request for {request.ticker} ({request.model_type})")
 
-        if request.async_training:
+    if request.async_training:
+        try:
             # Async training with Celery
             task = train_model_task.delay(
                 job_id=job_id,
@@ -164,21 +164,53 @@ async def train_model(request: TrainModelRequest, background_tasks: BackgroundTa
                 message="Training job submitted. Check /ml/jobs/{job_id} for status.",
                 estimated_time_minutes=10 if request.model_type == "lstm" else 5,
             )
-        else:
-            # Synchronous training (not recommended for production)
-            background_tasks.add_task(_train_model_sync, job_id, request)
+        except Exception as e:
+            # Check if it's a connection error (Celery broker unavailable)
+            error_str = str(e).lower()
+            if "connection refused" in error_str or "connection" in error_str or "refused" in error_str:
+                # Celery broker not available, fall back to background task
+                logger.warning(f"Celery broker unavailable, falling back to background task: {e}")
+                background_tasks.add_task(_train_model_sync, job_id, request)
 
-            return TrainJobResponse(
-                job_id=job_id,
-                ticker=request.ticker,
-                model_type=request.model_type,
-                status="training",
-                message="Training started in background",
-                estimated_time_minutes=10,
-            )
-    except Exception as e:
-        logger.error(f"Error initiating training: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+                training_jobs[job_id] = {
+                    "task_id": job_id,
+                    "ticker": request.ticker,
+                    "model_type": request.model_type,
+                    "status": "training",
+                    "created_at": datetime.now(),
+                }
+
+                return TrainJobResponse(
+                    job_id=job_id,
+                    ticker=request.ticker,
+                    model_type=request.model_type,
+                    status="training",
+                    message="Training started in background (sync mode)",
+                    estimated_time_minutes=10 if request.model_type == "lstm" else 5,
+                )
+            else:
+                logger.error(f"Error initiating training: {e}")
+                raise HTTPException(status_code=500, detail=str(e)) from e
+    else:
+        # Synchronous training (not recommended for production)
+        background_tasks.add_task(_train_model_sync, job_id, request)
+
+        training_jobs[job_id] = {
+            "task_id": job_id,
+            "ticker": request.ticker,
+            "model_type": request.model_type,
+            "status": "training",
+            "created_at": datetime.now(),
+        }
+
+        return TrainJobResponse(
+            job_id=job_id,
+            ticker=request.ticker,
+            model_type=request.model_type,
+            status="training",
+            message="Training started in background",
+            estimated_time_minutes=10,
+        )
 
 
 @router.get("/jobs/{job_id}")
@@ -325,109 +357,110 @@ async def list_models(
     is_active: bool | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
-    db: Annotated[AsyncSession, Depends(get_async_session)] = "default",
 ):
     """
     List available models with filtering
     """
     try:
-        # Query from database
-        from db.models import Model
-
-        query = select(Model)
-
-        # Apply filters
-        if ticker:
-            query = query.where(Model.ticker == ticker)
-        if model_type:
-            query = query.where(Model.model_type == model_type)
-        if is_active is not None:
-            query = query.where(Model.is_active == is_active)
-
-        # Apply pagination
-        query = query.offset(offset).limit(limit).order_by(Model.trained_on.desc())
-
-        result = await db.execute(query)
-        models = result.scalars().all()
-
-        # Count total
+        # Try to get database session
+        from backend.db.models import Model, get_async_engine
         from sqlalchemy import func
 
-        count_query = select(func.count(Model.model_id))
-        if ticker:
-            count_query = count_query.where(Model.ticker == ticker)
-        if model_type:
-            count_query = count_query.where(Model.model_type == model_type)
-        if is_active is not None:
-            count_query = count_query.where(Model.is_active == is_active)
+        engine = get_async_engine()
+        async with AsyncSession(engine) as db:
+            query = select(Model)
 
-        total_result = await db.execute(count_query)
-        total = total_result.scalar()
+            # Apply filters
+            if ticker:
+                query = query.where(Model.ticker == ticker)
+            if model_type:
+                query = query.where(Model.model_type == model_type)
+            if is_active is not None:
+                query = query.where(Model.is_active == is_active)
 
-        # Format response
-        models_list = [
-            {
-                "model_id": str(m.model_id),
-                "model_name": m.model_name,
-                "model_type": m.model_type,
-                "ticker": m.ticker,
-                "version": m.version,
-                "trained_on": m.trained_on.isoformat(),
-                "is_active": m.is_active,
-                "mae": m.mae,
-                "rmse": m.rmse,
-                "r2_score": m.r2_score,
-            }
-            for m in models
-        ]
+            # Apply pagination
+            query = query.offset(offset).limit(limit).order_by(Model.trained_on.desc())
 
-        return ModelListResponse(models=models_list, total=total)
+            result = await db.execute(query)
+            models = result.scalars().all()
+
+            # Count total
+            count_query = select(func.count(Model.model_id))
+            if ticker:
+                count_query = count_query.where(Model.ticker == ticker)
+            if model_type:
+                count_query = count_query.where(Model.model_type == model_type)
+            if is_active is not None:
+                count_query = count_query.where(Model.is_active == is_active)
+
+            total_result = await db.execute(count_query)
+            total = total_result.scalar()
+
+            # Format response
+            models_list = [
+                {
+                    "model_id": str(m.model_id),
+                    "model_name": m.model_name,
+                    "model_type": m.model_type,
+                    "ticker": m.ticker,
+                    "version": m.version,
+                    "trained_on": m.trained_on.isoformat(),
+                    "is_active": m.is_active,
+                    "mae": m.mae,
+                    "rmse": m.rmse,
+                    "r2_score": m.r2_score,
+                }
+                for m in models
+            ]
+
+            return ModelListResponse(models=models_list, total=total or 0)
 
     except Exception as e:
-        logger.error(f"Error listing models: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.warning(f"Database unavailable, returning empty model list: {e}")
+        # Return empty list when database is unavailable
+        return ModelListResponse(models=[], total=0)
 
 
 @router.get("/models/{model_id}", response_model=ModelDetailsResponse)
-async def get_model_details(
-    model_id: str,
-    db: Annotated[AsyncSession, Depends(get_async_session)],
-):
+async def get_model_details(model_id: str):
     """
     Get detailed information about a specific model
     """
     try:
-        from db.models import Model
+        from backend.db.models import Model, get_async_engine
 
-        # Query from database
-        query = select(Model).where(Model.model_id == model_id)
-        result = await db.execute(query)
-        model = result.scalar_one_or_none()
+        engine = get_async_engine()
+        async with AsyncSession(engine) as db:
+            # Query from database
+            query = select(Model).where(Model.model_id == model_id)
+            result = await db.execute(query)
+            model = result.scalar_one_or_none()
 
-        if not model:
-            raise HTTPException(status_code=404, detail="Model not found")
+            if not model:
+                raise HTTPException(status_code=404, detail="Model not found")
 
-        return ModelDetailsResponse(
-            model_id=str(model.model_id),
-            model_name=model.model_name,
-            model_type=model.model_type,
-            ticker=model.ticker,
-            trained_on=model.trained_on,
-            hyperparameters=model.hyperparameters or {},
-            performance={
-                "mae": model.mae,
-                "rmse": model.rmse,
-                "r2_score": model.r2_score,
-            },
-            feature_importance=model.feature_importance,
-            is_active=model.is_active,
-        )
+            return ModelDetailsResponse(
+                model_id=str(model.model_id),
+                model_name=model.model_name,
+                model_type=model.model_type,
+                ticker=model.ticker,
+                trained_on=model.trained_on,
+                hyperparameters=model.hyperparameters or {},
+                performance={
+                    "mae": model.mae,
+                    "rmse": model.rmse,
+                    "r2_score": model.r2_score,
+                },
+                feature_importance=model.feature_importance,
+                is_active=model.is_active,
+            )
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching model details: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.warning(f"Database unavailable or model not found: {e}")
+        # Return 404 when database is unavailable (model cannot be found)
+        raise HTTPException(status_code=404, detail="Model not found") from e
 
 
 @router.delete("/models/{model_id}")

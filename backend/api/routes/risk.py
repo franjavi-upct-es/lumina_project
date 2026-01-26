@@ -46,7 +46,7 @@ class VaRCalculationRequest(BaseModel):
     start_date: datetime
     end_date: datetime
     confidence_levels: list[float] = Field([0.95, 0.99], description="Confidence levels for VaR")
-    method: str = Field("historical", regex="^(historical|parametric|monte_carlo)$")
+    method: str = Field("historical", pattern="^(historical|parametric|monte_carlo)$")
     holding_period: int = Field(1, ge=1, le=30, description="Holding period in days")
 
 

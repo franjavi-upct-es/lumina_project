@@ -56,6 +56,13 @@ class BatchDataRequest(BaseModel):
     interval: str = "1d"
 
 
+class CollectDataRequest(BaseModel):
+    ticker: str = Field(..., min_length=1)
+    start_date: datetime = Field(...)
+    end_date: datetime = Field(...)
+    interval: str = "1d"
+
+
 # Dependency for data collector
 async def get_collector():
     return YFinanceCollector(rate_limit=settings.YFINANCE_RATE_LIMIT)
@@ -69,6 +76,70 @@ async def data_health_check():
     collector = YFinanceCollector()
     health = await collector.health_check()
     return health
+
+
+@router.get("/tickers")
+async def get_available_tickers():
+    """
+    Get list of available/supported tickers
+    """
+    return {
+        "tickers": [
+            "AAPL", "GOOGL", "MSFT", "AMZN", "META", "TSLA", "NVDA", "JPM",
+            "V", "JNJ", "WMT", "PG", "MA", "UNH", "HD", "DIS", "BAC", "XOM",
+            "VZ", "ADBE", "CRM", "NFLX", "INTC", "CSCO", "PFE", "ABT", "KO",
+            "PEP", "MRK", "TMO"
+        ],
+        "total": 30
+    }
+
+
+@router.post("/collect")
+async def collect_data(
+    request: CollectDataRequest,
+    collector: Annotated[YFinanceCollector, Depends(get_collector)],
+):
+    """
+    Collect market data for a single ticker
+
+    **Request:**
+    - ticker: Stock symbol (e.g., AAPL)
+    - start_date: Start date for data collection
+    - end_date: End date for data collection
+    - interval: Data interval (1d, 1h, etc.)
+
+    **Response:**
+    - 200: Data collected successfully (sync)
+    - 202: Data collection task submitted (async)
+    """
+    try:
+        logger.info(f"Collecting data for {request.ticker} from {request.start_date} to {request.end_date}")
+
+        data = await collector.collect_with_retry(
+            ticker=request.ticker,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            interval=request.interval,
+        )
+
+        if data is None or data.height == 0:
+            raise HTTPException(status_code=404, detail=f"No data found for ticker {request.ticker}")
+
+        data_dict = data.to_dicts()
+
+        return {
+            "ticker": request.ticker,
+            "start_date": request.start_date.isoformat(),
+            "end_date": request.end_date.isoformat(),
+            "rows": len(data_dict),
+            "data": data_dict,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error collecting data for {request.ticker}: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{ticker}/prices", response_model=PriceDataResponse)

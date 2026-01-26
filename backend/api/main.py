@@ -51,12 +51,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(data.router, prefix="/api/v2/data", tags=["Data"])
-app.include_router(ml.router, prefix="/api/v2/ml", tags=["Machine Learning"])
-app.include_router(portfolio.router, prefix="/api/v2/portfolio", tags=["Portfolio"])
-app.include_router(risk.router, prefix="/api/v2/risk", tags=["Risk Management"])
-app.include_router(backtest.router, prefix="/api/v2/backtest", tags=["Backtesting"])
+# Include routers - v1 routes (for backwards compatibility)
+app.include_router(data.router, prefix="/api/v1/data", tags=["Data"])
+app.include_router(ml.router, prefix="/api/v1/ml", tags=["Machine Learning"])
+app.include_router(portfolio.router, prefix="/api/v1/portfolio", tags=["Portfolio"])
+app.include_router(risk.router, prefix="/api/v1/risk", tags=["Risk Management"])
+app.include_router(backtest.router, prefix="/api/v1/backtest", tags=["Backtesting"])
+
+# Include routers - v2 routes
+app.include_router(data.router, prefix="/api/v2/data", tags=["Data v2"])
+app.include_router(ml.router, prefix="/api/v2/ml", tags=["Machine Learning v2"])
+app.include_router(portfolio.router, prefix="/api/v2/portfolio", tags=["Portfolio v2"])
+app.include_router(risk.router, prefix="/api/v2/risk", tags=["Risk Management v2"])
+app.include_router(backtest.router, prefix="/api/v2/backtest", tags=["Backtesting v2"])
 
 
 @app.get("/")

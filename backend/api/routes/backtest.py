@@ -25,8 +25,10 @@ settings = get_settings()
 
 # Request Models
 class BacktestRequest(BaseModel):
-    strategy_name: str
-    strategy_code: str = Field(..., description="Python code for the strategy")
+    strategy: str | None = Field(None, description="Strategy name (e.g., 'momentum', 'mean_reversion')")
+    strategy_name: str | None = Field(None, description="Alternative field for strategy name")
+    strategy_code: str | None = Field(None, description="Python code for the strategy (optional)")
+    strategy_params: dict[str, Any] | None = Field(None, description="Strategy parameters")
 
     # Tickers and dates
     tickers: list[str] = Field(..., min_length=1, max_length=50)
@@ -54,6 +56,10 @@ class BacktestRequest(BaseModel):
 
     # Execution
     async_execution: bool = True
+
+    def get_strategy_name(self) -> str:
+        """Get the strategy name from either field"""
+        return self.strategy or self.strategy_name or "custom"
 
 
 class WalkForwardRequest(BaseModel):
@@ -164,13 +170,63 @@ class BacktestListResponse(BaseModel):
 # In-memory job tracking
 backtest_jobs = {}
 
+# Pre-defined strategies
+AVAILABLE_STRATEGIES = {
+    "momentum": {
+        "name": "Momentum Strategy",
+        "description": "Buy assets with positive momentum, sell when momentum reverses",
+        "params": ["lookback_period", "rebalance_frequency"],
+    },
+    "mean_reversion": {
+        "name": "Mean Reversion Strategy",
+        "description": "Buy oversold assets, sell overbought assets based on statistical deviation",
+        "params": ["window", "num_std", "rebalance_frequency"],
+    },
+    "rsi": {
+        "name": "RSI Strategy",
+        "description": "Buy when RSI is oversold, sell when overbought",
+        "params": ["rsi_period", "oversold_threshold", "overbought_threshold"],
+    },
+    "moving_average_crossover": {
+        "name": "Moving Average Crossover",
+        "description": "Buy when short MA crosses above long MA, sell on opposite",
+        "params": ["short_window", "long_window"],
+    },
+    "buy_and_hold": {
+        "name": "Buy and Hold",
+        "description": "Simple buy and hold benchmark strategy",
+        "params": [],
+    },
+}
+
+
+@router.get("/strategies")
+async def list_available_strategies():
+    """
+    List all available pre-defined strategies
+    """
+    return {
+        "strategies": [
+            {
+                "id": key,
+                "name": value["name"],
+                "description": value["description"],
+                "params": value["params"],
+            }
+            for key, value in AVAILABLE_STRATEGIES.items()
+        ],
+        "total": len(AVAILABLE_STRATEGIES),
+    }
+
 
 @router.post("/run", response_model=BacktestJobResponse)
 async def run_backtest(request: BacktestRequest, background_tasks: BackgroundTasks):
     """
-    Run a backtest with custom strategy
+    Run a backtest with a pre-defined or custom strategy
 
-    **Strategy Code Example:**
+    **Pre-defined strategies:** momentum, mean_reversion, rsi, moving_average_crossover, buy_and_hold
+
+    **Custom Strategy Code Example:**
     ```python
     def strategy(data, features):
         signals = []
@@ -186,54 +242,85 @@ async def run_backtest(request: BacktestRequest, background_tasks: BackgroundTas
 
     **Returns:** Job ID for tracking progress
     """
-    try:
-        job_id = str(uuid4())
+    job_id = str(uuid4())
+    strategy_name = request.get_strategy_name()
 
-        logger.info(f"Received backtest request: {request.strategy_name}")
+    logger.info(f"Received backtest request: {strategy_name}")
 
-        # Validate strategy code
-        _validate_strategy_code(request.strategy_code)
+    # Validate strategy code if provided
+    if request.strategy_code:
+        try:
+            _validate_strategy_code(request.strategy_code)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
 
-        if request.async_execution:
+    if request.async_execution:
+        try:
             # Async execution with Celery
             task = run_backtest_task.delay(
                 job_id=job_id,
-                strategy_name=request.strategy_name,
-                strategy_code=request.strategy_code,
-                config=request.dict(),
+                strategy_name=strategy_name,
+                strategy_code=request.strategy_code or "",
+                config=request.model_dump(),
             )
 
             backtest_jobs[job_id] = {
                 "task_id": task.id,
-                "strategy_name": request.strategy_name,
+                "strategy_name": strategy_name,
                 "status": "queued",
                 "created_at": datetime.now(),
             }
 
             return BacktestJobResponse(
                 job_id=job_id,
-                strategy_name=request.strategy_name,
+                strategy_name=strategy_name,
                 status="queued",
                 message="Backtest job submitted. Check /backtest/jobs/{job_id} for status.",
                 estimated_time_minutes=5,
             )
-        else:
-            # Synchronous execution
-            background_tasks.add_task(_run_backtest_sync, job_id, request)
+        except Exception as e:
+            # Check if it's a connection error (Celery broker unavailable)
+            error_str = str(e).lower()
+            if "connection refused" in error_str or "connection" in error_str or "refused" in error_str:
+                # Celery broker not available, fall back to background task
+                logger.warning(f"Celery broker unavailable, falling back to background task: {e}")
+                background_tasks.add_task(_run_backtest_sync, job_id, request)
 
-            return BacktestJobResponse(
-                job_id=job_id,
-                strategy_name=request.strategy_name,
-                status="running",
-                message="Backtest started in background",
-                estimated_time_minutes=5,
-            )
+                backtest_jobs[job_id] = {
+                    "task_id": job_id,
+                    "strategy_name": strategy_name,
+                    "status": "running",
+                    "created_at": datetime.now(),
+                }
 
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception as e:
-        logger.error(f"Error initiating backtest: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+                return BacktestJobResponse(
+                    job_id=job_id,
+                    strategy_name=strategy_name,
+                    status="running",
+                    message="Backtest started in background (sync mode)",
+                    estimated_time_minutes=5,
+                )
+            else:
+                logger.error(f"Error initiating backtest: {e}")
+                raise HTTPException(status_code=500, detail=str(e)) from e
+    else:
+        # Synchronous execution
+        background_tasks.add_task(_run_backtest_sync, job_id, request)
+
+        backtest_jobs[job_id] = {
+            "task_id": job_id,
+            "strategy_name": strategy_name,
+            "status": "running",
+            "created_at": datetime.now(),
+        }
+
+        return BacktestJobResponse(
+            job_id=job_id,
+            strategy_name=strategy_name,
+            status="running",
+            message="Backtest started in background",
+            estimated_time_minutes=5,
+        )
 
 
 @router.get("/jobs/{job_id}")
@@ -367,8 +454,8 @@ async def get_backtest_results(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching backtest results: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.warning(f"Database unavailable or backtest not found: {e}")
+        raise HTTPException(status_code=404, detail="Backtest not found") from e
 
 
 @router.get("/list", response_model=BacktestListResponse)

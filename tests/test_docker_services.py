@@ -24,7 +24,7 @@ DOCKER_CONFIG = {
     "POSTGRES_HOST": os.getenv("POSTGRES_HOST", "localhost"),
     "POSTGRES_PORT": int(os.getenv("POSTGRES_PORT", "5435")),
     "POSTGRES_USER": os.getenv("POSTGRES_USER", "lumina"),
-    "POSTGRES_PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
+    "POSTGRES_PASSWORD": os.getenv("POSTGRES_PASSWORD", "lumina_password"),
     "POSTGRES_DB": os.getenv("POSTGRES_DB", "lumina_db"),
     "REDIS_HOST": os.getenv("REDIS_HOST", "localhost"),
     "REDIS_PORT": int(os.getenv("REDIS_PORT", "6379")),
