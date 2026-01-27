@@ -6,6 +6,7 @@ Uses vectorized operations with numpy/pandas for maximum speed
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -36,7 +37,7 @@ class VectorizedBacktestConfig:
     max_leverage: float = 1.0
 
 
-class VectorizedBacktester:
+class VectorizedBacktest:
     """
     Fast vectorized backtesting engine
 
@@ -53,12 +54,12 @@ class VectorizedBacktester:
         self.config = config or VectorizedBacktestConfig()
 
         # Results storage
-        self.results: dict[str, any] | None = None
+        self.results: dict[str, Any] | None = None
         self.equity_curve: pd.Series | None = None
         self.positions: pd.DataFrame | None = None
         self.trades: pd.DataFrame | None = None
 
-    def run(self, prices: pd.DataFrame, signals: pd.DataFrame, **kwargs) -> dict[str, any]:
+    def run(self, prices: pd.DataFrame, signals: pd.DataFrame, **kwargs) -> dict[str, Any]:
         """
         Run vectorized backtest
 
@@ -301,9 +302,9 @@ class VectorizedBacktester:
         self,
         prices: pd.DataFrame,
         signal_generator: Callable,
-        param_grid: dict[str, list[any]],
+        param_grid: dict[str, list[Any]],
         metric: str = "sharpe_ratio",
-    ) -> dict[str, any]:
+    ) -> dict[str, Any]:
         """
         Optimize strategy parameters using grid search
 
@@ -368,7 +369,7 @@ class VectorizedBacktester:
         }
 
 
-class MultiAssetVectorizedBacktester(VectorizedBacktester):
+class MultiAssetVectorizedBacktester(VectorizedBacktest):
     """
     Extended vectorized backtester for multi-asset portfolios
     Handles portfolio rebalancing and capital allocation
@@ -382,7 +383,7 @@ class MultiAssetVectorizedBacktester(VectorizedBacktester):
         prices: pd.DataFrame,
         weights: pd.DataFrame,
         rebalance_dates: pd.DatetimeIndex | None = None,
-    ) -> dict[str, any]:
+    ) -> dict[str, Any]:
         """
         Run backtest with explicit portfolio weights
 

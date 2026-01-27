@@ -33,7 +33,7 @@ security = HTTPBearer()
 # ============================================================================
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     """
     Get database session
 

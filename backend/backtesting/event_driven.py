@@ -313,7 +313,7 @@ class Portfolio:
         }
 
 
-class EventDrivenBacktester:
+class EventDrivenBacktest:
     """
     Event-driven backtesting engine
     Processes events sequentially to simulate realistic trading
