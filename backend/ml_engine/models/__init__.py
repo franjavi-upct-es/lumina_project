@@ -55,9 +55,9 @@ from backend.ml_engine.models.lstm_advanced import (
 from backend.ml_engine.models.transformer import (
     TimeSeriesTransformer,
     TransformerDataset,
-    TransformerModel,
+    TransformerFinancialModel as TransformerModel,
 )
-from backend.ml_engine.models.xgboost_model import XGBoostModel
+from backend.ml_engine.models.xgboost_model import XGBoostFinancialModel as XGBoostModel
 
 __all__ = [
     # Base

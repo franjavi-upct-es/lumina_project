@@ -40,10 +40,10 @@ Usage:
         pass
 """
 
-from backend.ml_engine.training.hyperopt_tuner import HyperoptTuner
+from backend.ml_engine.training.hyperopt_tuner import HyperparameterTuner as HyperoptTuner
 from backend.ml_engine.training.purged_cv import PurgedKFold
-from backend.ml_engine.training.trainer import Trainer
-from backend.ml_engine.training.walk_forward import WalkForwardValidator
+from backend.ml_engine.training.trainer import ModelTrainer as Trainer
+from backend.ml_engine.training.walk_forward import WalkForwardOptimizer as WalkForwardValidator
 
 __all__ = [
     "Trainer",

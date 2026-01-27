@@ -175,13 +175,25 @@ CREATE TABLE IF NOT EXISTS models (
     mae DOUBLE PRECISION,
     rmse DOUBLE PRECISION,
     r2_score DOUBLE PRECISION,
-    sharpe_bactest DOUBLE PRECISION,
+    sharpe_backtest DOUBLE PRECISION,
     hyperparameters JSONB,
     feature_importance JSONB,
     mlflow_run_id VARCHAR(100),
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Fix typo in existing installations (sharpe_bactest -> sharpe_backtest)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'models' AND column_name = 'sharpe_bactest'
+    ) THEN
+        ALTER TABLE models RENAME COLUMN sharpe_bactest TO sharpe_backtest;
+    END IF;
+END$$;
 
 CREATE INDEX IF NOT EXISTS idx_models_name ON models (model_name, version DESC);
 
@@ -235,7 +247,8 @@ SELECT
         'daily_price_summary',
         start_offset => INTERVAL '30 days',
         end_offset => INTERVAL '1 day',
-        schedule_interval => INTERVAL '1 day'
+        schedule_interval => INTERVAL '1 day',
+        if_not_exists => TRUE
     );
 
 -- Aggregate for feature statistics
@@ -262,15 +275,16 @@ SELECT
         'daily_feature_stats',
         start_offset => INTERVAL '30 days',
         end_offset => INTERVAL '1 day',
-        schedule_interval => INTERVAL '1 day'
+        schedule_interval => INTERVAL '1 day',
+        if_not_exists => TRUE
     );
 
 -- Data retention policies (keep raw data for 1 year, aggregates forever)
-SELECT add_retention_policy ( 'price_data', INTERVAL '1 year' );
+SELECT add_retention_policy ( 'price_data', INTERVAL '1 year', if_not_exists => TRUE );
 
-SELECT add_retention_policy ( 'features', INTERVAL '6 months' );
+SELECT add_retention_policy ( 'features', INTERVAL '6 months', if_not_exists => TRUE );
 
-SELECT add_retention_policy ( 'sentiment_data', INTERVAL '3 months' );
+SELECT add_retention_policy ( 'sentiment_data', INTERVAL '3 months', if_not_exists => TRUE );
 
 -- Enable compression before adding compression policies
 ALTER TABLE price_data SET(
@@ -289,11 +303,11 @@ ALTER TABLE sentiment_data SET(
 );
 
 -- Compression policies
-SELECT add_compression_policy ( 'price_data', INTERVAL '7 days' );
+SELECT add_compression_policy ( 'price_data', INTERVAL '7 days', if_not_exists => TRUE );
 
-SELECT add_compression_policy ('features', INTERVAL '7 days');
+SELECT add_compression_policy ('features', INTERVAL '7 days', if_not_exists => TRUE);
 
-SELECT add_compression_policy ( 'sentiment_data', INTERVAL '7 days' );
+SELECT add_compression_policy ( 'sentiment_data', INTERVAL '7 days', if_not_exists => TRUE );
 
 -- Grant permissions
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO luMINa;

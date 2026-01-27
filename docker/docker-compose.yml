@@ -12,7 +12,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-lumina_db}
     volumes:
       - timescale_data:/var/lib/postgresql/data
-      - ../backend/db/timescale_setup.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ../backend/db/00_create_mlflow_db.sh:/docker-entrypoint-initdb.d/00_create_mlflow_db.sh:ro
+      - ../backend/db/timescale_setup.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
     ports:
       - "5435:5432"
     healthcheck:
@@ -50,7 +51,9 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-lumina_db}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
       MLFLOW_TRACKING_URI: http://mlflow:5000
       ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
       FRED_API_KEY: ${FRED_API_KEY:-}
@@ -77,22 +80,20 @@ services:
       dockerfile: docker/Dockerfile.ml
     container_name: lumina-ml-worker
     restart: unless-stopped
+    runtime: nvidia
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-lumina_db}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
       MLFLOW_TRACKING_URI: http://mlflow:5000
       CUDA_VISIBLE_DEVICES: "0"
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
       - ../models:/app/models
       - ../data:/app/data
       - ../logs:/app/logs
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     depends_on:
       timescaledb:
         condition: service_healthy
@@ -124,7 +125,9 @@ services:
       ]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-lumina_db}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
     volumes:
       - ../data:/app/data
       - ../logs:/app/logs
@@ -155,7 +158,9 @@ services:
       ]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-lumina_db}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
     depends_on:
       - celery-worker
     networks:

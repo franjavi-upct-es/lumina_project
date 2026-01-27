@@ -35,7 +35,7 @@ Usage:
 """
 
 from backend.ml_engine.evaluation.error_analysis import ErrorAnalyzer
-from backend.ml_engine.evaluation.metrics import ModelMetrics
+from backend.ml_engine.evaluation.metrics import FinancialMetrics as ModelMetrics
 from backend.ml_engine.evaluation.shap_explainer import SHAPExplainer
 
 __all__ = [

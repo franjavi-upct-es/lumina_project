@@ -16,6 +16,41 @@ from sklearn.metrics import (
 )
 
 
+def calculate_directional_accuracy(
+    y_true: np.ndarray, y_pred: np.ndarray
+) -> float:
+    """
+    Calculate directional accuracy between true and predicted series.
+
+    Args:
+        y_true: True values
+        y_pred: Predicted values
+
+    Returns:
+        Directional accuracy as a float in [0, 1]
+    """
+    y_true = np.asarray(y_true).flatten()
+    y_pred = np.asarray(y_pred).flatten()
+
+    # Remove NaN values
+    mask = ~(np.isnan(y_true) | np.isnan(y_pred))
+    y_true = y_true[mask]
+    y_pred = y_pred[mask]
+
+    if len(y_true) < 2:
+        logger.warning("Not enough samples to compute directional accuracy")
+        return 0.0
+
+    true_changes = np.diff(y_true)
+    pred_changes = np.diff(y_pred)
+
+    if len(true_changes) == 0:
+        return 0.0
+
+    correct_direction = np.sign(true_changes) == np.sign(pred_changes)
+    return float(np.mean(correct_direction))
+
+
 class FinancialMetrics:
     """
     Calculate financial-specific metrics for model evaluation
@@ -213,7 +248,7 @@ class FinancialMetrics:
 
         return {
             "information_coefficient": float(ic),
-            "ic_pvalue": float(ic_value),
+            "ic_pvalue": float(ic_pvalue),
             "rank_ic": float(rank_ic),
             "rank_ic_pvalue": float(rank_ic_pvalue),
             "up_capture_ratio": float(up_capture),

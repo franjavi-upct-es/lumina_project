@@ -494,7 +494,7 @@ class EnsembleModel(BaseModel):
 
         if not all_importances:
             logger.warning("No feature importance available from base models")
-            retur None
+            return None
 
         # Average importances
         feature_names = list(all_importances[0].keys())

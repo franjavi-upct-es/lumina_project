@@ -75,16 +75,14 @@ RUN python -c "import torch; \
 # ============================================================================
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-cache --no-install-project \
-    --group ml --group db --group celery --group mlflow --group data \
-    --no-build-isolation || \
+    --group ml --group db --group celery --group mlflow --group data || \
     (echo "First attempt failed, retrying with longer timeout..." && \
     UV_HTTP_TIMEOUT=900 uv sync --frozen --no-cache --no-install-project \
-    --group ml --group db --group celery --group mlflow --group data \
-    --no-build-isolation)
+    --group ml --group db --group celery --group mlflow --group data)
 
 # Verify installations
-RUN python -c "import torch, sklearn, pandas, numpy; \
-    print('✓ All core packages installed')"
+RUN .venv/bin/python -c "import torch, sklearn, pandas, numpy; \
+    print('All core packages installed')"
 
 # ============================================================================
 # Runtime Stage - Production image
@@ -101,7 +99,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONPATH="/app:/app/backend" \
     CUDA_HOME=/usr/local/cuda \
     TORCH_CUDA_ARCH_LIST="9.0" \
-    PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True" \
+    PYTORCH_ALLOC_CONF="expandable_segments:True" \
     OMP_NUM_THREADS=4 \
     MKL_NUM_THREADS=4 \
     NVIDIA_VISIBLE_DEVICES=all \
