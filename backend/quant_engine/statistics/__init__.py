@@ -33,7 +33,7 @@ Usage:
     is_stationary = stat.adf_test(returns)
 """
 
-from backend.quant_engine.statistics.causality import Causality
+from backend.quant_engine.statistics.causality import CausalityTester as Causality
 from backend.quant_engine.statistics.cointegration import Cointegration
 from backend.quant_engine.statistics.stationarity import Stationarity
 
