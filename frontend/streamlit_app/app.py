@@ -57,26 +57,8 @@ st.markdown("---")
 
 # Sidebar
 with st.sidebar:
-    st.image(
-        "https://via.placeholder.com/200x80/1f77b4/ffffff?text=LUMINA",
-        width="stretch",
-    )
     st.markdown("### Navigation")
 
-    page = st.radio(
-        "Select Module",
-        [
-            "🏠 Home",
-            "📊 Data Explorer",
-            "🤖 ML Models",
-            "📈 Backtesting",
-            "⚠️ Risk Analysis",
-            "📰 Sentiment",
-        ],
-        label_visibility="collapsed",
-    )
-
-    st.markdown("---")
     st.markdown("### Quick Actions")
 
     ticker_input = st.text_input("Ticker Symbol", "AAPL", key="sidebar_ticker")
@@ -99,129 +81,108 @@ with st.sidebar:
         st.error("❌ API Offline")
 
 # Main content
-if page == "🏠 Home":
-    st.header("Welcome to Lumina Quant Lab")
+st.header("Welcome to Lumina Quant Lab")
 
-    # Overview metrics
-    col1, col2, col3, col4 = st.columns(4)
+# Overview metrics
+col1, col2, col3, col4 = st.columns(4)
 
-    with col1:
-        st.metric("Available Tickers", "500+", "+50")
-    with col2:
-        st.metric("ML Models", "3", "+1")
-    with col3:
-        st.metric("Features", "100+", "✓")
-    with col4:
-        st.metric("Backtests Run", "1,234", "+89")
+with col1:
+    st.metric("Available Tickers", "500+", "+50")
+with col2:
+    st.metric("ML Models", "3", "+1")
+with col3:
+    st.metric("Features", "100+", "✓")
+with col4:
+    st.metric("Backtests Run", "1,234", "+89")
 
-    st.markdown("---")
+st.markdown("---")
 
-    # Quick start guide
-    col1, col2 = st.columns([2, 1])
+# Quick start guide
+col1, col2 = st.columns([2, 1])
 
-    with col1:
-        st.subheader("📚 Quick Start Guide")
+with col1:
+    st.subheader("📚 Quick Start Guide")
 
-        st.markdown("""
-        ### Getting Started
-        
-        1. **Data Explorer** - Explore historical price data and 100+ technical indicators
-        2. **ML Models** - Train LSTM, Transformer, or XGBoost models for price prediction
-        3. **Backtesting** - Test your strategies on historical data
-        4. **Risk Analysis** - Analyze portfolio risk with VaR, CVaR, and more
-        5. **Sentiment** - Track market sentiment from news and social media
-        
-        ### Key Features
-        
-        - ✅ Real-time data collection from multiple sources
-        - ✅ Advanced ML models with attention mechanisms
-        - ✅ Professional backtesting engine
-        - ✅ Comprehensive risk analytics
-        - ✅ Multi-source sentiment analysis
-        """)
+    st.markdown("""
+    ### Getting Started
 
-    with col2:
-        st.subheader("🎯 Recent Activity")
+    1. **Data Explorer** - Explore historical price data and 100+ technical indicators
+    2. **ML Models** - Train LSTM, Transformer, or XGBoost models for price prediction
+    3. **Backtesting** - Test your strategies on historical data
+    4. **Risk Analysis** - Analyze portfolio risk with VaR, CVaR, and more
+    5. **Sentiment** - Track market sentiment from news and social media
 
-        st.info("**Latest Backtest**\nMomentum Strategy\nSharpe: 1.85")
-        st.success("**Model Trained**\nAAPL LSTM\nVal Loss: 2.34")
-        st.warning("**Risk Alert**\nPortfolio VaR\nIncreased 5%")
+    ### Key Features
 
-    st.markdown("---")
+    - ✅ Real-time data collection from multiple sources
+    - ✅ Advanced ML models with attention mechanisms
+    - ✅ Professional backtesting engine
+    - ✅ Comprehensive risk analytics
+    - ✅ Multi-source sentiment analysis
+    """)
 
-    # Sample chart
-    st.subheader("📊 Market Overview")
+with col2:
+    st.subheader("🎯 Recent Activity")
 
-    try:
-        # Fetch data for sample tickers
-        tickers = ["AAPL", "MSFT", "GOOGL"]
+    st.info("**Latest Backtest**\nMomentum Strategy\nSharpe: 1.85")
+    st.success("**Model Trained**\nAAPL LSTM\nVal Loss: 2.34")
+    st.warning("**Risk Alert**\nPortfolio VaR\nIncreased 5%")
 
-        fig = go.Figure()
+st.markdown("---")
 
-        for ticker in tickers:
-            try:
-                end_date = datetime.now()
-                start_date = end_date - timedelta(days=90)
+# Sample chart
+st.subheader("📊 Market Overview")
 
-                response = requests.get(
-                    f"{API_URL}/api/v2/data/{ticker}/prices",
-                    params={
-                        "start_date": start_date.isoformat(),
-                        "end_date": end_date.isoformat(),
-                    },
-                    timeout=10,
-                )
+try:
+    # Fetch data for sample tickers
+    tickers = ["AAPL", "MSFT", "GOOGL"]
 
-                if response.status_code == 200:
-                    data = response.json()
-                    df = pd.DataFrame(data["data"])
-                    df["time"] = pd.to_datetime(df["time"])
+    fig = go.Figure()
 
-                    # Normalize to 100 for comparison
-                    df["normalized"] = (df["close"] / df["close"].iloc[0]) * 100
+    for ticker in tickers:
+        try:
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=90)
 
-                    fig.add_trace(
-                        go.Scatter(
-                            x=df["time"], y=df["normalized"], name=ticker, mode="lines"
-                        )
+            response = requests.get(
+                f"{API_URL}/api/v2/data/{ticker}/prices",
+                params={
+                    "start_date": start_date.isoformat(),
+                    "end_date": end_date.isoformat(),
+                },
+                timeout=10,
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                df = pd.DataFrame(data["data"])
+                df["time"] = pd.to_datetime(df["time"])
+
+                # Normalize to 100 for comparison
+                df["normalized"] = (df["close"] / df["close"].iloc[0]) * 100
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=df["time"], y=df["normalized"], name=ticker, mode="lines"
                     )
-            except:
-                pass
+                )
+        except:
+            pass
 
-        fig.update_layout(
-            title="90-Day Performance (Normalized to 100)",
-            xaxis_title="Date",
-            yaxis_title="Normalized Price",
-            hovermode="x unified",
-            template="plotly_dark",
-            height=400,
-        )
+    fig.update_layout(
+        title="90-Day Performance (Normalized to 100)",
+        xaxis_title="Date",
+        yaxis_title="Normalized Price",
+        hovermode="x unified",
+        template="plotly_dark",
+        height=400,
+    )
 
-        st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch")
 
-    except Exception as e:
-        st.error(f"Error loading market data: {e}")
-        st.info("Make sure the API is running and accessible")
-
-elif page == "📊 Data Explorer":
-    st.header("Data Explorer")
-    st.info("Navigate to **Data Explorer** page in sidebar for full features")
-
-elif page == "🤖 ML Models":
-    st.header("ML Models")
-    st.info("Navigate to **Model Comparator** page in sidebar for full features")
-
-elif page == "📈 Backtesting":
-    st.header("Backtesting")
-    st.info("Navigate to **Strategy Lab** page in sidebar for full features")
-
-elif page == "⚠️ Risk Analysis":
-    st.header("Risk Analysis")
-    st.info("Navigate to **Risk Dashboard** page in sidebar for full features")
-
-elif page == "📰 Sentiment":
-    st.header("Sentiment Analysis")
-    st.info("Navigate to **Sentiment Monitor** page in sidebar for full features")
+except Exception as e:
+    st.error(f"Error loading market data: {e}")
+    st.info("Make sure the API is running and accessible")
 
 # Footer
 st.markdown("---")
@@ -232,7 +193,7 @@ with col1:
 with col2:
     st.markdown("📚 [Documentation](http://localhost:8000/docs)")
 with col3:
-    st.markdown("💬 [GitHub](https://github.com/yourusername/lumina-v2)")
+    st.markdown("💬 [GitHub](https://github.com/franjavi-upct-es/lumina_project/tree/main)")
 
 # Session state management
 if "quick_ticker" in st.session_state:

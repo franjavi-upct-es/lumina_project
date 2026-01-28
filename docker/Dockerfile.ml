@@ -149,4 +149,4 @@ CMD ["celery", "-A", "backend.workers.celery_app", "worker", \
     "--task-events", \
     "--time-limit=3600", \
     "--soft-time-limit=3300", \
-    "-Q", "ml_queue"]
+    "-Q", "ml"]

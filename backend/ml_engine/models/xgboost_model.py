@@ -565,3 +565,7 @@ class XGBoostFinancialModel(BaseModel):
         )
 
         return {**cv_results, **avg_results}
+
+
+# Backwards-compatible alias
+XGBoostModel = XGBoostFinancialModel

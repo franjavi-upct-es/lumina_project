@@ -120,14 +120,13 @@ services:
         "backend.workers.celery_app",
         "worker",
         "--loglevel=info",
-        "-Q",
-        "data_queue,backtest_queue",
       ]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-lumina_db}
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
+      MLFLOW_TRACKING_URI: http://mlflow:5000
     volumes:
       - ../data:/app/data
       - ../logs:/app/logs
@@ -136,6 +135,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A backend.workers.celery_app inspect ping --timeout=5 | grep -q pong"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - lumina-network
 
@@ -163,6 +167,11 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/2
     depends_on:
       - celery-worker
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - lumina-network
 

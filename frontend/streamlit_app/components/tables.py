@@ -177,7 +177,7 @@ def render_dataframe(
     df: pd.DataFrame,
     title: str | None = None,
     hide_index: bool = True,
-    use_container_width: bool = True,
+    width: str = "stretch",
     height: int | None = None,
     column_config: dict[str, Any] | None = None,
 ) -> None:
@@ -188,7 +188,7 @@ def render_dataframe(
         df: DataFrame to display
         title: Optional title above the table
         hide_index: Whether to hide the index column
-        use_container_width: Whether to use full container width
+        width: Width mode ('stretch' or 'content')
         height: Optional fixed height in pixels
         column_config: Optional column configuration dict
     """
@@ -198,7 +198,7 @@ def render_dataframe(
     st.dataframe(
         df,
         hide_index=hide_index,
-        use_container_width=use_container_width,
+        width=width,
         height=height,
         column_config=column_config,
     )
@@ -259,7 +259,7 @@ def render_styled_table(
     if hide_index:
         styler = styler.hide(axis="index")
 
-    st.dataframe(styler, use_container_width=True)
+    st.dataframe(styler, width="stretch")
 
 
 def render_price_table(
@@ -311,7 +311,7 @@ def render_price_table(
         display_df[available_cols],
         column_config={k: v for k, v in column_config.items() if k in available_cols},
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -362,7 +362,7 @@ def render_trades_table(
         display_df[available_cols],
         column_config={k: v for k, v in column_config.items() if k in available_cols},
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -404,7 +404,7 @@ def render_risk_table(
     st.dataframe(
         df[["Metric", "Formatted Value"]].rename(columns={"Formatted Value": "Value"}),
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -428,7 +428,7 @@ def render_correlation_table(
         vmax=1,
     ).format("{:.2f}")
 
-    st.dataframe(styler, use_container_width=True)
+    st.dataframe(styler, width="stretch")
 
 
 def render_portfolio_table(
@@ -478,7 +478,7 @@ def render_portfolio_table(
         display_df[available_cols],
         column_config={k: v for k, v in column_config.items() if k in available_cols},
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -527,7 +527,7 @@ def render_model_comparison_table(
         display_df[available_cols],
         column_config={k: v for k, v in column_config.items() if k in available_cols},
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -573,7 +573,7 @@ def render_sentiment_table(
         display_df[available_cols],
         column_config={k: v for k, v in column_config.items() if k in available_cols},
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -625,7 +625,7 @@ def render_stress_test_table(
 
     styler = styler.format("{:.2%}", subset=numeric_cols)
 
-    st.dataframe(styler, hide_index=True, use_container_width=True)
+    st.dataframe(styler, hide_index=True, width="stretch")
 
 
 # =============================================================================
@@ -692,7 +692,7 @@ def render_filterable_table(
             filtered_df = filtered_df[mask]
 
     # Display filtered table
-    st.dataframe(filtered_df, hide_index=True, use_container_width=True)
+    st.dataframe(filtered_df, hide_index=True, width="stretch")
 
     # Show filter info
     st.caption(f"Showing {len(filtered_df)} of {len(df)} rows")
@@ -760,7 +760,7 @@ def render_sortable_metrics_table(
 
     styler = styler.format("{:.4f}", subset=metric_columns)
 
-    st.dataframe(styler, hide_index=True, use_container_width=True)
+    st.dataframe(styler, hide_index=True, width="stretch")
 
 
 # =============================================================================

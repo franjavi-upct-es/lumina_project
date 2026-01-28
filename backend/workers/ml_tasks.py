@@ -126,7 +126,9 @@ def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparam
         self.update_state(state="PROGRESS", meta={"step": "training", "progress": 60})
 
         # 5. Start MLflow run
-        mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
+        tracking_uri = os.getenv("MLFLOW_TRACKING_URI") or settings.MLFLOW_TRACKING_URI
+        mlflow.set_tracking_uri(tracking_uri)
+        logger.info(f"MLflow tracking URI: {tracking_uri}")
         mlflow.set_experiment(f"lumina_{ticker}")
 
         with mlflow.start_run(run_name=f"{model_type}_{job_id}"):
@@ -207,7 +209,6 @@ def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparam
 
     except Exception as e:
         logger.error(f"Training failed for job {job_id}: {e}")
-        self.update_state(state="FAILURE", meta={"error": str(e)})
         raise
 
 

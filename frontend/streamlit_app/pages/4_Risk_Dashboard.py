@@ -524,7 +524,7 @@ with st.sidebar:
     st.markdown("---")
 
     # Actions
-    if st.button("🔄 Refresh Analysis", use_container_width=True):
+    if st.button("🔄 Refresh Analysis", width="stretch"):
         st.cache_data.clear()
         st.rerun()
 
@@ -578,7 +578,7 @@ with col1:
             "Value": st.column_config.NumberColumn("Value ($)", format="$%.0f"),
         },
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
     )
 
 with col2:
@@ -591,7 +591,7 @@ with col2:
         template="plotly_dark",
     )
     fig_weights.update_layout(height=300, margin=dict(t=40, b=0, l=0, r=0))
-    st.plotly_chart(fig_weights, use_container_width=True)
+    st.plotly_chart(fig_weights, width="stretch")
 
 st.markdown("---")
 
@@ -625,7 +625,7 @@ with col1:
     if "95%" in var_metrics:
         var_95 = var_metrics["95%"]["var"]
         fig_var_95 = create_var_gauge(var_95, "95%", portfolio_value)
-        st.plotly_chart(fig_var_95, use_container_width=True)
+        st.plotly_chart(fig_var_95, width="stretch")
 
         st.markdown(
             f"""
@@ -644,7 +644,7 @@ with col2:
     if "99%" in var_metrics:
         var_99 = var_metrics["99%"]["var"]
         fig_var_99 = create_var_gauge(var_99, "99%", portfolio_value)
-        st.plotly_chart(fig_var_99, use_container_width=True)
+        st.plotly_chart(fig_var_99, width="stretch")
 
         st.markdown(
             f"""
@@ -673,7 +673,7 @@ if "returns" in risk_data:
     var_99_val = var_metrics.get("99%", {}).get("var", 0.03)
 
     fig_dist = create_var_distribution_chart(returns, var_95_val, var_99_val)
-    st.plotly_chart(fig_dist, use_container_width=True)
+    st.plotly_chart(fig_dist, width="stretch")
 
 st.markdown("---")
 
@@ -709,7 +709,7 @@ with col3:
 # Drawdown chart
 if "drawdown_series" in risk_data:
     fig_dd = create_drawdown_chart(risk_data["drawdown_series"])
-    st.plotly_chart(fig_dd, use_container_width=True)
+    st.plotly_chart(fig_dd, width="stretch")
 
 st.markdown("---")
 
@@ -817,7 +817,7 @@ fig_stress.update_layout(
     xaxis=dict(range=[min(scenario_losses) * 1.2, 5]),
 )
 
-st.plotly_chart(fig_stress, use_container_width=True)
+st.plotly_chart(fig_stress, width="stretch")
 
 st.markdown("---")
 
@@ -842,7 +842,7 @@ col1, col2 = st.columns([3, 2])
 
 with col1:
     fig_corr = create_correlation_heatmap(correlation_df)
-    st.plotly_chart(fig_corr, use_container_width=True)
+    st.plotly_chart(fig_corr, width="stretch")
 
 with col2:
     st.markdown("#### Correlation Statistics")
@@ -909,7 +909,7 @@ summary_data = {
 }
 
 summary_df = pd.DataFrame(summary_data)
-st.dataframe(summary_df, hide_index=True, use_container_width=True)
+st.dataframe(summary_df, hide_index=True, width="stretch")
 
 # Export button
 csv_data = summary_df.to_csv(index=False).encode("utf-8")

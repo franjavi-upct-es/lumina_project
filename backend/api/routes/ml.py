@@ -226,24 +226,37 @@ async def get_training_job_status(job_id: str):
     # Check Celery task status
     from backend.workers.celery_app import celery_app
 
-    task = celery_app.AsyncResult(job["task_id"])
+    try:
+        task = celery_app.AsyncResult(job["task_id"])
+        task_state = task.state
+        task_info = task.info
+    except Exception as e:
+        logger.warning(f"Failed to read Celery status for job {job_id}: {e}")
+        return {
+            "job_id": job_id,
+            "ticker": job["ticker"],
+            "model_type": job["model_type"],
+            "status": job.get("status", "unknown"),
+            "created_at": job["created_at"].isoformat(),
+            "error": f"Could not read task result: {e}",
+        }
 
     status = {
         "job_id": job_id,
         "ticker": job["ticker"],
         "model_type": job["model_type"],
-        "status": task.state,
+        "status": task_state,
         "created_at": job["created_at"].isoformat(),
     }
 
     # Add progress if available
-    if task.state == "PROGRESS":
-        status["progress"] = task.info
-    elif task.state == "SUCCESS":
+    if task_state == "PROGRESS":
+        status["progress"] = task_info
+    elif task_state == "SUCCESS":
         status["result"] = task.result
         status["model_id"] = f"{job['ticker']}_{job['model_type']}_{job_id}"
-    elif task.state == "FAILURE":
-        status["error"] = str(task.info)
+    elif task_state == "FAILURE":
+        status["error"] = str(task_info)
 
     return status
 

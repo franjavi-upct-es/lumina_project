@@ -91,7 +91,7 @@ with st.sidebar:
         xgb_depth = st.slider("Max Depth", 3, 10, 6, key="xgb_depth")
 
     # Train button
-    if st.button("🚀 Train Models", type="primary", use_container_width=True):
+    if st.button("🚀 Train Models", type="primary", width="stretch"):
         models_to_train = []
         if train_lstm:
             models_to_train.append("lstm")
@@ -157,7 +157,7 @@ with tab1:
                     ]
                     available_cols = [c for c in display_cols if c in models_df.columns]
 
-                    st.dataframe(models_df[available_cols], use_container_width=True)
+                    st.dataframe(models_df[available_cols], width="stretch")
 
             else:
                 st.info(f"No models found for {ticker}. Train some models first!")
@@ -365,7 +365,7 @@ with tab3:
                         )
 
                     comparison_df = pd.DataFrame(comparison_data)
-                    st.dataframe(comparison_df, use_container_width=True)
+                    st.dataframe(comparison_df, width="stretch")
 
                     # Visual comparison
                     col1, col2 = st.columns(2)
@@ -394,7 +394,7 @@ with tab3:
                             showlegend=False,
                         )
 
-                        st.plotly_chart(fig_mae, use_container_width=True)
+                        st.plotly_chart(fig_mae, width="stretch")
 
                     with col2:
                         # R² comparison
@@ -420,7 +420,7 @@ with tab3:
                             showlegend=False,
                         )
 
-                        st.plotly_chart(fig_r2, use_container_width=True)
+                        st.plotly_chart(fig_r2, width="stretch")
 
                     # Winner determination
                     st.markdown("#### 🏆 Best Model")
@@ -530,7 +530,7 @@ with tab4:
                     height=400,
                 )
 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
             else:
                 st.info("No models available for analysis")
