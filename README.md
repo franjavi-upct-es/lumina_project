@@ -411,7 +411,6 @@ Where $R$ represents the historical return distribution.
 #### 4.1.3 Cornish-Fisher VaR (Modified VaR)
 
 Adjusts for skewness and kurtosis:
-
 $$z_{CF} = z_\alpha + \frac{1}{6}(z_\alpha^2 - 1)S + \frac{1}{24}(z_\alpha^3 - 3z_\alpha)(K-3) - \frac{1}{36}(2z_\alpha^3 - 5z_\alpha)S^2$$
 
 Where $S$ = skewness and $K$ = kurtosis.
