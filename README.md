@@ -149,7 +149,6 @@ $$Histogram = MACD - Signal$$
 **Bollinger Bands**:
 
 $$Upper = SMA_n + k\cdot \sigma_n$$
-
 $$Lower = SMA_n - k\cdot \sigma_n$$
 
 Where $\sigma_n$ is the $n$-period rolling standard deviation and $k$ typically
@@ -158,7 +157,6 @@ equals 2.
 **Average True Range (ATR)**:
 
 $$TR_t=\max(H_t-L_t,|H_t - C_{t-1}|, |L_t-C_{t-1}|)$$
-
 $$ATR_n=\displaystyle\frac{1}{n} \sum_{i=0}^{n-1} TR_{t-i}$$
 
 **Parkinson Volatility Estimator** (range based):
@@ -171,7 +169,6 @@ $$
 \sigma_{GK}^2 = \frac{1}{n}\sum_{i=0}^{\infty}\left[ \frac{1}{2}
 \left( \ln \frac{H_i}{L_i}\right)^2 - (2 \ln 2-1)
 \left( \ln \frac{C_i}{O_i}\right)^2 \right]
-
 $$
 
 ### 2.2 Stationarity Testing
@@ -183,7 +180,6 @@ Before applying statistical models, the platform tests for stationary using:
 $$
 \Delta y_t = \alpha + \beta  t+\gamma y_{t-1} +
 \sum_{i=1}^{p} \delta_i \Delta y_{t-i}-\varepsilon_t
-
 $$
 
 The null hypothesis $H_0:\gamma =0$ (unit root present) is tested against
@@ -262,7 +258,6 @@ The platform implements a stacked LSTM architecture with:
 - Attention mechanisms for temporal weighting
 
 **Self-Attention Mechanism**:
-
 $$Attention(Q,K,V)=softmax \left( \frac{QK ^\intercal}{\sqrt{d_k}}\right)V$$
 
 ### 3.2 Transformer Architecture
@@ -275,7 +270,6 @@ series:
 $$MultiHead(Q,K,V)=Concat(head_{1}, \dots, head_h)W^O$$
 
 Where each head is computed as:
-
 $$head_i=Attention(QW_i^Q, KW_i^K, VM_i^V)$$
 
 #### 3.2.2 Positional Encoding
@@ -307,7 +301,6 @@ $$\Omega (f)=\gamma T+\frac{1}{2} \lambda \sum_{j=1}^{T} w_j^2$$
 $$
 \mathcal{L}^{(t)}\approx \sum_{i=1}^{n} \left[ g_i f_t(x_i) +
 \frac{1}{2} h_i f_t^2(x_i)\right] + \Omega (f_t)
-
 $$
 
 Where:
@@ -324,7 +317,6 @@ The ensemble combines predictions from multiple base models using a meta-learner
 $$
 \hat{y}_{ensemble}=g \left( \hat{y}_{LSTM}, \hat{y}_{Transformer},
 \hat{y}_{XGBoost}, \mathbf{x}_{meta}\right)
-
 $$
 
 Where $g$ is a learned function (typically another gradient boosting model) and
@@ -366,7 +358,6 @@ data leakage:
 **Combinatorial Purged Cross-Validation (CPVC)**:
 
 Number of possible combinations:
-
 $$\binom{n}{k}\cdot\binom{n-k}{k} \cdot \dots$$
 
 ### 3.6 Model Evaluation Metrics
@@ -440,7 +431,6 @@ CVaR measures the expected loss given that VaR is exceeded:
 $$CVaR_\alpha = E[L | L > VaR_\alpha] = \frac{1}{1-\alpha}\int_\alpha^1 VaR_u \, du$$
 
 For continuous distributions:
-
 $$CVaR_\alpha = \frac{1}{\alpha}\int_0^\alpha VaR_u \, du$$
 
 **Properties**:
@@ -495,11 +485,9 @@ $$\min_{\mathbf{w}} \sum_{i=1}^{n}\left(RC_i - \frac{\sigma_p}{n}\right)^2$$
 Combines equilibrium returns with investor views:
 
 **Equilibrium Returns** (reverse optimization):
-
 $$\Pi = \delta \Sigma \mathbf{w}_{mkt}$$
 
 **Posterior Expected Returns**:
-
 $$E[R] = [(\tau\Sigma)^{-1} + P^T\Omega^{-1}P]^{-1}[(\tau\Sigma)^{-1}\Pi + P^T\Omega^{-1}Q]$$
 
 Where:
@@ -687,7 +675,6 @@ Where:
 #### 7.2.2 Slippage Modeling
 
 Slippage is modeled as a function of order size and market conditions:
-
 $$Slippage = \alpha + \beta \cdot \frac{Order Size}{ADV} + \varepsilon$$
 
 ### 7.3 Walk-Forward Optimization
@@ -706,13 +693,11 @@ To ensure out-of-sample validity:
 Generate synthetic price paths to assess strategy robustness:
 
 **Geometric Brownian Motion**:
-
 $$S_{t+\Delta t} = S_t \exp\left[\left(\mu - \frac{\sigma^2}{2}\right)\Delta t + \sigma\sqrt{\Delta t}Z\right]$$
 
 Where $Z \sim N(0,1)$.
 
 **Bootstrap Resampling**:
-
 $$r_t^* \sim \{r_1, r_2, \dots, r_T\}$$
 (with replacement)
 
@@ -725,7 +710,6 @@ $$r_t^* \sim \{r_1, r_2, \dots, r_T\}$$
 $$E[R_i] = R_f + \beta_i(E[R_m] - R_f)$$
 
 Where:
-
 $$\beta_i = \frac{Cov(R_i, R_m)}{Var(R_m)}$$
 
 ### 8.2 Fama-French Three-Factor Model (1993)
@@ -764,7 +748,6 @@ $$R_i - R_f = \alpha_i + \beta_i^{MKT}MKT + \beta_i^{SMB}SMB + \beta_i^{HML}HML 
 PCA extracts orthogonal factors that explain maximum variance:
 
 **Eigenvalue Decomposition**:
-
 $$\Sigma = V \Lambda V^T$$
 
 Where:
@@ -783,7 +766,6 @@ $$L = V\sqrt{\Lambda}$$
 ### 8.6 Risk Factor Attribution
 
 **Factor Risk Decomposition**:
-
 $$\sigma_p^2 = \mathbf{b}^T \Sigma_F \mathbf{b} + \sigma_\varepsilon^2$$
 
 Where:
@@ -793,7 +775,6 @@ Where:
 - $\sigma_\varepsilon^2$ = idiosyncratic variance
 
 **Marginal Contribution to Risk**:
-
 $$MCR_i = \frac{\partial \sigma_p}{\partial w_i} = \frac{(\Sigma \mathbf{w})_i}{\sigma_p}$$
 
 ---
