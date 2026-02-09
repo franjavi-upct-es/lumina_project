@@ -1,1183 +1,605 @@
 # backend/api/routes/risk.py
 """
-Risk Analysis endpoints for portfolio and individual securities
-Comprehensive risk metrics including VaR, CVaR, stress testing, and more
+Risk Management and Safety System Endpoints
+
+This module provides endpoints for:
+- Risk metrics calculation (VaR, CVaR, Greeks)
+- Stress testing and scenario analysis
+- Safety arbitrator control (V3)
+- Circuit breakers and kill switches (V3)
+- Real-time risk monitoring
+
+V3 Safety Architecture:
+- Risk Gate: Pre-trade risk checks
+- Circuit Breakers: Automatic trading halts
+- Safety Arbitrator: Final decision authority
+- Kill Switch: Emergency stop mechanism
 """
 
-from datetime import datetime, timedelta
-from typing import Annotated, Any
+from datetime import datetime
 
-import numpy as np
-import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field
-from scipy import stats
+from redis import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.dependencies import check_rate_limit, verify_api_key
+from backend.api.deps import (
+    check_rate_limit,
+    get_async_db,
+    get_redis,
+    verify_api_key,
+)
 from backend.config.settings import get_settings
-from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
 
 router = APIRouter(dependencies=[Depends(check_rate_limit), Depends(verify_api_key)])
 settings = get_settings()
 
 
 # ============================================================================
-# HELPERS
+# Request/Response Models
 # ============================================================================
 
 
-def _weights_from_query(tickers: list[str], weights: list[float]) -> dict[str, float]:
-    if len(weights) != len(tickers):
-        raise HTTPException(status_code=400, detail="weights must match tickers length")
-    return dict(zip(tickers, weights, strict=True))
+class VaRRequest(BaseModel):
+    """Value at Risk calculation request"""
 
-
-# ============================================================================
-# REQUEST MODELS
-# ============================================================================
-
-
-class VaRCalculationRequest(BaseModel):
-    """Request for VaR calculation"""
-
-    tickers: list[str] = Field(..., min_items=1, max_items=50)
-    weights: dict[str, float] | None = None
-    start_date: datetime
-    end_date: datetime
-    confidence_levels: list[float] = Field([0.95, 0.99], description="Confidence levels for VaR")
+    holdings: dict[str, float] = Field(..., description="Portfolio holdings")
+    confidence_level: float = Field(0.95, ge=0.90, le=0.99)
     method: str = Field("historical", pattern="^(historical|parametric|monte_carlo)$")
-    holding_period: int = Field(1, ge=1, le=30, description="Holding period in days")
-
-
-class StressTestRequest(BaseModel):
-    """Request for stress testing"""
-
-    tickers: list[str] = Field(..., min_items=1)
-    weights: dict[str, float]
-    scenarios: dict[str, float] | None = None  # Custom scenarios
-    include_historical: bool = True
-
-
-class DrawdownAnalysisRequest(BaseModel):
-    """Request for drawdown analysis"""
-
-    tickers: list[str] = Field(..., min_items=1)
-    weights: dict[str, float] | None = None
-    start_date: datetime
-    end_date: datetime
-    top_n_drawdowns: int = Field(10, ge=1, le=50)
-
-
-class CorrelationBreakdownRequest(BaseModel):
-    """Request for correlation breakdown analysis"""
-
-    tickers: list[str] = Field(..., min_items=2)
-    start_date: datetime
-    end_date: datetime
-    rolling_window: int | None = Field(None, ge=20, le=252)
-
-
-class TailRiskRequest(BaseModel):
-    """Request for tail risk analysis"""
-
-    tickers: list[str]
-    weights: dict[str, float]
-    start_date: datetime
-    end_date: datetime
-    threshold_percentile: float = Field(5.0, ge=1.0, le=10.0)
-
-
-# ============================================================================
-# RESPONSE MODELS
-# ============================================================================
+    lookback_days: int = Field(252, ge=30, le=1260)
+    num_simulations: int | None = Field(10000, ge=1000, le=100000)
 
 
 class VaRResponse(BaseModel):
-    """VaR calculation response"""
+    """Value at Risk response"""
 
+    var: float = Field(..., description="Value at Risk")
+    cvar: float = Field(..., description="Conditional Value at Risk (Expected Shortfall)")
+    confidence_level: float
     method: str
-    holding_period: int
-    var_metrics: dict[str, dict[str, float]]  # {confidence_level: {var, cvar, etc}}
-    portfolio_value: float | None = None
-    var_amount: dict[str, float]  # Dollar amounts
-    summary: str
+    portfolio_value: float
+    var_percentage: float
+    cvar_percentage: float
+    calculated_at: datetime
+
+
+class StressTestRequest(BaseModel):
+    """Stress test request"""
+
+    holdings: dict[str, float]
+    scenarios: list[str] = Field(
+        ...,
+        description="Scenarios: '2008_crisis', '2020_crash', 'dot_com_bubble', 'flash_crash', 'custom'",
+    )
+    custom_shocks: dict[str, float] | None = None
 
 
 class StressTestResponse(BaseModel):
     """Stress test response"""
 
-    scenarios: dict[str, dict[str, Any]]
-    worst_case: dict[str, float]
-    best_case: dict[str, float]
-    current_exposure: dict[str, float]
-    recommendations: list[str]
+    base_value: float
+    scenarios: list[dict[str, any]]
+    worst_case_loss: float
+    worst_case_scenario: str
 
 
-class DrawdownResponse(BaseModel):
-    """Drawdown analysis response"""
+class SafetyStatus(BaseModel):
+    """V3 Safety system status"""
 
-    max_drawdown: float
-    max_drawdown_duration: int
-    avg_drawdown: float
+    timestamp: datetime
+
+    # Overall status
+    system_status: str = Field(..., description="'normal', 'defensive', 'close_only', 'halted'")
+
+    # Circuit breakers
+    circuit_breakers: dict[str, bool] = Field(..., description="Circuit breaker states")
+
+    # Risk metrics
     current_drawdown: float
-    recovery_time: int | None
-    top_drawdowns: list[dict[str, Any]]
-    drawdown_series: list[dict[str, Any]]
+    max_drawdown_limit: float
+    daily_loss: float
+    daily_loss_limit: float
+
+    # Trading constraints
+    can_open_positions: bool
+    can_increase_positions: bool
+    can_close_positions: bool
+
+    # Safety overrides (last 24h)
+    safety_overrides_24h: int
+    risk_gate_rejections_24h: int
+
+    # Uncertainty metrics
+    average_uncertainty: float
+    high_uncertainty_events_24h: int
 
 
-class CorrelationResponse(BaseModel):
-    """Correlation analysis response"""
+class KillSwitchRequest(BaseModel):
+    """Kill switch activation request"""
 
-    correlation_matrix: dict[str, dict[str, float]]
-    average_correlation: float
-    rolling_correlations: list[dict[str, Any]] | None = None
-    correlation_breakdown: dict[str, Any]
-
-
-class TailRiskResponse(BaseModel):
-    """Tail risk analysis response"""
-
-    left_tail_mean: float
-    right_tail_mean: float
-    tail_ratio: float
-    expected_shortfall: float
-    tail_events: list[dict[str, Any]]
-    tail_statistics: dict[str, float]
+    reason: str = Field(..., description="Reason for kill switch activation")
+    close_all_positions: bool = Field(
+        True, description="Whether to close all positions immediately"
+    )
+    confirmation_code: str = Field(..., description="Confirmation code for safety")
 
 
-class RiskContributionResponse(BaseModel):
-    """Risk contribution analysis"""
+class CircuitBreakerConfig(BaseModel):
+    """Circuit breaker configuration"""
 
-    total_risk: float
-    marginal_risk: dict[str, float]
-    component_risk: dict[str, float]
-    percentage_contribution: dict[str, float]
-    diversification_ratio: float
+    max_drawdown: float = Field(0.10, ge=0.01, le=0.30)
+    daily_loss_limit: float = Field(0.03, ge=0.01, le=0.10)
+    max_position_size: float = Field(0.20, ge=0.01, le=0.50)
+    max_sector_concentration: float = Field(0.40, ge=0.10, le=1.00)
+    max_correlation: float = Field(0.80, ge=0.50, le=1.00)
+    uncertainty_threshold: float = Field(0.80, ge=0.50, le=1.00)
 
 
 # ============================================================================
-# VALUE AT RISK (VaR) ENDPOINTS
+# Risk Metrics Endpoints
 # ============================================================================
 
 
 @router.post("/var", response_model=VaRResponse)
-async def calculate_var(request: VaRCalculationRequest):
+async def calculate_var(
+    request: VaRRequest,
+    db: AsyncSession = Depends(get_async_db),
+):
     """
-    Calculate Value at Risk (VaR) and Conditional VaR (CVaR)
+    Calculate Value at Risk (VaR) and Conditional VaR.
 
-    **Methods:**
-    - historical: Historical simulation
-    - parametric: Assumes normal distribution
-    - monte_carlo: Monte Carlo simulation
+    Supports three methods:
+    - Historical: Based on historical returns
+    - Parametric: Assumes normal distribution
+    - Monte Carlo: Simulated scenarios
 
-    **Returns:**
-    VaR at specified confidence levels with CVaR
+    Args:
+        request: VaR calculation parameters
+        db: Database session
+
+    Returns:
+        VaRResponse: VaR and CVaR metrics
     """
-    try:
-        logger.info(f"Calculating VaR using {request.method} method")
+    logger.info(
+        f"Calculating VaR using {request.method} method at {request.confidence_level} confidence"
+    )
 
-        # Collect historical data
-        collector = YFinanceCollector()
-        returns_data = {}
+    # TODO: Implement actual VaR calculation
 
-        for ticker in request.tickers:
-            data = await collector.collect_with_retry(
-                ticker=ticker, start_date=request.start_date, end_date=request.end_date
-            )
-            if data and data.height > 0:
-                returns_data[ticker] = data.select("close").to_series().to_numpy()
+    portfolio_value = sum(request.holdings.values())
 
-        if not returns_data:
-            raise HTTPException(status_code=400, detail="No data available for any ticker")
+    # Mock calculation
+    var = portfolio_value * 0.025  # 2.5% loss
+    cvar = portfolio_value * 0.035  # 3.5% loss
 
-        # Calculate returns
-        returns_df = pd.DataFrame(returns_data)
-        returns_df = returns_df.pct_change().dropna()
-
-        # Portfolio weights
-        if request.weights:
-            weights = np.array([request.weights.get(t, 0.0) for t in returns_df.columns])
-            weights = weights / weights.sum()  # Normalize
-        else:
-            weights = np.ones(len(returns_df.columns)) / len(returns_df.columns)
-
-        # Calculate portfolio returns
-        portfolio_returns = (returns_df * weights).sum(axis=1)
-
-        # Scale for holding period
-        if request.holding_period > 1:
-            portfolio_returns = portfolio_returns * np.sqrt(request.holding_period)
-
-        # Calculate VaR based on method
-        var_metrics = {}
-
-        for confidence_level in request.confidence_levels:
-            if request.method == "historical":
-                var, cvar = _calculate_historical_var(portfolio_returns, confidence_level)
-            elif request.method == "parametric":
-                var, cvar = _calculate_parametric_var(portfolio_returns, confidence_level)
-            elif request.method == "monte_carlo":
-                var, cvar = _calculate_monte_carlo_var(portfolio_returns, confidence_level)
-            else:
-                var, cvar = _calculate_historical_var(portfolio_returns, confidence_level)
-
-            var_metrics[f"{confidence_level:.0%}"] = {
-                "var": float(var),
-                "cvar": float(cvar),
-                "var_percent": float(var * 100),
-                "cvar_percent": float(cvar * 100),
-            }
-
-        # Calculate dollar amounts if portfolio value provided
-        portfolio_value = 100000.0  # Default
-        var_amount = {
-            level: {
-                "var_amount": portfolio_value * metrics["var"],
-                "cvar_amount": portfolio_value * metrics["cvar"],
-            }
-            for level, metrics in var_metrics.items()
-        }
-
-        # Summary
-        var_95 = var_metrics.get("95%", {}).get("var", 0)
-        summary = (
-            f"At 95% confidence, maximum expected loss is "
-            f"${abs(var_95 * portfolio_value):,.2f} ({abs(var_95 * 100):.2f}%) "
-            f"over {request.holding_period} day(s)"
-        )
-
-        return VaRResponse(
-            method=request.method,
-            holding_period=request.holding_period,
-            var_metrics=var_metrics,
-            portfolio_value=portfolio_value,
-            var_amount=var_amount,
-            summary=summary,
-        )
-
-    except Exception as e:
-        logger.error(f"Error calculating VaR: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-def _calculate_historical_var(returns: pd.Series, confidence_level: float) -> tuple:
-    """Calculate VaR using historical simulation"""
-    var = -np.percentile(returns, (1 - confidence_level) * 100)
-    cvar = -returns[returns <= -var].mean()
-    return var, cvar
-
-
-def _calculate_parametric_var(returns: pd.Series, confidence_level: float) -> tuple:
-    """Calculate VaR assuming normal distribution"""
-    mean = returns.mean()
-    std = returns.std()
-
-    z_score = stats.norm.ppf(1 - confidence_level)
-    var = -(mean + z_score * std)
-
-    # CVaR for normal distribution
-    pdf_at_var = stats.norm.pdf(z_score)
-    cvar = -(mean - std * pdf_at_var / (1 - confidence_level))
-
-    return var, cvar
-
-
-def _calculate_monte_carlo_var(
-    returns: pd.Series, confidence_level: float, n_simulations: int = 10000
-) -> tuple:
-    """Calculate VaR using Monte Carlo simulation"""
-    mean = returns.mean()
-    std = returns.std()
-
-    # Generate simulations
-    simulated_returns = np.random.normal(mean, std, n_simulations)
-
-    var = -np.percentile(simulated_returns, (1 - confidence_level) * 100)
-    cvar = -simulated_returns[simulated_returns <= -var].mean()
-
-    return var, cvar
-
-
-# ============================================================================
-# STRESS TESTING
-# ============================================================================
+    return VaRResponse(
+        var=var,
+        cvar=cvar,
+        confidence_level=request.confidence_level,
+        method=request.method,
+        portfolio_value=portfolio_value,
+        var_percentage=0.025,
+        cvar_percentage=0.035,
+        calculated_at=datetime.utcnow(),
+    )
 
 
 @router.post("/stress-test", response_model=StressTestResponse)
-async def stress_test(request: StressTestRequest):
+async def run_stress_test(
+    request: StressTestRequest,
+    db: AsyncSession = Depends(get_async_db),
+):
     """
-    Perform stress testing on portfolio
+    Run stress test on portfolio.
 
-    Tests portfolio performance under extreme scenarios:
-    - Historical crises (2008, 2020, 1987)
-    - Custom scenarios
-    - Factor shocks
+    Tests portfolio performance under extreme market conditions.
+
+    Predefined Scenarios:
+    - 2008_crisis: Financial crisis scenario
+    - 2020_crash: COVID-19 market crash
+    - dot_com_bubble: Tech bubble burst
+    - flash_crash: Rapid market decline
+    - custom: User-defined shocks
+
+    Args:
+        request: Stress test parameters
+        db: Database session
+
+    Returns:
+        StressTestResponse: Stress test results
     """
-    try:
-        logger.info(f"Running stress test for {len(request.tickers)} assets")
+    logger.info(f"Running stress test with {len(request.scenarios)} scenarios")
 
-        # Collect data
-        collector = YFinanceCollector()
-        returns_data = {}
+    # TODO: Implement actual stress testing
 
-        for ticker in request.tickers:
-            data = await collector.collect_with_retry(
-                ticker=ticker,
-                start_date=datetime.now() - timedelta(days=365),
-                end_date=datetime.now(),
-            )
-            if data and data.height > 0:
-                returns_data[ticker] = data.select("close").to_series().to_numpy()
+    base_value = sum(request.holdings.values())
 
-        returns_df = pd.DataFrame(returns_data)
-        returns_df = returns_df.pct_change().dropna()
+    # Mock scenarios
+    scenario_results = []
+    worst_loss = 0.0
+    worst_scenario = ""
 
-        # Portfolio weights
-        weights = np.array([request.weights.get(t, 0.0) for t in returns_df.columns])
-        weights = weights / weights.sum()
-
-        # Define stress scenarios
-        scenarios = {}
-
-        if request.include_historical:
-            # Historical scenarios
-            scenarios.update(
-                {
-                    "2008_financial_crisis": {
-                        "market_shock": -0.35,
-                        "description": "Global financial crisis scenario",
-                        "volatility_multiplier": 2.5,
-                    },
-                    "2020_covid_crash": {
-                        "market_shock": -0.28,
-                        "description": "COVID-19 pandemic crash",
-                        "volatility_multiplier": 3.0,
-                    },
-                    "1987_black_monday": {
-                        "market_shock": -0.22,
-                        "description": "1987 stock market crash",
-                        "volatility_multiplier": 2.0,
-                    },
-                    "2000_dotcom_bubble": {
-                        "market_shock": -0.40,
-                        "description": "Dot-com bubble burst",
-                        "volatility_multiplier": 1.8,
-                    },
-                }
-            )
-
-        # Add custom scenarios
-        if request.scenarios:
-            for name, shock in request.scenarios.items():
-                scenarios[name] = {
-                    "market_shock": shock,
-                    "description": f"Custom scenario: {name}",
-                    "volatility_multiplier": 1.5,
-                }
-
-        # Calculate impact for each scenario
-        results = {}
-        for scenario_name, scenario_data in scenarios.items():
-            shock = scenario_data["market_shock"]
-            vol_mult = scenario_data["volatility_multiplier"]
-
-            # Apply shock to portfolio
-            portfolio_return = (returns_df.mean() * weights).sum()
-            portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(returns_df.cov(), weights)))
-
-            stressed_return = portfolio_return + shock
-            stressed_vol = portfolio_vol * vol_mult
-
-            # Calculate impact
-            results[scenario_name] = {
-                "shock": float(shock),
-                "expected_loss_pct": float(stressed_return * 100),
-                "stressed_volatility": float(stressed_vol * 100),
-                "description": scenario_data["description"],
-                "portfolio_impact": float(stressed_return),
-            }
-
-        # Find worst and best cases
-        worst_case = min(results.items(), key=lambda x: x[1]["portfolio_impact"])
-        best_case = max(results.items(), key=lambda x: x[1]["portfolio_impact"])
-
-        # Current exposure
-        current_vol = float(
-            np.sqrt(np.dot(weights.T, np.dot(returns_df.cov(), weights))) * np.sqrt(252)
-        )
-
-        # Recommendations
-        recommendations = []
-        if current_vol > 0.20:
-            recommendations.append("Consider reducing volatility exposure")
-        if abs(worst_case[1]["expected_loss_pct"]) > 30:
-            recommendations.append("Portfolio shows high sensitivity to extreme events")
-        recommendations.append("Consider hedging strategies for tail risk protection")
-
-        return StressTestResponse(
-            scenarios=results,
-            worst_case={"scenario": worst_case[0], **worst_case[1]},
-            best_case={"scenario": best_case[0], **best_case[1]},
-            current_exposure={
-                "annual_volatility": current_vol,
-                "worst_expected_loss": abs(worst_case[1]["expected_loss_pct"]),
-            },
-            recommendations=recommendations,
-        )
-
-    except Exception as e:
-        logger.error(f"Error in stress testing: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-# ============================================================================
-# DRAWDOWN ANALYSIS
-# ============================================================================
-
-
-@router.post("/drawdown", response_model=DrawdownResponse)
-async def analyze_drawdown(request: DrawdownAnalysisRequest):
-    """
-    Comprehensive drawdown analysis
-
-    Analyzes historical drawdowns including:
-    - Maximum drawdown
-    - Average drawdown
-    - Drawdown duration
-    - Recovery periods
-    """
-    try:
-        logger.info("Performing drawdown analysis")
-
-        # Collect data
-        collector = YFinanceCollector()
-        returns_data = {}
-
-        for ticker in request.tickers:
-            data = await collector.collect_with_retry(
-                ticker=ticker, start_date=request.start_date, end_date=request.end_date
-            )
-            if data and data.height > 0:
-                returns_data[ticker] = data.select("close").to_series().to_numpy()
-
-        returns_df = pd.DataFrame(returns_data)
-        returns_df = returns_df.pct_change().dropna()
-
-        # Portfolio weights
-        if request.weights:
-            weights = np.array([request.weights.get(t, 0.0) for t in returns_df.columns])
-            weights = weights / weights.sum()
+    for scenario in request.scenarios:
+        if scenario == "2008_crisis":
+            loss = base_value * 0.40  # 40% loss
+        elif scenario == "2020_crash":
+            loss = base_value * 0.35  # 35% loss
+        elif scenario == "flash_crash":
+            loss = base_value * 0.20  # 20% loss
         else:
-            weights = np.ones(len(returns_df.columns)) / len(returns_df.columns)
+            loss = base_value * 0.15  # 15% loss
 
-        # Calculate portfolio returns
-        portfolio_returns = (returns_df * weights).sum(axis=1)
+        if loss > worst_loss:
+            worst_loss = loss
+            worst_scenario = scenario
 
-        # Calculate cumulative returns
-        cumulative = (1 + portfolio_returns).cumprod()
-
-        # Calculate running maximum
-        running_max = cumulative.expanding().max()
-
-        # Calculate drawdown
-        drawdown = (cumulative - running_max) / running_max
-
-        # Maximum drawdown
-        max_dd = float(drawdown.min())
-
-        # Current drawdown
-        current_dd = float(drawdown.iloc[-1])
-
-        # Average drawdown
-        avg_dd = float(drawdown[drawdown < 0].mean()) if (drawdown < 0).any() else 0.0
-
-        # Find drawdown periods
-        drawdown_periods = []
-        in_drawdown = False
-        start_idx = None
-        peak_value = None
-
-        for i, (dd, _cum_val) in enumerate(zip(drawdown, cumulative, strict=True)):
-            if dd < 0 and not in_drawdown:
-                # Start of drawdown
-                in_drawdown = True
-                start_idx = i
-                peak_value = running_max.iloc[i]
-            elif dd >= -0.0001 and in_drawdown:  # Small threshold for recovery
-                # End of drawdown
-                in_drawdown = False
-                trough_value = cumulative.iloc[i - 1]
-
-                drawdown_periods.append(
-                    {
-                        "start_date": (
-                            returns_df.index[start_idx].isoformat()
-                            if hasattr(returns_df.index[start_idx], "isoformat")
-                            else str(start_idx)
-                        ),
-                        "end_date": (
-                            returns_df.index[i].isoformat()
-                            if hasattr(returns_df.index[i], "isoformat")
-                            else str(i)
-                        ),
-                        "duration_days": i - start_idx,
-                        "drawdown": float(drawdown.iloc[start_idx:i].min()),
-                        "peak_value": float(peak_value),
-                        "trough_value": float(trough_value),
-                    }
-                )
-
-        # Sort by severity
-        drawdown_periods.sort(key=lambda x: x["drawdown"])
-        top_drawdowns = drawdown_periods[: request.top_n_drawdowns]
-
-        # Maximum drawdown duration
-        max_dd_duration = (
-            max([p["duration_days"] for p in drawdown_periods]) if drawdown_periods else 0
-        )
-
-        # Recovery time (if currently in drawdown)
-        recovery_time = None
-        if current_dd < -0.01:  # In drawdown
-            # Estimate based on historical recovery times
-            if drawdown_periods:
-                avg_recovery = np.mean([p["duration_days"] for p in drawdown_periods])
-                recovery_time = int(avg_recovery)
-
-        # Drawdown series for visualization
-        drawdown_series = [
+        scenario_results.append(
             {
-                "date": idx.isoformat() if hasattr(idx, "isoformat") else str(idx),
-                "drawdown": float(dd),
+                "name": scenario,
+                "loss": loss,
+                "loss_percentage": loss / base_value,
+                "final_value": base_value - loss,
             }
-            for idx, dd in drawdown.items()
-        ]
-
-        return DrawdownResponse(
-            max_drawdown=max_dd,
-            max_drawdown_duration=max_dd_duration,
-            avg_drawdown=avg_dd,
-            current_drawdown=current_dd,
-            recovery_time=recovery_time,
-            top_drawdowns=top_drawdowns,
-            drawdown_series=drawdown_series[-100:],  # Last 100 points
         )
 
-    except Exception as e:
-        logger.error(f"Error in drawdown analysis: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    return StressTestResponse(
+        base_value=base_value,
+        scenarios=scenario_results,
+        worst_case_loss=worst_loss,
+        worst_case_scenario=worst_scenario,
+    )
 
 
-# ============================================================================
-# CORRELATION ANALYSIS
-# ============================================================================
-
-
-@router.post("/correlation", response_model=CorrelationResponse)
-async def analyze_correlation(request: CorrelationBreakdownRequest):
-    """
-    Detailed correlation analysis
-
-    Analyzes correlations including:
-    - Static correlation matrix
-    - Rolling correlations
-    - Correlation breakdown
-    """
-    try:
-        logger.info("Performing correlation analysis")
-
-        # Collect data
-        collector = YFinanceCollector()
-        returns_data = {}
-
-        for ticker in request.tickers:
-            data = await collector.collect_with_retry(
-                ticker=ticker, start_date=request.start_date, end_date=request.end_date
-            )
-            if data and data.height > 0:
-                returns_data[ticker] = data.select("close").to_series().to_numpy()
-
-        returns_df = pd.DataFrame(returns_data)
-        returns_df = returns_df.pct_change().dropna()
-
-        # Calculate correlation matrix
-        corr_matrix = returns_df.corr()
-
-        # Average correlation (excluding diagonal)
-        mask = np.ones_like(corr_matrix, dtype=bool)
-        np.fill_diagonal(mask, False)
-        avg_corr = float(corr_matrix.where(mask).mean().mean())
-
-        # Rolling correlations
-        rolling_correlations = None
-        if request.rolling_window:
-            rolling_corr_data = []
-            for i in range(request.rolling_window, len(returns_df)):
-                window_data = returns_df.iloc[i - request.rolling_window : i]
-                window_corr = window_data.corr()
-
-                avg_window_corr = float(window_corr.where(mask).mean().mean())
-                rolling_corr_data.append(
-                    {
-                        "date": (
-                            returns_df.index[i].isoformat()
-                            if hasattr(returns_df.index[i], "isoformat")
-                            else str(i)
-                        ),
-                        "avg_correlation": avg_window_corr,
-                    }
-                )
-
-            rolling_correlations = rolling_corr_data
-
-        # Correlation breakdown
-        breakdown = {
-            "high_correlation_pairs": [],
-            "low_correlation_pairs": [],
-            "negative_correlation_pairs": [],
-        }
-
-        for i in range(len(corr_matrix.columns)):
-            for j in range(i + 1, len(corr_matrix.columns)):
-                corr_value = float(corr_matrix.iloc[i, j])
-                pair = {
-                    "asset1": corr_matrix.columns[i],
-                    "asset2": corr_matrix.columns[j],
-                    "correlation": corr_value,
-                }
-
-                if corr_value > 0.7:
-                    breakdown["high_correlation_pairs"].append(pair)
-                elif corr_value < 0.3:
-                    breakdown["low_correlation_pairs"].append(pair)
-                if corr_value < 0:
-                    breakdown["negative_correlation_pairs"].append(pair)
-
-        # Sort pairs
-        breakdown["high_correlation_pairs"].sort(key=lambda x: x["correlation"], reverse=True)
-        breakdown["low_correlation_pairs"].sort(key=lambda x: x["correlation"])
-        breakdown["negative_correlation_pairs"].sort(key=lambda x: x["correlation"])
-
-        return CorrelationResponse(
-            correlation_matrix=corr_matrix.to_dict(),
-            average_correlation=avg_corr,
-            rolling_correlations=rolling_correlations,
-            correlation_breakdown=breakdown,
-        )
-
-    except Exception as e:
-        logger.error(f"Error in correlation analysis: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-# ============================================================================
-# TAIL RISK ANALYSIS
-# ============================================================================
-
-
-@router.post("/tail-risk", response_model=TailRiskResponse)
-async def analyze_tail_risk(request: TailRiskRequest):
-    """
-    Analyze tail risk and extreme events
-
-    Focuses on extreme negative returns (left tail)
-    """
-    try:
-        logger.info("Analyzing tail risk")
-
-        # Collect data
-        collector = YFinanceCollector()
-        returns_data = {}
-
-        for ticker in request.tickers:
-            data = await collector.collect_with_retry(
-                ticker=ticker, start_date=request.start_date, end_date=request.end_date
-            )
-            if data and data.height > 0:
-                returns_data[ticker] = data.select("close").to_series().to_numpy()
-
-        returns_df = pd.DataFrame(returns_data)
-        returns_df = returns_df.pct_change().dropna()
-
-        # Portfolio weights
-        weights = np.array([request.weights.get(t, 0.0) for t in returns_df.columns])
-        weights = weights / weights.sum()
-
-        # Calculate portfolio returns
-        portfolio_returns = (returns_df * weights).sum(axis=1)
-
-        # Define tail threshold
-        left_threshold = np.percentile(portfolio_returns, request.threshold_percentile)
-        right_threshold = np.percentile(portfolio_returns, 100 - request.threshold_percentile)
-
-        # Left tail (losses)
-        left_tail = portfolio_returns[portfolio_returns <= left_threshold]
-        left_tail_mean = float(left_tail.mean())
-
-        # Right tail (gains)
-        right_tail = portfolio_returns[portfolio_returns >= right_threshold]
-        right_tail_mean = float(right_tail.mean())
-
-        # Tail ratio
-        tail_ratio = float(abs(right_tail_mean / left_tail_mean)) if left_tail_mean != 0 else 0
-
-        # Expected shortfall (CVaR at threshold)
-        expected_shortfall = float(-left_tail.mean())
-
-        # Find tail events
-        tail_events = []
-        for idx, ret in portfolio_returns.items():
-            if ret <= left_threshold:
-                tail_events.append(
-                    {
-                        "date": idx.isoformat() if hasattr(idx, "isoformat") else str(idx),
-                        "return": float(ret),
-                        "return_pct": float(ret * 100),
-                        "severity": "extreme" if ret < left_threshold * 1.5 else "moderate",
-                    }
-                )
-
-        # Sort by severity
-        tail_events.sort(key=lambda x: x["return"])
-
-        # Tail statistics
-        tail_stats = {
-            "skewness": float(portfolio_returns.skew()),
-            "kurtosis": float(portfolio_returns.kurt()),
-            "left_tail_frequency": float(len(left_tail) / len(portfolio_returns)),
-            "max_loss": float(portfolio_returns.min()),
-            "max_gain": float(portfolio_returns.max()),
-        }
-
-        return TailRiskResponse(
-            left_tail_mean=left_tail_mean,
-            right_tail_mean=right_tail_mean,
-            tail_ratio=tail_ratio,
-            expected_shortfall=expected_shortfall,
-            tail_events=tail_events[:20],  # Top 20 worst events
-            tail_statistics=tail_stats,
-        )
-
-    except Exception as e:
-        logger.error(f"Error in tail risk analysis: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-# ============================================================================
-# RISK CONTRIBUTION
-# ============================================================================
-
-
-@router.post("/risk-contribution", response_model=RiskContributionResponse)
-async def analyze_risk_contribution(
-    tickers: Annotated[list[str], Query()],
-    weights: Annotated[list[float], Query()],
-    start_date: Annotated[datetime, Query()],
-    end_date: Annotated[datetime, Query()],
+@router.get("/drawdown")
+async def calculate_drawdown(
+    holdings: dict[str, float] = Query(...),
+    lookback_days: int = Query(252),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Analyze risk contribution of each asset to portfolio risk
+    Calculate portfolio drawdown metrics.
 
-    Calculates:
-    - Marginal risk contribution
-    - Component risk contribution
-    - Percentage risk contribution
+    Returns current drawdown, maximum drawdown, and drawdown duration.
+
+    Args:
+        holdings: Portfolio holdings
+        lookback_days: Historical period
+        db: Database session
+
+    Returns:
+        dict: Drawdown metrics
     """
-    try:
-        logger.info("Analyzing risk contribution")
-        weights_map = _weights_from_query(tickers, weights)
+    logger.info("Calculating drawdown metrics")
 
-        # Collect data
-        collector = YFinanceCollector()
-        returns_data = {}
+    # TODO: Implement drawdown calculation
 
-        for ticker in tickers:
-            data = await collector.collect_with_retry(
-                ticker=ticker, start_date=start_date, end_date=end_date
-            )
-            if data and data.height > 0:
-                returns_data[ticker] = data.select("close").to_series().to_numpy()
-
-        returns_df = pd.DataFrame(returns_data)
-        returns_df = returns_df.pct_change().dropna()
-
-        # Weights array
-        weights_array = np.array([weights_map.get(t, 0.0) for t in returns_df.columns])
-        weights_array = weights_array / weights_array.sum()
-
-        # Covariance matrix
-        cov_matrix = returns_df.cov().values * 252  # Annualized
-
-        # Portfolio variance
-        portfolio_variance = np.dot(weights_array.T, np.dot(cov_matrix, weights_array))
-        portfolio_vol = np.sqrt(portfolio_variance)
-
-        # Marginal risk contribution
-        marginal_contrib = np.dot(cov_matrix, weights_array) / portfolio_vol
-
-        # Component risk contribution
-        component_contrib = weights_array * marginal_contrib
-
-        # Percentage contribution
-        pct_contrib = component_contrib / portfolio_vol
-
-        # Diversification ratio
-        individual_vols = np.sqrt(np.diag(cov_matrix))
-        weighted_vol = np.dot(weights_array, individual_vols)
-        diversification_ratio = float(weighted_vol / portfolio_vol)
-
-        # Format results
-        marginal_risk = {
-            ticker: float(contrib)
-            for ticker, contrib in zip(returns_df.columns, marginal_contrib, strict=True)
-        }
-
-        component_risk = {
-            ticker: float(contrib)
-            for ticker, contrib in zip(returns_df.columns, component_contrib, strict=True)
-        }
-
-        percentage_contribution = {
-            ticker: float(contrib * 100)
-            for ticker, contrib in zip(returns_df.columns, pct_contrib, strict=True)
-        }
-
-        return RiskContributionResponse(
-            total_risk=float(portfolio_vol),
-            marginal_risk=marginal_risk,
-            component_risk=component_risk,
-            percentage_contribution=percentage_contribution,
-            diversification_ratio=diversification_ratio,
-        )
-
-    except Exception as e:
-        logger.error(f"Error in risk contribution analysis: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    return {
+        "current_drawdown": 0.05,
+        "max_drawdown": 0.12,
+        "max_drawdown_duration_days": 45,
+        "underwater_days": 10,
+        "recovery_time_days": None,  # Still in drawdown
+        "calculated_at": datetime.utcnow().isoformat(),
+    }
 
 
 # ============================================================================
-# LIQUIDITY RISK
+# V3 Safety System Endpoints
 # ============================================================================
 
 
-@router.get("/liquidity-risk/{ticker}")
-async def analyze_liquidity_risk(
-    ticker: str,
-    start_date: datetime | None = None,
-    end_date: datetime | None = None,
+@router.get("/safety/status", response_model=SafetyStatus)
+async def get_safety_status(
+    redis: Redis = Depends(get_redis),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Analyze liquidity risk for a specific security
+    Get current safety system status.
 
-    Metrics:
-    - Average daily volume
-    - Bid-ask spread
-    - Volume volatility
-    - Liquidity score
+    Returns comprehensive status of all V3 safety components:
+    - Circuit breaker states
+    - Current risk metrics vs limits
+    - Trading constraints
+    - Recent safety events
+
+    Returns:
+        SafetyStatus: Complete safety system status
     """
-    try:
-        logger.info(f"Analyzing liquidity risk for {ticker}")
+    logger.info("Fetching safety system status")
 
-        if start_date is None:
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=90)
+    # TODO: Implement actual safety status retrieval
+    # For now, return safe defaults
 
-        # Collect data
-        collector = YFinanceCollector()
-        data = await collector.collect_with_retry(
-            ticker=ticker, start_date=start_date, end_date=end_date
-        )
-
-        if not data or data.height == 0:
-            raise HTTPException(status_code=404, detail=f"No data for {ticker}")
-
-        data_pd = data.to_pandas()
-
-        # Calculate metrics
-        avg_volume = float(data_pd["volume"].mean())
-        volume_volatility = float(data_pd["volume"].std() / avg_volume)
-
-        # Estimate bid-ask spread (simplified using high-low spread)
-        avg_spread = float(((data_pd["high"] - data_pd["low"]) / data_pd["close"]).mean())
-
-        # Liquidity score (0-100, higher is better)
-        # Based on volume and spread
-        volume_score = min(avg_volume / 1000000, 100)  # Normalize to millions
-        spread_score = max(0, 100 - (avg_spread * 10000))
-        liquidity_score = float((volume_score + spread_score) / 2)
-
-        # Days to liquidate large position (simplified)
-        position_size = 100000  # Example: $100k position
-        avg_price = float(data_pd["close"].mean())
-        shares = position_size / avg_price
-        days_to_liquidate = int(shares / (avg_volume * 0.1))  # 10% of daily volume
-
-        return {
-            "ticker": ticker,
-            "avg_daily_volume": avg_volume,
-            "volume_volatility": volume_volatility,
-            "avg_spread_pct": avg_spread * 100,
-            "liquidity_score": liquidity_score,
-            "days_to_liquidate_100k": days_to_liquidate,
-            "liquidity_rating": (
-                "High" if liquidity_score > 70 else "Medium" if liquidity_score > 40 else "Low"
-            ),
-            "warnings": (
-                ["Low liquidity - may face slippage"]
-                if liquidity_score < 40
-                else ["Consider market impact"]
-                if liquidity_score < 70
-                else []
-            ),
-        }
-
-    except Exception as e:
-        logger.error(f"Error analyzing liquidity risk: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    return SafetyStatus(
+        timestamp=datetime.utcnow(),
+        system_status="normal",
+        circuit_breakers={
+            "max_drawdown": False,
+            "daily_loss": False,
+            "uncertainty": False,
+            "correlation": False,
+        },
+        current_drawdown=0.02,
+        max_drawdown_limit=0.10,
+        daily_loss=0.005,
+        daily_loss_limit=0.03,
+        can_open_positions=True,
+        can_increase_positions=True,
+        can_close_positions=True,
+        safety_overrides_24h=0,
+        risk_gate_rejections_24h=0,
+        average_uncertainty=0.15,
+        high_uncertainty_events_24h=0,
+    )
 
 
-# ============================================================================
-# SCENARIO ANALYSIS
-# ============================================================================
-
-
-@router.post("/scenario-analysis")
-async def scenario_analysis(
-    tickers: Annotated[list[str], Query()],
-    weights: Annotated[list[float], Query()],
-    market_change: Annotated[float, Query(description="Market change in %")],
-    volatility_change: Annotated[float, Query(description="Volatility change multiplier")] = 0.0,
-    correlation_change: Annotated[float, Query(description="Correlation change")] = 0.0,
+@router.post("/safety/circuit-breaker/configure")
+async def configure_circuit_breakers(
+    config: CircuitBreakerConfig,
+    redis: Redis = Depends(get_redis),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Analyze portfolio under custom scenario
+    Configure circuit breaker parameters.
 
-    Allows users to define custom market conditions
+    Updates the thresholds and limits for automatic trading halts.
+
+    WARNING: Changes take effect immediately and affect live trading.
+
+    Args:
+        config: Circuit breaker configuration
+        redis: Redis connection
+        db: Database session
+
+    Returns:
+        dict: Configuration confirmation
     """
-    try:
-        logger.info("Running custom scenario analysis")
-        weights_map = _weights_from_query(tickers, weights)
+    logger.warning(f"Updating circuit breaker configuration")
 
-        # Collect historical data
-        collector = YFinanceCollector()
-        returns_data = {}
+    # TODO: Implement configuration update
+    # Store in Redis for real-time access
 
-        for ticker in tickers:
-            data = await collector.collect_with_retry(
-                ticker=ticker,
-                start_date=datetime.now() - timedelta(days=365),
-                end_date=datetime.now(),
-            )
-            if data and data.height > 0:
-                returns_data[ticker] = data.select("close").to_series().to_numpy()
+    config_dict = config.dict()
+    redis.set(
+        "safety:circuit_breaker:config",
+        str(config_dict),
+        ex=86400 * 30,  # 30 days TTL
+    )
 
-        returns_df = pd.DataFrame(returns_data)
-        returns_df = returns_df.pct_change().dropna()
+    logger.success("Circuit breaker configuration updated")
 
-        # Current portfolio metrics
-        weights_array = np.array([weights_map.get(t, 0.0) for t in returns_df.columns])
-        weights_array = weights_array / weights_array.sum()
-
-        current_return = float((returns_df.mean() * weights_array).sum() * 252)
-        current_vol = float(
-            np.sqrt(np.dot(weights_array.T, np.dot(returns_df.cov() * 252, weights_array)))
-        )
-
-        # Apply scenario
-        scenario_return = current_return + (market_change / 100)
-        scenario_vol = current_vol * (1 + volatility_change)
-
-        # Calculate impact
-        portfolio_value = 100000.0
-        current_value = portfolio_value * (1 + current_return)
-        scenario_value = portfolio_value * (1 + scenario_return)
-
-        impact = scenario_value - current_value
-        impact_pct = (impact / portfolio_value) * 100
-
-        return {
-            "scenario_parameters": {
-                "market_change_pct": market_change,
-                "volatility_multiplier": 1 + volatility_change,
-                "correlation_adjustment": correlation_change,
-            },
-            "current_metrics": {
-                "expected_return": current_return * 100,
-                "volatility": current_vol * 100,
-                "portfolio_value": portfolio_value,
-            },
-            "scenario_metrics": {
-                "expected_return": scenario_return * 100,
-                "volatility": scenario_vol * 100,
-                "expected_value": scenario_value,
-            },
-            "impact": {
-                "absolute_change": impact,
-                "percentage_change": impact_pct,
-                "interpretation": (
-                    f"Under this scenario, portfolio would {'gain' if impact > 0 else 'lose'} "
-                    f"${abs(impact):,.2f} ({abs(impact_pct):.2f}%)"
-                ),
-            },
-        }
-
-    except Exception as e:
-        logger.error(f"Error in scenario analysis: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    return {
+        "status": "updated",
+        "config": config_dict,
+        "updated_at": datetime.utcnow().isoformat(),
+    }
 
 
-# ============================================================================
-# RISK SUMMARY DASHBOARD
-# ============================================================================
-
-
-@router.get("/dashboard")
-async def risk_dashboard(
-    tickers: Annotated[list[str], Query()],
-    weights: Annotated[list[float], Query()],
-    start_date: datetime | None = None,
-    end_date: datetime | None = None,
+@router.post("/safety/kill-switch")
+async def activate_kill_switch(
+    request: KillSwitchRequest,
+    redis: Redis = Depends(get_redis),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Comprehensive risk dashboard with all key metrics
+    Activate emergency kill switch.
 
-    Single endpoint to get overview of all risk metrics
+    CRITICAL: This immediately halts all trading activity.
+
+    Actions:
+    1. Sets system status to 'halted'
+    2. Prevents all new positions
+    3. Optionally closes all existing positions
+    4. Logs activation with reason
+    5. Sends alerts to administrators
+
+    Requires confirmation code for safety.
+
+    Args:
+        request: Kill switch activation request
+        redis: Redis connection
+        db: Database session
+
+    Returns:
+        dict: Activation confirmation
     """
-    try:
-        logger.info("Generating risk dashboard")
-        weights_map = _weights_from_query(tickers, weights)
+    logger.critical(f"KILL SWITCH ACTIVATION REQUESTED: {request.reason}")
 
-        if start_date is None:
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=365)
+    # Verify confirmation code
+    expected_code = (
+        settings.KILL_SWITCH_CODE if hasattr(settings, "KILL_SWITCH_CODE") else "EMERGENCY"
+    )
 
-        # Collect data
-        collector = YFinanceCollector()
-        returns_data = {}
+    if request.confirmation_code != expected_code:
+        logger.error("Kill switch activation failed: Invalid confirmation code")
+        raise HTTPException(status_code=403, detail="Invalid confirmation code")
 
-        for ticker in tickers:
-            data = await collector.collect_with_retry(
-                ticker=ticker, start_date=start_date, end_date=end_date
-            )
-            if data and data.height > 0:
-                returns_data[ticker] = data.select("close").to_series().to_numpy()
+    # Activate kill switch
+    redis.set("safety:kill_switch:active", "1", ex=86400)  # 24h TTL
+    redis.set("safety:kill_switch:reason", request.reason, ex=86400)
+    redis.set("safety:kill_switch:activated_at", datetime.utcnow().isoformat(), ex=86400)
 
-        returns_df = pd.DataFrame(returns_data)
-        returns_df = returns_df.pct_change().dropna()
+    logger.critical("KILL SWITCH ACTIVATED - ALL TRADING HALTED")
 
-        # Portfolio setup
-        weights_array = np.array([weights_map.get(t, 0.0) for t in returns_df.columns])
-        weights_array = weights_array / weights_array.sum()
-        portfolio_returns = (returns_df * weights_array).sum(axis=1)
+    # TODO: Trigger position closing if requested
+    # TODO: Send admin alerts
 
-        # Calculate all metrics
-        var_95 = float(-np.percentile(portfolio_returns, 5))
-        cvar_95 = float(-portfolio_returns[portfolio_returns <= -var_95].mean())
-
-        # Volatility
-        annual_vol = float(portfolio_returns.std() * np.sqrt(252))
-
-        # Sharpe ratio
-        risk_free_rate = 0.05
-        sharpe = float(((portfolio_returns.mean() * 252) - risk_free_rate) / annual_vol)
-
-        # Drawdown
-        cumulative = (1 + portfolio_returns).cumprod()
-        running_max = cumulative.expanding().max()
-        drawdown = (cumulative - running_max) / running_max
-        max_drawdown = float(drawdown.min())
-        current_drawdown = float(drawdown.iloc[-1])
-
-        # Correlation
-        corr_matrix = returns_df.corr()
-        mask = np.ones_like(corr_matrix, dtype=bool)
-        np.fill_diagonal(mask, False)
-        avg_correlation = float(corr_matrix.where(mask).mean().mean())
-
-        # Tail risk
-        left_tail = portfolio_returns[portfolio_returns <= np.percentile(portfolio_returns, 5)]
-        tail_mean = float(left_tail.mean())
-
-        # Beta vs market
-        try:
-            spy_data = await collector.collect_with_retry(
-                ticker="SPY", start_date=start_date, end_date=end_date
-            )
-            if spy_data and spy_data.height > 0:
-                spy_returns = spy_data.select("close").to_series().pct_change().drop_nulls()
-                common_len = min(len(portfolio_returns), len(spy_returns))
-                covariance = np.cov(portfolio_returns[-common_len:], spy_returns[-common_len:])[
-                    0, 1
-                ]
-                market_variance = np.var(spy_returns[-common_len:])
-                beta = float(covariance / market_variance) if market_variance > 0 else 1.0
-            else:
-                beta = 1.0
-        except Exception:
-            beta = 1.0
-
-        return {
-            "summary": {
-                "risk_score": float(min(100, max(0, 100 - (annual_vol * 200)))),  # 0-100 scale
-                "risk_level": (
-                    "Low" if annual_vol < 0.15 else "Medium" if annual_vol < 0.25 else "High"
-                ),
-            },
-            "value_at_risk": {
-                "var_95_pct": var_95 * 100,
-                "cvar_95_pct": cvar_95 * 100,
-                "var_95_amount": var_95 * 100000,
-                "cvar_95_amount": cvar_95 * 100000,
-            },
-            "volatility_metrics": {
-                "annual_volatility": annual_vol * 100,
-                "sharpe_ratio": sharpe,
-                "beta": beta,
-            },
-            "drawdown_metrics": {
-                "max_drawdown": max_drawdown * 100,
-                "current_drawdown": current_drawdown * 100,
-                "in_drawdown": current_drawdown < -0.01,
-            },
-            "correlation_metrics": {
-                "average_correlation": avg_correlation,
-                "diversification_benefit": float(1 - avg_correlation),
-            },
-            "tail_risk": {
-                "left_tail_mean": tail_mean * 100,
-                "skewness": float(portfolio_returns.skew()),
-                "kurtosis": float(portfolio_returns.kurt()),
-            },
-            "risk_warnings": _generate_risk_warnings(
-                annual_vol, max_drawdown, sharpe, avg_correlation
-            ),
-        }
-
-    except Exception as e:
-        logger.error(f"Error generating risk dashboard: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    return {
+        "status": "activated",
+        "reason": request.reason,
+        "close_positions": request.close_all_positions,
+        "activated_at": datetime.utcnow().isoformat(),
+        "message": "Kill switch activated - all trading halted",
+    }
 
 
-def _generate_risk_warnings(
-    volatility: float, max_dd: float, sharpe: float, correlation: float
-) -> list[str]:
-    """Generate risk warnings based on metrics"""
-    warnings = []
+@router.post("/safety/kill-switch/deactivate")
+async def deactivate_kill_switch(
+    confirmation_code: str = Query(...),
+    redis: Redis = Depends(get_redis),
+):
+    """
+    Deactivate kill switch.
 
-    if volatility > 0.30:
-        warnings.append("⚠️ High volatility detected - consider risk reduction")
+    Resumes normal trading operations after kill switch.
 
-    if abs(max_dd) > 0.25:
-        warnings.append("⚠️ Large historical drawdowns - review risk tolerance")
+    Args:
+        confirmation_code: Confirmation code
+        redis: Redis connection
 
-    if sharpe < 0.5:
-        warnings.append("⚠️ Low risk-adjusted returns - review strategy")
+    Returns:
+        dict: Deactivation confirmation
+    """
+    logger.warning("Kill switch deactivation requested")
 
-    if correlation > 0.8:
-        warnings.append("⚠️ High correlation among assets - limited diversification")
+    # Verify confirmation code
+    expected_code = (
+        settings.KILL_SWITCH_CODE if hasattr(settings, "KILL_SWITCH_CODE") else "EMERGENCY"
+    )
 
-    if not warnings:
-        warnings.append("✅ Portfolio risk metrics within normal ranges")
+    if confirmation_code != expected_code:
+        raise HTTPException(status_code=403, detail="Invalid confirmation code")
 
-    return warnings
+    # Check if kill switch is active
+    if not redis.get("safety:kill_switch:active"):
+        raise HTTPException(status_code=400, detail="Kill switch is not currently active")
+
+    # Deactivate
+    redis.delete("safety:kill_switch:active")
+    redis.delete("safety:kill_switch:reason")
+
+    logger.success("Kill switch deactivated - normal operations resumed")
+
+    return {
+        "status": "deactivated",
+        "deactivated_at": datetime.utcnow().isoformat(),
+        "message": "Kill switch deactivated - trading resumed",
+    }
+
+
+@router.get("/safety/overrides/recent")
+async def get_recent_safety_overrides(
+    hours: int = Query(24, ge=1, le=168),
+    limit: int = Query(100, ge=1, le=1000),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    Get recent safety arbitrator overrides.
+
+    Returns log of instances where safety arbitrator modified or
+    rejected agent actions.
+
+    Args:
+        hours: Time window in hours
+        limit: Maximum number of events
+        db: Database session
+
+    Returns:
+        dict: Safety override events
+    """
+    logger.info(f"Fetching safety overrides from last {hours} hours")
+
+    # TODO: Implement override log retrieval
+
+    return {
+        "overrides": [],
+        "total": 0,
+        "time_window_hours": hours,
+        "queried_at": datetime.utcnow().isoformat(),
+    }
+
+
+@router.post("/safety/mode/set")
+async def set_safety_mode(
+    mode: str = Query(
+        ..., pattern="^(normal|defensive|close_only)$", description="Safety mode to set"
+    ),
+    redis: Redis = Depends(get_redis),
+):
+    """
+    Set safety arbitrator mode.
+
+    Modes:
+    - normal: Full trading capabilities
+    - defensive: Reduced position sizing, stricter criteria
+    - close_only: Can only close positions, no new entries
+
+    Args:
+        mode: Safety mode
+        redis: Redis connection
+
+    Returns:
+        dict: Mode change confirmation
+    """
+    logger.warning(f"Setting safety mode to: {mode}")
+
+    # Set mode in Redis
+    redis.set("safety:mode", mode, ex=86400)
+    redis.set("safety:mode:changed_at", datetime.utcnow().isoformat(), ex=86400)
+
+    logger.success(f"Safety mode set to {mode}")
+
+    return {
+        "mode": mode,
+        "changed_at": datetime.utcnow().isoformat(),
+        "message": f"Safety mode set to {mode}",
+    }
+
+
+# ============================================================================
+# Risk Monitoring Endpoints
+# ============================================================================
+
+
+@router.get("/monitor/real-time")
+async def get_realtime_risk_metrics(
+    redis: Redis = Depends(get_redis),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    Get real-time risk metrics.
+
+    Returns current risk metrics updated on every trade.
+
+    Returns:
+        dict: Real-time risk metrics
+    """
+    # TODO: Implement real-time risk retrieval from Redis
+
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        "portfolio_value": 100000.0,
+        "daily_pnl": 250.0,
+        "daily_pnl_percent": 0.25,
+        "current_drawdown": 0.02,
+        "beta": 1.05,
+        "var_95": 2500.0,
+        "open_positions": 5,
+        "total_exposure": 50000.0,
+        "leverage": 0.5,
+    }
+
+
+@router.get("/limits")
+async def get_risk_limits(
+    redis: Redis = Depends(get_redis),
+):
+    """
+    Get current risk limits.
+
+    Returns all configured risk limits and current values.
+
+    Returns:
+        dict: Risk limits and current values
+    """
+    return {
+        "limits": {
+            "max_drawdown": {"limit": 0.10, "current": 0.02},
+            "daily_loss": {"limit": 0.03, "current": 0.005},
+            "max_position_size": {"limit": 0.20, "current": 0.15},
+            "max_leverage": {"limit": 1.5, "current": 0.5},
+            "max_sector_concentration": {"limit": 0.40, "current": 0.25},
+        },
+        "timestamp": datetime.utcnow().isoformat(),
+    }

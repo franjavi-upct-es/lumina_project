@@ -1,16 +1,38 @@
 # backend/api/routes/data.py
 """
-Data endpoints for price data, features, and market information
+Data Collection and Feature Engineering Endpoints
+
+This module provides endpoints for:
+- Market data collection (stocks, crypto, forex)
+- Technical indicator calculation
+- Feature engineering
+- Data quality checks
+- Feature store access
+
+Supports multiple data sources:
+- YFinance: Historical stock data
+- Alpha Vantage: Real-time and fundamental data
+- FRED: Macroeconomic indicators
+- NewsAPI: Financial news
+- Social media: Sentiment data
 """
 
 from datetime import datetime, timedelta
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field
+from redis import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.dependencies import check_rate_limit, verify_api_key
+from backend.api.deps import (
+    check_rate_limit,
+    get_async_db,
+    get_feature_engineer,
+    get_redis,
+    get_yfinance_collector,
+    verify_api_key,
+)
 from backend.config.settings import get_settings
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
 from backend.data_engine.transformers.feature_engineering import FeatureEngineer
@@ -19,417 +41,519 @@ router = APIRouter(dependencies=[Depends(check_rate_limit), Depends(verify_api_k
 settings = get_settings()
 
 
+# ============================================================================
 # Request/Response Models
-class PriceDataResponse(BaseModel):
+# ============================================================================
+
+
+class MarketDataRequest(BaseModel):
+    """Request for market data"""
+
+    ticker: str = Field(..., description="Stock ticker symbol (e.g., 'APPL', 'TSLA')")
+    start_date: datetime
+    end_date: datetime = Field(default_factory=datetime.utcnow())
+    interval: str = Field("1d", pattern="^(1m|5m|15m|30m|1h|1d|1wk|1mo)$")
+
+
+class MarketDataResponse(BaseModel):
+    """Market data response"""
+
     ticker: str
+    interval: str
     start_date: datetime
     end_date: datetime
-    interval: str
     data_points: int
     data: list[dict]
 
 
-class FeatureResponse(BaseModel):
+class TechnicalIndicatorsRequest(BaseModel):
+    """Request for technical indicators"""
+
     ticker: str
-    features: list[str]
-    categories: dict
-    data_points: int
-    data: list[dict] | None = None
+    indicators: list[str] = Field(
+        ..., description="List of indicators: 'sma', 'ema', 'rsi', 'macd', 'bbands', etc."
+    )
+    start_date: datetime
+    end_date: datetime = Field(default_factory=datetime.utcnow())
+    interval: str = Field("1d")
+
+    # Indicators parameters
+    sma_period: int = Field(20, ge=5, le=200)
+    ema_period: int = Field(20, ge=5, le=200)
+    rsi_period: int = Field(14, ge=5, le=50)
+    macd_fast: int = Field(12)
+    macd_slow: int = Field(26)
+    macd_signal: int = Field(9)
 
 
-class CompanyInfoResponse(BaseModel):
+class FeaturesResponse(BaseModel):
+    """Engineering features response"""
+
     ticker: str
-    name: str | None
-    sector: str | None
-    industry: str | None
-    market_cap: float | None
-    pe_ratio: float | None
-    dividend_yield: float | None
-    beta: float | None
-    description: str | None
+    timestamp: datetime
+    feature_count: int
+    features: dict
 
 
-class BatchDataRequest(BaseModel):
-    tickers: list[str] = Field(..., min_length=1, max_length=100)
-    start_date: datetime | None = None
-    end_date: datetime | None = None
-    interval: str = "1d"
+# ============================================================================
+# Market Data Endpoints
+# ============================================================================
 
 
-class CollectDataRequest(BaseModel):
-    ticker: str = Field(..., min_length=1)
-    start_date: datetime = Field(...)
-    end_date: datetime = Field(...)
-    interval: str = "1d"
-
-
-# Dependency for data collector
-async def get_collector():
-    return YFinanceCollector(rate_limit=settings.YFINANCE_RATE_LIMIT)
-
-
-@router.get("/health", tags=["Health"])
-async def data_health_check():
+@router.get("/market-data/{ticker}", response_model=MarketDataResponse)
+async def get_market_data(
+    ticker: str,
+    start_date: datetime = Query(..., description="Start date for data retrieval"),
+    end_date: datetime = Query(default_factory=datetime.utcnow()),
+    interval: str = Query("1d", pattern="^(1m|5m|15m|30m|1h|1d|1wk|1mo)$"),
+    collector: YFinanceCollector = Depends(get_yfinance_collector),
+    db: AsyncSession = Depends(get_async_db),
+):
     """
-    Check data collection services health
+    Get historical market data for a ticker.
+
+    Retrieves OHLCV data from YFinance with support for multiple intervals.
+
+    Args:
+        ticker: Stock ticker symbol
+        start_date: Start date
+        end_date: End date
+        interval: Data interval
+        collector: YFinance collector
+        db: Database session
+
+    Returns:
+        MarketDataResponse: Market data with OHLCV
     """
-    collector = YFinanceCollector()
-    health = await collector.health_check()
-    return health
+    logger.info(
+        f"Fetching market data for {ticker}: {start_date} to {end_date}, interval={interval}"
+    )
+
+    try:
+        # Collect data
+        data = await collector.collect_stock_data(
+            ticker=ticker, start_date=start_date, end_date=end_date, interval=interval
+        )
+
+        if data is None or data.empty:
+            raise HTTPException(status_code=404, detail=f"No data found for {ticker}")
+
+        # Convert to list of dicts
+        data_list = data.reset_index().to_dict("records")
+
+        return MarketDataResponse(
+            ticker=ticker,
+            interval=interval,
+            start_date=start_date,
+            end_date=end_date,
+            data_points=len(data_list),
+            data=data_list,
+        )
+
+    except Exception as e:
+        logger.error(f"Error fetching market data: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch market data: {str(e)}")
 
 
-@router.get("/tickers")
-async def get_available_tickers():
+@router.get("/market-data/{ticker}/latest")
+async def get_latest_price(
+    ticker: str,
+    collector: YFinanceCollector = Depends(get_yfinance_collector),
+):
     """
-    Get list of available/supported tickers
+    Get latest price for a ticker.
+
+    Returns real-time or latest available price.
+
+    Args:
+        ticker: Stock ticker symbol
+        collector: YFinance collector
+
+    Returns:
+        dict: Latest price information
     """
+    logger.info(f"Fetching latest price for {ticker}")
+
+    try:
+        # Get latest day's data
+        data = await collector.collect_stock_data(
+            ticker=ticker,
+            start_date=datetime.utcnow() - timedelta(days=5),
+            end_date=datetime.utcnow(),
+            interval="1d",
+        )
+
+        if data is None or data.empty:
+            raise HTTPException(status_code=404, detail=f"No data found for ticker {ticker}")
+
+        # Get latest row
+        latest = data.iloc[-1]
+
+        return {
+            "ticker": ticker,
+            "timestamp": data.index[-1].isoformat(),
+            "open": float(latest["Open"]),
+            "high": float(latest["High"]),
+            "low": float(latest["Low"]),
+            "close": float(latest["Close"]),
+            "volume": int(latest["Volume"]),
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching latest price: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch latest price: {str(e)}")
+
+
+@router.post("/market-data/batch")
+async def get_batch_market_data(
+    tickers: list[str] = Field(..., min_length=1, max_length=50),
+    start_date: datetime = Query(...),
+    end_date: datetime = Query(default_factory=datetime.utcnow),
+    interval: str = Query("1d"),
+    collector: YFinanceCollector = Depends(get_yfinance_collector),
+):
+    """
+    Get market data for multiple tickers:
+
+    Batch endpoint for efficient multi-ticker data retrieval.
+
+    Args:
+        tickers: List of ticker symbols
+        start_date: Start date
+        end_date: End date
+        interval: Data interval
+        collector: YFinance collector
+
+    Returns:
+        dict: Market data for all tickers
+    """
+    logger.info(f"Fetching batch market data for {len(tickers)} tickers")
+
+    results = {}
+    errors = {}
+
+    for ticker in tickers:
+        try:
+            data = await collect.collect_stock_data(
+                ticker=ticker,
+                start_date=start_date,
+                end_date=end_date,
+                interval=interval,
+            )
+
+            if data is not None and not data.empty:
+                results[ticker] = data.reset_index().to_dict("records")
+            else:
+                errors[ticker] = "No data available"
+
+        except Exception as e:
+            logger.error(f"Error fetching data for {ticker}: {e}")
+            errors[ticker] = str(e)
+
     return {
-        "tickers": [
-            "AAPL", "GOOGL", "MSFT", "AMZN", "META", "TSLA", "NVDA", "JPM",
-            "V", "JNJ", "WMT", "PG", "MA", "UNH", "HD", "DIS", "BAC", "XOM",
-            "VZ", "ADBE", "CRM", "NFLX", "INTC", "CSCO", "PFE", "ABT", "KO",
-            "PEP", "MRK", "TMO"
-        ],
-        "total": 30
+        "success": results,
+        "errors": errors,
+        "total_requested": len(tickers),
+        "successful": len(results),
+        "failed": len(errors),
     }
 
 
-@router.post("/collect")
-async def collect_data(
-    request: CollectDataRequest,
-    collector: Annotated[YFinanceCollector, Depends(get_collector)],
+# ============================================================================
+# Technical Indicators Endpoints
+# ============================================================================
+
+
+@router.post("/indicators/calculate", response_model=FeaturesResponse)
+async def calculate_technical_indicators(
+    request: TechnicalIndicatorsRequest,
+    collector: YFinanceCollector = Depends(get_yfinance_collector),
+    engineer: FeatureEngineer = Depends(get_feature_engineer),
 ):
     """
-    Collect market data for a single ticker
+    Calculate technical indicators for a ticker.
 
-    **Request:**
-    - ticker: Stock symbol (e.g., AAPL)
-    - start_date: Start date for data collection
-    - end_date: End date for data collection
-    - interval: Data interval (1d, 1h, etc.)
+    Computes requested technical indicators using native implementations.
 
-    **Response:**
-    - 200: Data collected successfully (sync)
-    - 202: Data collection task submitted (async)
+    Supported Indicators:
+    - SMA: Simple Moving Average
+    - EMA: Exponential Moving Average
+    - RSI: Relative Strength Index
+    - MACD: Moving Average Convergence Divergence
+    - ATR: Average True Range
+    - OBV: On-Balance Volume
+    - Stochastic Oscillator
+
+    Args:
+        request: Indicator calculation request
+        collector: YFinance collector
+        engineer: Feature engineer
+
+    Returns:
+        FeaturesResponse: Calculated indicators
     """
-    try:
-        logger.info(f"Collecting data for {request.ticker} from {request.start_date} to {request.end_date}")
+    logger.info(f"Calculating indicators for {request.ticker}: {request.indicators}")
 
-        data = await collector.collect_with_retry(
+    try:
+        # Fetch market data
+        data = await collector.collect_stock_data(
             ticker=request.ticker,
             start_date=request.start_date,
             end_date=request.end_date,
             interval=request.interval,
         )
 
-        if data is None or data.height == 0:
-            raise HTTPException(status_code=404, detail=f"No data found for ticker {request.ticker}")
+        if data is None or data.empty:
+            raise HTTPException(
+                status_code=404, detail=f"No data found for ticker {request.ticker}"
+            )
 
-        data_dict = data.to_dicts()
+        # Calculate indicators
+        features = {}
+
+        if "sma" in request.indicators:
+            from backend.ml_engine.features.technical_indicators import calculate_sma
+
+            features["sma"] = calculate_sma(data["Close"], window=request.sma_period).tolist()
+
+        if "ema" in request.indicators:
+            from backend.ml_engine.features.technical_indicators import calculate_ema
+
+            features["ema"] = calculate_ema(data["Close"], span=request.ema_period).tolist()
+
+        if "rsi" in request.indicators:
+            from backend.ml_engine.features.technical_indicators import calculate_rsi
+
+            features["rsi"] = calculate_rsi(data["Close"], window=request.rsi_period).tolist()
+
+        if "macd" in request.indicators:
+            from backend.ml_engine.features.technical_indicators import calculate_macd
+
+            macd_line, signal_line, histogram = calculate_macd(
+                data["Close"],
+                fast=request.macd_fast,
+                slow=request.macd_slow,
+                signal=request.macd_signal,
+            )
+            features["macd"] = {
+                "macd_line": macd_line.tolist(),
+                "signal_line": signal_line.tolist(),
+                "histogram": histogram.tolist(),
+            }
+
+        return FeaturesResponse(
+            ticker=request.ticker,
+            timestamp=datetime.utcnow(),
+            feature_count=len(features),
+            features=features,
+        )
+
+    except Exception as e:
+        logger.error(f"Error calculating indicators: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to calculate indicators: {str(e)}")
+
+
+# ============================================================================
+# Feature Store Endpoints
+# ============================================================================
+
+
+@router.get("/features/{ticker}/embeddings")
+async def get_feature_embeddings(
+    ticker: str,
+    embedding_type: str = Query(
+        ...,
+        pattern="^(temporal|semantic|structural|fused)$",
+        description="Type of embedding to retrieve",
+    ),
+    timestamp: datetime | None = None,
+    redis: Redis = Depends(get_redis),
+):
+    """
+    Get pre-computed feature embeddings from feature store.
+
+    Retrieves cached embeddings from Redis feature store for fast access.
+
+    Embedding Types:
+    - temporal: TFT time-series embeddings (128-dim)
+    - semantic: BERT sentiment embeddings (64-dim)
+    - structural: GNN market graph embeddings (32-dim)
+    - fused: Combined multi-modal embeddings (224-dim)
+
+    Args:
+        ticker: Stock ticker symbol
+        embedding_type: Type of embedding
+        timestamp: Optional timestamp (default: latest)
+        redis: Redis connection
+
+    Returns:
+        dict: Embedding vector and metadata
+    """
+    logger.info(f"Fetching {embedding_type} embedding for {ticker}")
+
+    try:
+        # Build Redis key
+        if timestamp:
+            key = f"embedding:{embedding_type}:{ticker}:{timestamp.isoformat()}"
+        else:
+            key = f"embedding:{embedding_type}:{ticker}:latest"
+
+        # Get from Redis
+        embedding = redis.get(key)
+
+        if embedding is None:
+            raise HTTPException(status_code=404, detail=f"Embedding not found for {ticker}")
+
+        # Parse embedding (assuming JSON-encoded)
+        import json
+
+        embedding_data = json.loads(embedding)
 
         return {
-            "ticker": request.ticker,
-            "start_date": request.start_date.isoformat(),
-            "end_date": request.end_date.isoformat(),
-            "rows": len(data_dict),
-            "data": data_dict,
+            "ticker": ticker,
+            "embedding_type": embedding_type,
+            "timestamp": embedding_data.get("timestamp"),
+            "dimension": len(embedding_data.get("vector", [])),
+            "vector": embedding_data.get("vector"),
+            "metadata": embedding_data.get("metadata", {}),
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error collecting data for {request.ticker}: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Error fetching embedding: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch embedding: {str(e)}")
 
 
-@router.get("/{ticker}/prices", response_model=PriceDataResponse)
-async def get_historical_prices(
+@router.get("/features/{ticker}/freshness")
+async def check_feature_freshness(
     ticker: str,
-    start_date: Annotated[datetime | None, Query(description="Start date (YYYY-MM-DD)")] = None,
-    end_date: Annotated[datetime | None, Query(description="End date (YYYY-MM-DD)")] = None,
-    interval: Annotated[str, Query(pattern="^(1d|1h|5m|15m|30m|1wk|1mo)$")] = "1d",
-    collector: Annotated[YFinanceCollector, Depends(get_collector)] = "default",
+    redis: Redis = Depends(get_redis),
 ):
     """
-    Get historical price data for a ticker
+    Check freshness of cached features.
 
-    **Intervals:**
-    - 1d: Daily
-    - 1h: Hourly
-    - 5m, 15m, 30m: Intraday
-    - 1wk: Weekly
-    - 1mo: Monthly
+    Returns age of cached embeddings to determine if refresh is needed.
+
+    Args:
+        ticker: Stock ticker symbol
+        redis: Redis connection
+
+    Returns:
+        dict: Freshness information for all embedding types
     """
+    logger.info(f"Checking feature freshness for {ticker}")
+
+    freshness = {}
+
+    for embedding_type in ["temporal", "semantic", "structural", "fused"]:
+        key = f"embedding:{embedding_type}:{ticker}:latest"
+
+        # Check if key exists
+        if redis.exists(key):
+            # Get TTL
+            ttl = redis.ttl(key)
+
+            # Get timestamp from value
+            try:
+                import json
+
+                data = json.loads(redis.get(key))
+                created_at = datetime.fromisoformat(data.get("timestamp"))
+                age_seconds = (datetime.utcnow() - created_at).total_seconds()
+            except Exception:
+                age_seconds = None
+
+            freshness[embedding_type] = {
+                "exists": True,
+                "ttl_seconds": ttl,
+                "age_seconds": age_seconds,
+                "fresh": ttl > 0,
+            }
+        else:
+            freshness[embedding_type] = {
+                "exists": False,
+                "ttl_seconds": None,
+                "age_seconds": None,
+                "fresh": False,
+            }
+
+    return {
+        "ticker": ticker,
+        "checked_at": datetime.utcnow().isoformat(),
+        "embeddings": freshness,
+    }
+
+
+# ============================================================================
+# Data Quality Endpoints
+# ============================================================================
+
+
+@router.get("/quality-check/{ticker}")
+async def check_data_quality(
+    ticker: str,
+    start_date: datetime = Query(default=datetime.utcnow() - timedelta(days=30)),
+    end_date: datetime = Query(default_factory=datetime.utcnow),
+    collector: YFinanceCollector = Depends(get_yfinance_collector),
+):
+    """
+    Check data quality for a ticker.
+
+    Analyzes market data for:
+    - Missing values
+    - Outliers
+    - Gaps in time series
+    - Volume anomalies
+
+    Args:
+        ticker: Stock ticker symbol
+        start_date: Start date
+        end_date: End date
+        collector: YFinance collector
+
+    Returns:
+        dict: Data quality report
+    """
+    logger.info(f"Checking data quality for {ticker}")
+
     try:
-        # Set defaults
-        if end_date is None:
-            end_date = datetime.now()
-        if start_date is None:
-            start_date = end_date - timedelta(days=365)
-
-        logger.info(f"Fetching {ticker} from {start_date} to {end_date}")
-
-        # Collect data
-        data = await collector.collect_with_retry(
-            ticker=ticker, start_date=start_date, end_date=end_date, interval=interval
-        )
-
-        if data is None or data.height == 0:
-            raise HTTPException(status_code=404, detail=f"No data found for ticker {ticker}")
-
-        # Convert to dict for response
-        data_dict = data.to_dicts()
-
-        return PriceDataResponse(
+        data = await collector.collect_stock_data(
             ticker=ticker,
             start_date=start_date,
             end_date=end_date,
-            interval=interval,
-            data_points=len(data_dict),
-            data=data_dict,
+            interval="1d",
         )
 
-    except Exception as e:
-        logger.error(f"Error fetching prices for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.post("/batch/prices")
-async def get_batch_prices(
-    request: BatchDataRequest,
-    collector: Annotated[YFinanceCollector, Depends(get_collector)],
-):
-    """
-    Get historical prices for multiple tickers in parallel
-
-    **Limitations:**
-    - Maximum 100 tickers per request
-    - Rate limited to protect APIs
-    """
-    try:
-        logger.info(f"Batch request for {len(request.tickers)} tickers")
-
-        # Collect data for all tickers
-        results = await collector.collect_batch(
-            tickers=request.tickers,
-            start_date=request.start_date,
-            end_date=request.end_date,
-            max_concurrent=5,
-            interval=request.interval,
-        )
-
-        # Format response
-        response = {
-            "requested": len(request.tickers),
-            "successful": len(results),
-            "failed": len(request.tickers) - len(results),
-            "data": {
-                ticker: {"data_points": data.height, "data": data.to_dicts()}
-                for ticker, data in results.items()
-            },
-        }
-
-        return response
-
-    except Exception as e:
-        logger.error(f"Error in batch collection: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.get("/{ticker}/features", response_model=FeatureResponse)
-async def get_features(
-    ticker: str,
-    start_date: datetime | None = None,
-    end_date: datetime | None = None,
-    categories: Annotated[
-        str | None,
-        Query(
-            description="Comma-separated categories: price,volume,volatility,momentum,trend,statistical"
-        ),
-    ] = None,
-    include_data: Annotated[bool, Query(description="Include feature values in response")] = False,
-    collector: Annotated[YFinanceCollector, Depends(get_collector)] = "default",
-):
-    """
-    Get computed features for a ticker
-
-    **Feature Categories:**
-    - price: Returns, gaps, ranges
-    - volume: Volume indicators, OBV, VWAP
-    - volatility: ATR, Bollinger Bands, historical volatility
-    - momentum: RSI, Stochastic, ROC, MFI
-    - trend: Moving averages, MACD, ADX, Parabolic SAR
-    - statistical: Skewness, kurtosis, z-scores
-    """
-    try:
-        # Collect raw data
-        data = await collector.collect_with_retry(
-            ticker=ticker, start_date=start_date, end_date=end_date
-        )
-
-        if data is None:
+        if data is None or data.empty:
             raise HTTPException(status_code=404, detail=f"No data found for ticker {ticker}")
 
-        # Engineer features
-        fe = FeatureEngineer()
-        enriched_data = fe.create_all_features(data, add_lags=True, add_rolling=True)
+        # Check for missing values
+        missing_values = data.isnull().sum().to_dict()
 
-        # Filter by categories if specified
-        if categories:
-            requested_categories = [c.strip() for c in categories.split(",")]
-            feature_list = []
-            for category in requested_categories:
-                feature_list.extend(fe.get_feature_names_by_category(category))
-        else:
-            feature_list = fe.get_all_feature_names()
+        # Check for zero volume days
+        zero_volume_days = int((data["Volume"] == 0).sum())
 
-        # Build response
-        response = FeatureResponse(
-            ticker=ticker,
-            features=feature_list,
-            categories={
-                cat: fe.get_feature_names_by_category(cat)
-                for cat in [
-                    "price",
-                    "volume",
-                    "volatility",
-                    "momentum",
-                    "trend",
-                    "statistical",
-                ]
-            },
-            data_points=enriched_data.height,
-            data=enriched_data.to_dicts() if include_data else None,
-        )
-
-        return response
-
-    except Exception as e:
-        logger.error(f"Error computing features for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.get("/{ticker}/info", response_model=CompanyInfoResponse)
-async def get_company_info(
-    ticker: str,
-    collector: Annotated[YFinanceCollector, Depends(get_collector)],
-):
-    """
-    Get company information and fundamental metrics
-    """
-    try:
-        info = await collector.get_company_info(ticker)
-
-        if info is None:
-            raise HTTPException(
-                status_code=404, detail=f"Company information not found for {ticker}"
-            )
-
-        return CompanyInfoResponse(**info)
-
-    except Exception as e:
-        logger.error(f"Error fetching company info for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.get("/{ticker}/options")
-async def get_options_chain(
-    ticker: str,
-    expiration_date: Annotated[
-        str | None, Query(description="Expiration date (YYYY-MM-DD)")
-    ] = None,
-    collector: Annotated[YFinanceCollector, Depends(get_collector)] = "default",
-):
-    """
-    Get options chain data for a ticker
-    """
-    try:
-        options_data = await collector.get_options_data(ticker, expiration_date)
-
-        if options_data is None:
-            raise HTTPException(status_code=404, detail=f"Options data not found for {ticker}")
+        # Check for price gaps (>10% change)
+        price_changes = data["Close"].pct_change()
+        large_gaps = int((abs(price_changes) > 0.10).sum())
 
         return {
             "ticker": ticker,
-            "expiration": options_data["expiration"],
-            "calls": options_data["calls"].to_dicts(),
-            "puts": options_data["puts"].to_dicts(),
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "total_rows": len(data),
+            "missing_values": missing_values,
+            "zero_volume_days": zero_volume_days,
+            "large_price_gaps": large_gaps,
+            "quality_score": 100
+            - (
+                (sum(missing_values.values()) / len(data) * 50)
+                + (zero_volume_days / len(data) * 25)
+                + (large_gaps / len(data) * 25)
+            ),
         }
 
     except Exception as e:
-        logger.error(f"Error fetching options for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.get("/{ticker}/institutional-holders")
-async def get_institutional_holders(
-    ticker: str,
-    collector: Annotated[YFinanceCollector, Depends(get_collector)],
-):
-    """
-    Get institutional holders information
-    """
-    try:
-        holders = await collector.get_institutional_holders(ticker)
-
-        if holders is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Institutional holders data not found for {ticker}",
-            )
-
-        return {"ticker": ticker, "holders": holders.to_dicts()}
-
-    except Exception as e:
-        logger.error(f"Error fetching institutional holders for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.get("/{ticker}/earnings")
-async def get_earnings_history(
-    ticker: str,
-    collector: Annotated[YFinanceCollector, Depends(get_collector)],
-):
-    """
-    Get historical earnings data
-    """
-    try:
-        earnings = await collector.get_earnings_history(ticker)
-
-        if earnings is None:
-            raise HTTPException(status_code=404, detail=f"Earnings data not found for {ticker}")
-
-        return {"ticker": ticker, "earnings": earnings.to_dicts()}
-
-    except Exception as e:
-        logger.error(f"Error fetching earnings for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.get("/market/status")
-async def get_market_status():
-    """
-    Get current market status
-    """
-    try:
-        now = datetime.now()
-
-        # Simple market hours check (NYSE hours in UTC)
-        # 9:30 AM - 4:00 PM EST = 14:30 - 21:00 UTC
-        is_weekday = now.weekday() < 5
-        hour_utc = now.hour
-        is_market_hours = 14 <= hour_utc < 21
-
-        status = {
-            "is_open": is_weekday and is_market_hours,
-            "current_time": now.isoformat(),
-            "timezone": "UTC",
-            "next_open": "Market hours: 9:30 AM - 4:00 PM EST (Mon-Fri)",
-            "message": "Market is open" if (is_weekday and is_market_hours) else "Market is closed",
-        }
-
-        return status
-
-    except Exception as e:
-        logger.error(f"Error checking market status: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Error checking data quality: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to check data quality: {str(e)}")
