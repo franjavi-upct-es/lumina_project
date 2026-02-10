@@ -65,13 +65,11 @@ with st.sidebar:
 
     date_range = st.selectbox(
         "Quick Select",
-        ["1 Week", "1 Month", "3 Months", "6 Months", "1 Year", "2 Years", "5 Years", "Custom"]
+        ["1 Week", "1 Month", "3 Months", "6 Months", "1 Year", "2 Years", "5 Years", "Custom"],
     )
 
     if date_range == "Custom":
-        start_date = st.date_input(
-            "Start Date", value = datetime.now() - timedelta(days=365)
-        )
+        start_date = st.date_input("Start Date", value=datetime.now() - timedelta(days=365))
     else:
         days_map = {
             "1 Week": 7,
@@ -88,19 +86,19 @@ with st.sidebar:
     interval = st.selectbox(
         "Interval",
         ["1d", "1h", "15m", "30m", "1wk", "1mo"],
-        index = 0,
-        help = "Data granularity",
+        index=0,
+        help="Data granularity",
     )
 
     # Feature options
     st.markdown("### 🔬 Feature Options")
-    show_features = st.checkbox("Show Features", value = False)
+    show_features = st.checkbox("Show Features", value=False)
 
     if show_features:
         feature_categories = st.multiselect(
             "Feature Categories",
             ["price", "volume", "volatility", "momentum", "trend", "statistical"],
-            default = ["price", "momentum"]
+            default=["price", "momentum"],
         )
 
     # Actions
@@ -160,11 +158,11 @@ try:
 
         with col4:
             avg_volume = df["volume"].mean()
-            st.metric("Avg Volume", f"{avg_volume/1e6:.1f}M")
+            st.metric("Avg Volume", f"{avg_volume / 1e6:.1f}M")
 
         with col5:
-            volatility = df["close"].pct_change().std() * (252 ** 0.5)
-            st.metric("Volatility (Ann.)", f"{volatility*100:.1f}%")
+            volatility = df["close"].pct_change().std() * (252**0.5)
+            st.metric("Volatility (Ann.)", f"{volatility * 100:.1f}%")
 
         # Price chart
         st.markdown("### 📊 Price Chart")
@@ -180,7 +178,7 @@ try:
             cols=1,
             row_heights=[0.7, 0.3],
             vertical_spacing=0.05,
-            subplot_titles = (f"{ticker} Price", "Volume"),
+            subplot_titles=(f"{ticker} Price", "Volume"),
         )
 
         # Price chart
@@ -192,7 +190,7 @@ try:
                     high=df["high"],
                     low=df["low"],
                     close=df["close"],
-                    name="OHLC"
+                    name="OHLC",
                 ),
                 row=1,
                 col=1,
@@ -204,19 +202,19 @@ try:
                     y=df["close"],
                     mode="lines",
                     name="Close",
-                    line=dict(color="#1f77b4", width=2)
+                    line=dict(color="#1f77b4", width=2),
                 ),
                 row=1,
                 col=1,
             )
-        else: # Area
+        else:  # Area
             fig.add_trace(
                 go.Scatter(
                     x=df["time"],
                     y=df["close"],
                     fill="tozeroy",
                     name="Close",
-                    line=dict(color="#1f77b4")
+                    line=dict(color="#1f77b4"),
                 ),
                 row=1,
                 col=1,
@@ -224,8 +222,7 @@ try:
 
         # Volume chart
         colors = [
-            "green" if close >= open_ else "red"
-            for close, open_ in zip(df["close"], df["open"])
+            "green" if close >= open_ else "red" for close, open_ in zip(df["close"], df["open"])
         ]
 
         fig.add_trace(
@@ -286,14 +283,14 @@ try:
                     ],
                 }
             )
-            st.dataframe(stats_df, hide_index = True, width="stretch")
+            st.dataframe(stats_df, hide_index=True, width="stretch")
 
         with col2:
             st.markdown("### 📈 Returns Analysis")
 
             daily_return = returns.mean() * 100
             annual_return = (1 + returns.mean()) ** 252 - 1
-            sharpe = (returns.mean() / returns.std()) * (252 ** 0.5) if returns.std() > 0 else 0
+            sharpe = (returns.mean() / returns.std()) * (252**0.5) if returns.std() > 0 else 0
 
             returns_df = pd.DataFrame(
                 {
@@ -312,14 +309,14 @@ try:
                         f"{annual_return * 100:.2f}%",
                         f"{returns.std() * 100:.4f}%",
                         f"{sharpe:.2f}",
-                        f"{returns.max()*100:.2f}%",
-                        f"{returns.min()*100:.2f}%",
-                        f"{(returns > 0).mean()*100:.1f}%",
+                        f"{returns.max() * 100:.2f}%",
+                        f"{returns.min() * 100:.2f}%",
+                        f"{(returns > 0).mean() * 100:.1f}%",
                         f"{len(df)}",
                     ],
                 }
             )
-            st.dataframe(returns_df, hide_index = True, width="stretch")
+            st.dataframe(returns_df, hide_index=True, width="stretch")
 
         # Returns distribution
         st.markdown("### 📊 Returns Distribution")
@@ -349,13 +346,13 @@ try:
             with st.spinner("Computing features..."):
                 feature_response = requests.get(
                     f"{API_URL}/api/v2/data/{ticker}/features",
-                    params = {
+                    params={
                         "start_date": start_date.isoformat(),
                         "end_date": end_date.isoformat(),
                         "categories": ",".join(feature_categories),
                         "include_data": True,
                     },
-                    timeout = 60,
+                    timeout=60,
                 )
 
             if feature_response.status_code == 200:
@@ -379,41 +376,44 @@ try:
                     st.markdown("#### Feature Visualization")
 
                     available_features = [
-                        f for f in features_df.columns
+                        f
+                        for f in features_df.columns
                         if f not in ["time", "ticker", "source", "collected_at"]
                     ]
 
                     selected_features = st.multiselect(
                         "Select features to plot",
                         available_features[:20],  # Show first 20
-                        default = available_features[:3] if len(available_features) >= 3 else available_features,
+                        default=available_features[:3]
+                        if len(available_features) >= 3
+                        else available_features,
                     )
 
                     if selected_features:
                         # Plot selected features
                         fig_features = make_subplots(
-                            rows = len(selected_features),
-                            cols = 1,
-                            subplot_titles = selected_features,
-                            vertical_spacing = 0.05,
+                            rows=len(selected_features),
+                            cols=1,
+                            subplot_titles=selected_features,
+                            vertical_spacing=0.05,
                         )
 
                         for idx, feature in enumerate(selected_features, 1):
                             fig_features.add_trace(
                                 go.Scatter(
-                                    x = features_df["time"],
-                                    y = features_df[feature],
-                                    name = feature,
-                                    mode = "lines",
+                                    x=features_df["time"],
+                                    y=features_df[feature],
+                                    name=feature,
+                                    mode="lines",
                                 ),
-                                row = idx,
-                                col = 1,
+                                row=idx,
+                                col=1,
                             )
 
                         fig_features.update_layout(
-                            height = 300 * len(selected_features),
-                            showlegend = False,
-                            template = "plotly_dark",
+                            height=300 * len(selected_features),
+                            showlegend=False,
+                            template="plotly_dark",
                         )
 
                         st.plotly_chart(fig_features, width="stretch")
@@ -426,11 +426,11 @@ try:
 
                         fig_corr = px.imshow(
                             corr_df,
-                            text_auto = True,
-                            aspect = "auto",
-                            color_continuous_scale = "RdBu_r",
-                            title = "Feature Correlation Matrix",
-                            template = "plotly_dark",
+                            text_auto=True,
+                            aspect="auto",
+                            color_continuous_scale="RdBu_r",
+                            title="Feature Correlation Matrix",
+                            template="plotly_dark",
                         )
 
                         st.plotly_chart(fig_corr, width="stretch")
@@ -446,10 +446,10 @@ try:
         if st.session_state.get("export_requested", False):
             st.markdown("### 💾 Export Data")
 
-            export_format = st.radio("Format", ["CSV", "JSON", "Excel"], horizontal = True)
+            export_format = st.radio("Format", ["CSV", "JSON", "Excel"], horizontal=True)
 
             if export_format == "CSV":
-                csv = df.to_csv(index = False)
+                csv = df.to_csv(index=False)
                 st.download_button(
                     "Download CSV",
                     csv,
@@ -458,7 +458,7 @@ try:
                     width="stretch",
                 )
             elif export_format == "JSON":
-                json_str = df.to_json(orient = "records", date_format = "iso")
+                json_str = df.to_json(orient="records", date_format="iso")
                 st.download_button(
                     "Download JSON",
                     json_str,
@@ -475,9 +475,7 @@ try:
         with st.expander("ℹ️ Company Information"):
             with st.spinner("Loading company info..."):
                 try:
-                    info_response = requests.get(
-                        f"{API_URL}/api/v2/data/{ticker}/info", timeout = 10
-                    )
+                    info_response = requests.get(f"{API_URL}/api/v2/data/{ticker}/info", timeout=10)
 
                     if info_response.status_code == 200:
                         info = info_response.json()
@@ -491,17 +489,24 @@ try:
                             st.markdown(f"**Country:** {info.get('country', 'N/A')}")
 
                         with col2:
-                            market_cap = info.get('market_cap', 0)
+                            market_cap = info.get("market_cap", 0)
                             st.markdown(
-                                f"**Market Cap:** ${market_cap / 1e9:.2f}B" if market_cap else "**Market Cap:** N/A")
+                                f"**Market Cap:** ${market_cap / 1e9:.2f}B"
+                                if market_cap
+                                else "**Market Cap:** N/A"
+                            )
                             st.markdown(f"**P/E Ratio:** {info.get('pe_ratio', 'N/A')}")
                             st.markdown(f"**Beta:** {info.get('beta', 'N/A')}")
-                            div_yield = info.get('dividend_yield', 0)
-                            st.markdown(f"**Div Yield:** {div_yield * 100:.2f}%" if div_yield else "**Div Yield:** N/A")
+                            div_yield = info.get("dividend_yield", 0)
+                            st.markdown(
+                                f"**Div Yield:** {div_yield * 100:.2f}%"
+                                if div_yield
+                                else "**Div Yield:** N/A"
+                            )
 
-                        if info.get('description'):
+                        if info.get("description"):
                             st.markdown("**Description:**")
-                            st.markdown(info['description'][:500] + "...")
+                            st.markdown(info["description"][:500] + "...")
                     else:
                         st.warning("Company information not available")
                 except Exception as e:

@@ -16,9 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Environment configuration for tests
 TEST_CONFIG = {
     # Database
-    "DATABASE_URL": os.getenv(
-        "DATABASE_URL", "postgresql://localhost:5435/lumina_db"
-    ),
+    "DATABASE_URL": os.getenv("DATABASE_URL", "postgresql://localhost:5435/lumina_db"),
     # Redis
     "REDIS_URL": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
     "CELERY_BROKER_URL": os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/1"),
@@ -36,7 +34,9 @@ for key, value in TEST_CONFIG.items():
 
 def pytest_configure(config):
     """Configure pytest markers"""
-    config.addinivalue_line("markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')")
+    config.addinivalue_line(
+        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+    )
     config.addinivalue_line("markers", "integration: marks tests as integration tests")
     config.addinivalue_line("markers", "unit: marks tests as unit tests")
     config.addinivalue_line("markers", "docker: marks tests requiring Docker services")

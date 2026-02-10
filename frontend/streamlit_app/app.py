@@ -49,9 +49,7 @@ st.markdown(
 )
 
 # Header
-st.markdown(
-    '<div class="main-header">🚀 Lumina Quant Lab 2.0</div>', unsafe_allow_html=True
-)
+st.markdown('<div class="main-header">🚀 Lumina Quant Lab 2.0</div>', unsafe_allow_html=True)
 st.markdown("**Advanced Quantitative Trading Platform with AI/ML**")
 st.markdown("---")
 
@@ -162,9 +160,7 @@ try:
                 df["normalized"] = (df["close"] / df["close"].iloc[0]) * 100
 
                 fig.add_trace(
-                    go.Scatter(
-                        x=df["time"], y=df["normalized"], name=ticker, mode="lines"
-                    )
+                    go.Scatter(x=df["time"], y=df["normalized"], name=ticker, mode="lines")
                 )
         except:
             pass

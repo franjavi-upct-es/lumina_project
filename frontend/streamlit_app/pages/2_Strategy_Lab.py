@@ -85,9 +85,7 @@ with st.sidebar:
     # Date range
     col1, col2 = st.columns(2)
     with col1:
-        start_date = st.date_input(
-            "Start Date", value=datetime.now() - timedelta(days=365)
-        )
+        start_date = st.date_input("Start Date", value=datetime.now() - timedelta(days=365))
     with col2:
         end_date = st.date_input("End Date", value=datetime.now())
 
@@ -98,23 +96,23 @@ with st.sidebar:
         "Initial Capital ($)", min_value=1000, max_value=10000000, value=100000, step=1000
     )
 
-    position_size = st.slider(
-        "Position Size (%)", min_value=1, max_value=100, value=10, step=1
-    ) / 100
-
-    max_positions = st.slider(
-        "Max Positions", min_value=1, max_value=20, value=5, step=1
+    position_size = (
+        st.slider("Position Size (%)", min_value=1, max_value=100, value=10, step=1) / 100
     )
+
+    max_positions = st.slider("Max Positions", min_value=1, max_value=20, value=5, step=1)
 
     # Transaction costs
     with st.expander("⚙️ Advanced Settings"):
-        commission = st.number_input(
-            "Commission (%)", min_value=0.0, max_value=1.0, value=0.1, step=0.01
-        ) / 100
+        commission = (
+            st.number_input("Commission (%)", min_value=0.0, max_value=1.0, value=0.1, step=0.01)
+            / 100
+        )
 
-        slippage = st.number_input(
-            "Slippage (%)", min_value=0.0, max_value=1.0, value=0.05, step=0.01
-        ) / 100
+        slippage = (
+            st.number_input("Slippage (%)", min_value=0.0, max_value=1.0, value=0.05, step=0.01)
+            / 100
+        )
 
         stop_loss = st.number_input(
             "Stop Loss (%)", min_value=0.0, max_value=50.0, value=0.0, step=1.0
@@ -224,19 +222,19 @@ if strategy_mode == "Pre-built Strategies":
         strategy_code = f"""
 def strategy(data, features):
     signals = []
-    rsi_col = 'rsi_{strategy_params.get('rsi_period', 14)}'
+    rsi_col = 'rsi_{strategy_params.get("rsi_period", 14)}'
     
     for i in range(len(data)):
-        if i < {strategy_params.get('rsi_period', 14)}:
+        if i < {strategy_params.get("rsi_period", 14)}:
             signals.append('HOLD')
         else:
             rsi = features[rsi_col].iloc[i] if rsi_col in features.columns else None
             
             if rsi is None or pd.isna(rsi):
                 signals.append('HOLD')
-            elif rsi < {strategy_params.get('oversold', 30)}:
+            elif rsi < {strategy_params.get("oversold", 30)}:
                 signals.append('BUY')
-            elif rsi > {strategy_params.get('overbought', 70)}:
+            elif rsi > {strategy_params.get("overbought", 70)}:
                 signals.append('SELL')
             else:
                 signals.append('HOLD')
@@ -273,8 +271,8 @@ def strategy(data, features):
         strategy_code = f"""
 def strategy(data, features):
     signals = []
-    fast_col = 'sma_{strategy_params.get('fast_period', 50)}'
-    slow_col = 'sma_{strategy_params.get('slow_period', 200)}'
+    fast_col = 'sma_{strategy_params.get("fast_period", 50)}'
+    slow_col = 'sma_{strategy_params.get("slow_period", 200)}'
     prev_fast = None
     prev_slow = None
     
@@ -324,7 +322,7 @@ def strategy(data, features):
     import numpy as np
     signals = []
     closes = data['close'].values
-    lookback = {strategy_params.get('lookback', 20)}
+    lookback = {strategy_params.get("lookback", 20)}
     
     for i in range(len(data)):
         if i < lookback:
@@ -338,9 +336,9 @@ def strategy(data, features):
         
         z_score = (current - mean) / std if std > 0 else 0
         
-        if z_score < -{strategy_params.get('std_threshold', 2.0)}:
+        if z_score < -{strategy_params.get("std_threshold", 2.0)}:
             signals.append('BUY')
-        elif z_score > {strategy_params.get('std_threshold', 2.0)}:
+        elif z_score > {strategy_params.get("std_threshold", 2.0)}:
             signals.append('SELL')
         else:
             signals.append('HOLD')
@@ -352,7 +350,7 @@ def strategy(data, features):
 def strategy(data, features):
     signals = []
     closes = data['close'].values
-    lookback = {strategy_params.get('lookback', 20)}
+    lookback = {strategy_params.get("lookback", 20)}
     
     for i in range(len(data)):
         if i < lookback:
@@ -361,9 +359,9 @@ def strategy(data, features):
         
         momentum = (closes[i] - closes[i-lookback]) / closes[i-lookback]
         
-        if momentum > {strategy_params.get('threshold', 0.02)}:
+        if momentum > {strategy_params.get("threshold", 0.02)}:
             signals.append('BUY')
-        elif momentum < -{strategy_params.get('threshold', 0.02)}:
+        elif momentum < -{strategy_params.get("threshold", 0.02)}:
             signals.append('SELL')
         else:
             signals.append('HOLD')
@@ -415,9 +413,9 @@ def strategy(data, features):
                     sell_votes += 1
         
         # Decision
-        if buy_votes >= {strategy_params.get('min_votes', 2)}:
+        if buy_votes >= {strategy_params.get("min_votes", 2)}:
             signals.append('BUY')
-        elif sell_votes >= {strategy_params.get('min_votes', 2)}:
+        elif sell_votes >= {strategy_params.get("min_votes", 2)}:
             signals.append('SELL')
         else:
             signals.append('HOLD')
@@ -639,12 +637,12 @@ if st.session_state.active_job:
                         st.write(f"Initial Capital: ${results.get('initial_capital', 0):,.2f}")
                         st.write(f"Final Capital: ${results.get('final_capital', 0):,.2f}")
                         st.write(
-                            f"Annualized Return: {results.get('annualized_return', 0)*100:.2f}%"
+                            f"Annualized Return: {results.get('annualized_return', 0) * 100:.2f}%"
                         )
 
                     with col2:
                         st.markdown("**Risk Metrics**")
-                        st.write(f"Volatility: {results.get('volatility', 0)*100:.2f}%")
+                        st.write(f"Volatility: {results.get('volatility', 0) * 100:.2f}%")
                         st.write(f"Sortino Ratio: {results.get('sortino_ratio', 0):.2f}")
                         st.write(f"Calmar Ratio: {results.get('calmar_ratio', 0):.2f}")
 

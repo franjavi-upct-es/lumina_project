@@ -294,9 +294,7 @@ class TestXGBoostModel:
             "min_child_weight": 5,
         }
 
-        model = XGBoostFinancialModel(
-            model_name="test_custom", hyperparameters=custom_params
-        )
+        model = XGBoostFinancialModel(model_name="test_custom", hyperparameters=custom_params)
 
         assert model.hyperparameters["n_estimators"] == 100
         assert model.hyperparameters["max_depth"] == 10
