@@ -1,10 +1,13 @@
+# README.md
+<!-- lumina-v2/README.md -->
+
 <div align="center">
 
 # LUMINA 2.0
 
 ## A Quantitative Research Platform for Financial Markets Analysis
 
-### _Integrating Statistical Learning, Time Series Econometrics, and Natural Language Processing_
+### *Integrating Statistical Learning, Time Series Econometrics, and Natural Language Processing*
 
 ---
 
@@ -18,15 +21,9 @@
 
 ## Abstract
 
-**Lumina 2.0** is a comprehensive quantitative research platform designed for
-systematic analysis of financial markets. The platform integrates methodologies
-from statistical, and computational linguistics to provide a unified framework for
-market research, strategy development, and risk assessment.
+**Lumina 2.0** is a comprehensive quantitative research platform designed for systematic analysis of financial markets. The platform integrates methodologies from statistical learning theory, time series econometrics, portfolio optimization, and computational linguistics to provide a unified framework for market research, strategy development, and risk assessment.
 
-This documentation presents the theoretical foundations underlying each component
-of the system, with emphasis on mathematical rigor and scientific methodology. The
-platform implements state-of-the-art techniques from academic finance literature
-while maintaining practical applicability for real-world trading research.
+This documentation presents the theoretical foundations underlying each component of the system, with emphasis on mathematical rigor and scientific methodology. The platform implements state-of-the-art techniques from academic finance literature while maintaining practical applicability for real-world trading research.
 
 ---
 
@@ -37,7 +34,7 @@ while maintaining practical applicability for real-world trading research.
 3. [Machine Learning Models](#3-machine-learning-models)
 4. [Risk Analytics and Portfolio Theory](#4-risk-analytics-and-portfolio-theory)
 5. [Market Regime Detection](#5-market-regime-detection)
-6. [Natural Language Processing for Finance](#5-market-regime-detection)
+6. [Natural Language Processing for Finance](#6-natural-language-processing-for-finance)
 7. [Backtesting Methodology](#7-backtesting-methodology)
 8. [Factor Models](#8-factor-models)
 9. [System Architecture](#9-system-architecture)
@@ -49,45 +46,34 @@ while maintaining practical applicability for real-world trading research.
 
 ### 1.1 Market Hypothesis and Assumptions
 
-The platform operates under a framework that acknowledges varying degrees of
-market efficiency. While the Efficient Market Hypothesis (EMH) in its strong
-form suggests that prices fully reflect all available information, Lumina 2.0
-if built on the premise that:
+The platform operates under a framework that acknowledges varying degrees of market efficiency. While the Efficient Market Hypothesis (EMH) in its strong form suggests that prices fully reflect all available information, Lumina 2.0 is built on the premise that:
 
-1. **Weak-form inefficiencies** may exist and can be exploited through technical
-   analysis
+1. **Weak-form inefficiencies** may exist and can be exploited through technical analysis
 2. **Behavioral anomalies** create temporary mispricings
 3. **Information asymmetries** provide opportunities for alpha generation
 
-The fundamental assumption underlying our predictive models follows from the
-**Adapatative Market Hypothesis** (Lo, 2004), which posits that market
-efficiency varies over time as market participants adapt to changing
-conditions.
+The fundamental assumption underlying our predictive models follows from the **Adaptive Market Hypothesis** (Lo, 2004), which posits that market efficiency varies over time as market participants adapt to changing conditions.
 
 ### 1.2 Price Process Modeling
 
-Asset prices are modeled as stochastic processes. The fundamental price
-dynamics follow a generalized Itô process:
+Asset prices are modeled as stochastic processes. The fundamental price dynamics follow a generalized Itô process:
 
-$$dS_t=\mu(S_t, t)\mathrm{d}t+\sigma(S_t,t)\mathrm{d}W_t$$
+$$dS_t = \mu(S_t, t)dt + \sigma(S_t, t)dW_t$$
 
 Where:
-
 - $S_t$ denotes the asset price at time $t$
-- $\mu (S_t,t)$ represents the drift coefficient (volatility)
-- $\sigma (S_t,t)$ represents the diffusion coefficient (volatility)
+- $\mu(S_t, t)$ represents the drift coefficient (expected return)
+- $\sigma(S_t, t)$ represents the diffusion coefficient (volatility)
 - $W_t$ is a standard Brownian motion
 
 In discrete time, log-returns are computed as:
 
-$$r_t = \ln \left( \frac{P_t}{P_{t-1}} \right)$$
+$$r_t = \ln\left(\frac{P_t}{P_{t-1}}\right)$$
 
-The platform assumes returns follow a generalized distribution that
-accounts for:
-
+The platform assumes returns follow a generalized distribution that accounts for:
 - **Fat tails** (leptokurtosis)
-- **Volatility** (heteroskedasticity)
-- **Assymetric responses** to positive and negative shocks
+- **Volatility clustering** (heteroskedasticity)
+- **Asymmetric responses** to positive and negative shocks
 
 ---
 
@@ -95,24 +81,23 @@ accounts for:
 
 ### 2.1 Technical Indicators: Mathematical Foundations
 
-The platform implements over 100 technical indicators, each
-grounded in mathematical theory. Below are the core formulations:
+The platform implements over 100 technical indicators, each grounded in mathematical theory. Below are the core formulations:
 
 #### 2.1.1 Moving Averages
 
 **Simple Moving Average (SMA)**:
 
-$$MA_n(t)=\frac{1}{n} \sum_{i=0}^{n-1} P_{t-i}$$
+$$SMA_n(t) = \frac{1}{n}\sum_{i=0}^{n-1}P_{t-i}$$
 
 **Exponential Moving Average (EMA)**:
 
-$$EMA_t = \alpha \cdot P_t + (1-\alpha)\cdot EMA_{t-1}$$
+$$EMA_t = \alpha \cdot P_t + (1-\alpha) \cdot EMA_{t-1}$$
 
-Where $\alpha=\frac{2}{n+1}$ is the smoothing factor.
+Where $\alpha = \frac{2}{n+1}$ is the smoothing factor.
 
 **Weighted Moving Average (WMA)**:
 
-$$WMA_n(t)=\frac{\sum_{i=0}^{n-1} (n-i)\cdot P_{t-i}}{\sum_{i=0}^{n} i}$$
+$$WMA_n(t) = \frac{\sum_{i=0}^{n-1}(n-i) \cdot P_{t-i}}{\sum_{i=1}^{n}i}$$
 
 #### 2.1.2 Momentum Oscillators
 
@@ -120,25 +105,22 @@ $$WMA_n(t)=\frac{\sum_{i=0}^{n-1} (n-i)\cdot P_{t-i}}{\sum_{i=0}^{n} i}$$
 
 $$RSI = 100 - \frac{100}{1 + RS}$$
 
-Where $RS=\frac{\text{Average Gain}}{\text{Average Loss} }$ over $n$ periods.
+Where $RS = \frac{\text{Average Gain}}{\text{Average Loss}}$ over $n$ periods.
 
-The RSI can be interpreted as a bounded transformation of the ratio of
-positive to negative price movements, providing a measure of momentum
-bounded in $[0,100]$.
+The RSI can be interpreted as a bounded transformation of the ratio of positive to negative price movements, providing a measure of momentum bounded in $[0, 100]$.
 
 **Stochastic Oscillator (%K)**:
 
-$$\% K = \frac{C_t - L_n}{H_n-L_n} \times 100$$
+$$\%K = \frac{C_t - L_n}{H_n - L_n} \times 100$$
 
 Where:
-
 - $C_t$ = current closing price
 - $L_n$ = lowest low over $n$ periods
 - $H_n$ = highest high over $n$ periods
 
 **MACD (Moving Average Convergence Divergence)**:
 
-$$MACD=EMA_{12}(P) - EMA_{26}(P)$$
+$$MACD = EMA_{12}(P) - EMA_{26}(P)$$
 
 $$Signal = EMA_9(MACD)$$
 
@@ -148,52 +130,41 @@ $$Histogram = MACD - Signal$$
 
 **Bollinger Bands**:
 
-$$Upper = SMA_n + k\cdot \sigma_n$$
+$$Upper = SMA_n + k \cdot \sigma_n$$
 
-$$Lower = SMA_n - k\cdot \sigma_n$$
+$$Lower = SMA_n - k \cdot \sigma_n$$
 
-Where $\sigma_n$ is the $n$-period rolling standard deviation and $k$ typically
-equals 2.
+Where $\sigma_n$ is the $n$-period rolling standard deviation and $k$ typically equals 2.
 
 **Average True Range (ATR)**:
 
-$$TR_t=\max(H_t-L_t,|H_t - C_{t-1}|, |L_t-C_{t-1}|)$$
+$$TR_t = \max(H_t - L_t, |H_t - C_{t-1}|, |L_t - C_{t-1}|)$$
 
-$$ATR_n=\displaystyle\frac{1}{n} \sum_{i=0}^{n-1} TR_{t-i}$$
+$$ATR_n = \frac{1}{n}\sum_{i=0}^{n-1}TR_{t-i}$$
 
-**Parkinson Volatility Estimator** (range based):
+**Parkinson Volatility Estimator** (range-based):
 
-$$\sigma_P^2=\frac{1}{4n \ln (2)}\sum_{i=1}^{n} \left( \ln \frac{H_i}{L_i}\right)^2$$
+$$\sigma_P^2 = \frac{1}{4n\ln(2)}\sum_{i=1}^{n}\left(\ln\frac{H_i}{L_i}\right)^2$$
 
 **Garman-Klass Volatility Estimator**:
 
-$$
-\sigma_{GK}^2 = \frac{1}{n}\sum_{i=0}^{\infty}\left[ \frac{1}{2}
-\left( \ln \frac{H_i}{L_i}\right)^2 - (2 \ln 2-1)
-\left( \ln \frac{C_i}{O_i}\right)^2 \right]
-
-$$
+$$\sigma_{GK}^2 = \frac{1}{n}\sum_{i=1}^{n}\left[\frac{1}{2}\left(\ln\frac{H_i}{L_i}\right)^2 - (2\ln 2 - 1)\left(\ln\frac{C_i}{O_i}\right)^2\right]$$
 
 ### 2.2 Stationarity Testing
 
-Before applying statistical models, the platform tests for stationary using:
+Before applying statistical models, the platform tests for stationarity using:
 
-**Augmented Dickery-Fuller (ADF) Test**:
+**Augmented Dickey-Fuller (ADF) Test**:
 
-$$
-\Delta y_t = \alpha + \beta  t+\gamma y_{t-1} +
-\sum_{i=1}^{p} \delta_i \Delta y_{t-i}-\varepsilon_t
+$$\Delta y_t = \alpha + \beta t + \gamma y_{t-1} + \sum_{i=1}^{p}\delta_i \Delta y_{t-i} + \varepsilon_t$$
 
-$$
-
-The null hypothesis $H_0:\gamma =0$ (unit root present) is tested against
-$H_1:\gamma < 0$ (stationarity).
+The null hypothesis $H_0: \gamma = 0$ (unit root present) is tested against $H_1: \gamma < 0$ (stationarity).
 
 **KPSS Test** (Kwiatkowski-Phillips-Schmidt-Shin):
 
-Tests the null hypothesis of stationary around a deterministic trend:
+Tests the null hypothesis of stationarity around a deterministic trend:
 
-$$y_t=\xi t +r_t + \varepsilon_t$$
+$$y_t = \xi t + r_t + \varepsilon_t$$
 
 Where $r_t$ is a random walk.
 
@@ -203,17 +174,17 @@ To ensure numerical stability and comparability across features, the platform im
 
 **Z-Score Normalization**:
 
-$$z_i = \frac{x_i-\mu }{\sigma }$$
+$$z_i = \frac{x_i - \mu}{\sigma}$$
 
 **Min-Max Scaling**:
 
-$$x'_i = \frac{x_i-x_{min}}{x_{max}-x_{min}}$$
+$$x'_i = \frac{x_i - x_{min}}{x_{max} - x_{min}}$$
 
 **Robust Scaling** (resistant to outliers):
 
-$$x'_i=\frac{x_i-Q_2}{Q_3-Q_1}$$
+$$x'_i = \frac{x_i - Q_2}{Q_3 - Q_1}$$
 
-Where $Q_1,Q_2,Q_3$ represent the first quartile, median, and third quartile respectively.
+Where $Q_1, Q_2, Q_3$ represent the first quartile, median, and third quartile respectively.
 
 ---
 
@@ -221,70 +192,64 @@ Where $Q_1,Q_2,Q_3$ represent the first quartile, median, and third quartile res
 
 ### 3.1 Long Short-Term Memory Networks (LSTM)
 
-LSTM networks are employed for sequential prediction tasks,
-addressing the vanishing gradient problem inherent in standard
-recurrent neural networks.
+LSTM networks are employed for sequential prediction tasks, addressing the vanishing gradient problem inherent in standard recurrent neural networks.
 
 #### 3.1.1 LSTM Cell Architecture
 
-The LSTM cell maintains a cell state $C_t$ and hidden state $h_t$ through gating
-mechanisms:
+The LSTM cell maintains a cell state $C_t$ and hidden state $h_t$ through gating mechanisms:
 
 **Forget Gate**:
 
-$$f_t=\sigma (W_f-\cdot[h_{t-1},x_t]+b_f)$$
+$$f_t = \sigma(W_f \cdot [h_{t-1}, x_t] + b_f)$$
 
 **Input Gate**:
 
-$$i_t = \sigma(W_i\cdot [h_{t-1}, x_t] + b_i)$$
+$$i_t = \sigma(W_i \cdot [h_{t-1}, x_t] + b_i)$$
 
-$$\tilde{C}_t=\tanh (W_C \cdot [h_{t-1}, x_t] + b_C)$$
+$$\tilde{C}_t = \tanh(W_C \cdot [h_{t-1}, x_t] + b_C)$$
 
 **Cell State Update**:
 
-$$C_t=f_t \odot C_{t-1}+i_t\odot \tilde{C}_t$$
+$$C_t = f_t \odot C_{t-1} + i_t \odot \tilde{C}_t$$
 
 **Output Gate**:
 
-$$o_t=\sigma (W_o\cdot [h_{t-1},x_t]+b_o)$$
+$$o_t = \sigma(W_o \cdot [h_{t-1}, x_t] + b_o)$$
 
 $$h_t = o_t \odot \tanh(C_t)$$
 
-Where $\sigma$ denotes the sigmoid activation function and $\odot$ represents
-element-wise multiplication.
+Where $\sigma$ denotes the sigmoid activation function and $\odot$ represents element-wise multiplication.
 
 #### 3.1.2 Multi-Variate LSTM Configuration
 
 The platform implements a stacked LSTM architecture with:
-
-- Multiple input features (OHLVC + technical indicators)
+- Multiple input features (OHLCV + technical indicators)
 - Bidirectional processing for pattern recognition
 - Attention mechanisms for temporal weighting
 
 **Self-Attention Mechanism**:
 
-$$Attention(Q,K,V)=softmax \left( \frac{QK ^\intercal}{\sqrt{d_k}}\right)V$$
+$$Attention(Q, K, V) = softmax\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
 
 ### 3.2 Transformer Architecture
 
-The Temporal Transformer model adapts the attention mechanism for financial time
-series:
+The Temporal Transformer model adapts the attention mechanism for financial time series:
 
 #### 3.2.1 Multi-Head Self-Attention
 
-$$MultiHead(Q,K,V)=Concat(head_{1}, \dots, head_h)W^O$$
+$$MultiHead(Q, K, V) = Concat(head_1, ..., head_h)W^O$$
 
 Where each head is computed as:
 
-$$head_i=Attention(QW_i^Q, KW_i^K, VM_i^V)$$
+$$head_i = Attention(QW_i^Q, KW_i^K, VW_i^V)$$
 
 #### 3.2.2 Positional Encoding
 
-For temporal data, sinusoidal positional encoding are applied:
+For temporal data, sinusoidal positional encodings are applied:
 
-$$PE_{(pos, 2i)}=\sin \left( \frac{pos}{10000^{2i / d_{model}}}\right)$$
+$$PE_{(pos, 2i)} = \sin\left(\frac{pos}{10000^{2i/d_{model}}}\right)$$
 
-$$PE_{(pos, 2i+1)}=\cos \left( \frac{pos}{10000^{2i / d_{model}}}\right)$$
+$$PE_{(pos, 2i+1)} = \cos\left(\frac{pos}{10000^{2i/d_{model}}}\right)$$
 
 ### 3.3 Gradient Boosting Machines (XGBoost)
 
@@ -292,11 +257,11 @@ XGBoost implements gradient boosted decision trees with regularization:
 
 **Objective Function**:
 
-$$\mathcal{L}(\phi)=\sum_{i=0}^{n} (y_i,\hat{y}_i) + \sum_{k=1}^{K} \Omega (f_k)$$
+$$\mathcal{L}(\phi) = \sum_{i=1}^{n}l(y_i, \hat{y}_i) + \sum_{k=1}^{K}\Omega(f_k)$$
 
 Where the regularization term is:
 
-$$\Omega (f)=\gamma T+\frac{1}{2} \lambda \sum_{j=1}^{T} w_j^2$$
+$$\Omega(f) = \gamma T + \frac{1}{2}\lambda\sum_{j=1}^{T}w_j^2$$
 
 - $T$ = number of leaves
 - $w_j$ = leaf weights
@@ -304,15 +269,10 @@ $$\Omega (f)=\gamma T+\frac{1}{2} \lambda \sum_{j=1}^{T} w_j^2$$
 
 **Second-Order Taylor Expansion**:
 
-$$
-\mathcal{L}^{(t)}\approx \sum_{i=1}^{n} \left[ g_i f_t(x_i) +
-\frac{1}{2} h_i f_t^2(x_i)\right] + \Omega (f_t)
-
-$$
+$$\mathcal{L}^{(t)} \approx \sum_{i=1}^{n}\left[g_i f_t(x_i) + \frac{1}{2}h_i f_t^2(x_i)\right] + \Omega(f_t)$$
 
 Where:
-
-- $g_i = \partial_{\hat{y}^{(t-i)}}l(y_i, \hat{y}^{(t-1)})$ (first-order gradient)
+- $g_i = \partial_{\hat{y}^{(t-1)}}l(y_i, \hat{y}^{(t-1)})$ (first-order gradient)
 - $h_i = \partial^2_{\hat{y}^{(t-1)}}l(y_i, \hat{y}^{(t-1)})$ (second-order gradient)
 
 ### 3.4 Ensemble Methods
@@ -321,15 +281,9 @@ Where:
 
 The ensemble combines predictions from multiple base models using a meta-learner:
 
-$$
-\hat{y}_{ensemble}=g \left( \hat{y}_{LSTM}, \hat{y}_{Transformer},
-\hat{y}_{XGBoost}, \mathbf{x}_{meta}\right)
+$$\hat{y}_{ensemble} = g\left(\hat{y}_{LSTM}, \hat{y}_{Transformer}, \hat{y}_{XGBoost}, \mathbf{x}_{meta}\right)$$
 
-$$
-
-Where $g$ is a learned function (typically another gradient boosting model) and
-$\mathbf{x}_{meta}$ contains meta-features such as prediction disagreement and
-confidence intervals.
+Where $g$ is a learned function (typically another gradient boosting model) and $\mathbf{x}_{meta}$ contains meta-features such as prediction disagreement and confidence intervals.
 
 #### 3.4.2 Uncertainty Quantification
 
@@ -337,17 +291,17 @@ Prediction uncertainty is estimated through:
 
 **Ensemble Variance**:
 
-$$Var(\hat{y})=\frac{1}{M} \sum_{m=1}^{M} (\hat{y}_m - \bar{\hat{y}})^2$$
+$$Var(\hat{y}) = \frac{1}{M}\sum_{m=1}^{M}(\hat{y}_m - \bar{\hat{y}})^2$$
 
 **Confidence Intervals** (assuming approximate normality):
 
-$$CI_{1-\alpha} = \hat{y} \pm z_{\alpha /2} \cdot \sqrt{Var(\hat{y})}$$
+$$CI_{1-\alpha} = \hat{y} \pm z_{\alpha/2} \cdot \sqrt{Var(\hat{y})}$$
 
 ### 3.5 Model Training Methodology
 
 #### 3.5.1 Walk-Forward Optimization
 
-To prevent look-ahead bias, the platform implements walk-forward cross-validation.
+To prevent look-ahead bias, the platform implements walk-forward cross-validation:
 
 ```
 [Train Window 1][Val 1]
@@ -357,17 +311,16 @@ To prevent look-ahead bias, the platform implements walk-forward cross-validatio
 
 #### 3.5.2 Purged Cross-Validation
 
-Following the methodology of de Prado (2018), purged cross-validation eliminates
-data leakage:
+Following the methodology of de Prado (2018), purged cross-validation eliminates data leakage:
 
 1. **Embargo period**: Gap between training and test sets
-2. **Purging**: Removal of sample from training that overlap with test labels
+2. **Purging**: Removal of samples from training that overlap with test labels
 
-**Combinatorial Purged Cross-Validation (CPVC)**:
+**Combinatorial Purged Cross-Validation (CPCV)**:
 
 Number of possible combinations:
 
-$$\binom{n}{k}\cdot\binom{n-k}{k} \cdot \dots$$
+$$\binom{n}{k} \cdot \binom{n-k}{k} \cdot ... $$
 
 ### 3.6 Model Evaluation Metrics
 
@@ -406,7 +359,6 @@ For portfolio:
 $$VaR_p = z_\alpha \sqrt{\mathbf{w}^T \Sigma \mathbf{w}}$$
 
 Where:
-
 - $\mathbf{w}$ = portfolio weights vector
 - $\Sigma$ = covariance matrix of returns
 - $z_\alpha$ = quantile of standard normal distribution
@@ -444,7 +396,6 @@ For continuous distributions:
 $$CVaR_\alpha = \frac{1}{\alpha}\int_0^\alpha VaR_u \, du$$
 
 **Properties**:
-
 - CVaR is a coherent risk measure (subadditive, positive homogeneous, translation invariant, monotonic)
 - CVaR ≥ VaR for any confidence level
 
@@ -503,7 +454,6 @@ $$\Pi = \delta \Sigma \mathbf{w}_{mkt}$$
 $$E[R] = [(\tau\Sigma)^{-1} + P^T\Omega^{-1}P]^{-1}[(\tau\Sigma)^{-1}\Pi + P^T\Omega^{-1}Q]$$
 
 Where:
-
 - $\tau$ = scalar (uncertainty in equilibrium)
 - $P$ = view matrix (which assets the views are about)
 - $Q$ = view vector (expected returns according to views)
@@ -548,7 +498,6 @@ $$A = \{a_{ij}\}, \quad a_{ij} = P(S_{t+1} = j | S_t = i)$$
 $$P(O_t | S_t = k) = \mathcal{N}(\mu_k, \sigma_k^2)$$
 
 **Model Parameters**: $\lambda = (A, B, \pi)$
-
 - $A$: Transition probabilities
 - $B$: Emission parameters
 - $\pi$: Initial state distribution
@@ -574,11 +523,11 @@ M-step: Update parameters to maximize expected log-likelihood
 
 The platform identifies three primary market regimes:
 
-| Regime       | Characteristics                      | Typical μ | Typical σ |
-| ------------ | ------------------------------------ | --------- | --------- |
-| **Bull**     | Positive drift, low volatility       | > 0       | Low       |
-| **Bear**     | Negative drift, high volatility      | < 0       | High      |
-| **Sideways** | Near-zero drift, moderate volatility | ≈ 0       | Medium    |
+| Regime | Characteristics | Typical μ | Typical σ |
+|--------|----------------|-----------|-----------|
+| **Bull** | Positive drift, low volatility | > 0 | Low |
+| **Bear** | Negative drift, high volatility | < 0 | High |
+| **Sideways** | Near-zero drift, moderate volatility | ≈ 0 | Medium |
 
 ### 5.3 Volatility Regime Models
 
@@ -625,7 +574,6 @@ Multiple sentiment sources are combined using confidence-weighted averaging:
 $$S_{agg} = \frac{\sum_{i=1}^{n}w_i \cdot c_i \cdot s_i}{\sum_{i=1}^{n}w_i \cdot c_i}$$
 
 Where:
-
 - $s_i$ = sentiment score from source $i$
 - $c_i$ = confidence score from source $i$
 - $w_i$ = source reliability weight
@@ -637,7 +585,6 @@ A key signal is the divergence between sentiment and price movement:
 $$Divergence_t = S_t - \frac{r_t - \bar{r}}{\sigma_r}$$
 
 Strong divergence may indicate:
-
 - **Positive divergence**: Bullish sentiment with negative returns → potential reversal
 - **Negative divergence**: Bearish sentiment with positive returns → potential reversal
 
@@ -678,7 +625,6 @@ $$C_{spread} = \frac{1}{2}\left(\frac{P_{ask} - P_{bid}}{P_{mid}}\right)$$
 $$MI = \sigma \cdot sign(Q) \cdot \sqrt{\frac{|Q|}{V}} \cdot \gamma$$
 
 Where:
-
 - $Q$ = order size
 - $V$ = average daily volume
 - $\sigma$ = daily volatility
@@ -713,8 +659,7 @@ Where $Z \sim N(0,1)$.
 
 **Bootstrap Resampling**:
 
-$$r_t^* \sim \{r_1, r_2, \dots, r_T\}$$
-(with replacement)
+$$r_t^* \sim \{r_1, r_2, ..., r_T\}$$ (with replacement)
 
 ---
 
@@ -733,7 +678,6 @@ $$\beta_i = \frac{Cov(R_i, R_m)}{Var(R_m)}$$
 $$R_i - R_f = \alpha_i + \beta_i^{MKT}(R_m - R_f) + \beta_i^{SMB} \cdot SMB + \beta_i^{HML} \cdot HML + \varepsilon_i$$
 
 **Factor Definitions**:
-
 - **SMB** (Small Minus Big): Size premium
 - **HML** (High Minus Low): Value premium (Book-to-Market)
 
@@ -744,7 +688,6 @@ Extends the three-factor model with profitability and investment factors:
 $$R_i - R_f = \alpha_i + \beta_i^{MKT}MKT + \beta_i^{SMB}SMB + \beta_i^{HML}HML + \beta_i^{RMW}RMW + \beta_i^{CMA}CMA + \varepsilon_i$$
 
 **Additional Factors**:
-
 - **RMW** (Robust Minus Weak): Profitability premium
 - **CMA** (Conservative Minus Aggressive): Investment premium
 
@@ -755,7 +698,6 @@ Adds momentum to the Fama-French three-factor model:
 $$R_i - R_f = \alpha_i + \beta_i^{MKT}MKT + \beta_i^{SMB}SMB + \beta_i^{HML}HML + \beta_i^{MOM}MOM + \varepsilon_i$$
 
 **Momentum Factor (MOM/UMD)**:
-
 - Long: Top 30% past 12-month returns (excluding last month)
 - Short: Bottom 30% past 12-month returns
 
@@ -768,7 +710,6 @@ PCA extracts orthogonal factors that explain maximum variance:
 $$\Sigma = V \Lambda V^T$$
 
 Where:
-
 - $\Lambda$ = diagonal matrix of eigenvalues
 - $V$ = matrix of eigenvectors (principal components)
 
@@ -787,7 +728,6 @@ $$L = V\sqrt{\Lambda}$$
 $$\sigma_p^2 = \mathbf{b}^T \Sigma_F \mathbf{b} + \sigma_\varepsilon^2$$
 
 Where:
-
 - $\mathbf{b}$ = vector of factor exposures (betas)
 - $\Sigma_F$ = factor covariance matrix
 - $\sigma_\varepsilon^2$ = idiosyncratic variance
@@ -835,12 +775,12 @@ $$MCR_i = \frac{\partial \sigma_p}{\partial w_i} = \frac{(\Sigma \mathbf{w})_i}{
 
 ### 9.2 Data Storage Layer
 
-| Component      | Purpose                   | Technology            |
-| -------------- | ------------------------- | --------------------- |
-| Time Series DB | High-frequency price data | TimescaleDB           |
-| Feature Store  | Computed indicators       | TimescaleDB + Parquet |
-| Model Registry | Trained models            | MLflow                |
-| Cache Layer    | Real-time data            | Redis                 |
+| Component | Purpose | Technology |
+|-----------|---------|------------|
+| Time Series DB | High-frequency price data | TimescaleDB |
+| Feature Store | Computed indicators | TimescaleDB + Parquet |
+| Model Registry | Trained models | MLflow |
+| Cache Layer | Real-time data | Redis |
 
 ### 9.3 Processing Framework
 
@@ -855,34 +795,34 @@ $$MCR_i = \frac{\partial \sigma_p}{\partial w_i} = \frac{(\Sigma \mathbf{w})_i}{
 
 ### Academic Literature
 
-1. **Bollerslev, T.** (1986). Generalized Autoregressive Conditional Heteroskedasticity. _Journal of Econometrics_, 31(3), 307-327.
+1. **Bollerslev, T.** (1986). Generalized Autoregressive Conditional Heteroskedasticity. *Journal of Econometrics*, 31(3), 307-327.
 
-2. **Black, F., & Litterman, R.** (1992). Global Portfolio Optimization. _Financial Analysts Journal_, 48(5), 28-43.
+2. **Black, F., & Litterman, R.** (1992). Global Portfolio Optimization. *Financial Analysts Journal*, 48(5), 28-43.
 
-3. **Carhart, M. M.** (1997). On Persistence in Mutual Fund Performance. _The Journal of Finance_, 52(1), 57-82.
+3. **Carhart, M. M.** (1997). On Persistence in Mutual Fund Performance. *The Journal of Finance*, 52(1), 57-82.
 
-4. **de Prado, M. L.** (2018). _Advances in Financial Machine Learning_. Wiley.
+4. **de Prado, M. L.** (2018). *Advances in Financial Machine Learning*. Wiley.
 
-5. **Fama, E. F., & French, K. R.** (1993). Common Risk Factors in the Returns on Stocks and Bonds. _Journal of Financial Economics_, 33(1), 3-56.
+5. **Fama, E. F., & French, K. R.** (1993). Common Risk Factors in the Returns on Stocks and Bonds. *Journal of Financial Economics*, 33(1), 3-56.
 
-6. **Fama, E. F., & French, K. R.** (2015). A Five-Factor Asset Pricing Model. _Journal of Financial Economics_, 116(1), 1-22.
+6. **Fama, E. F., & French, K. R.** (2015). A Five-Factor Asset Pricing Model. *Journal of Financial Economics*, 116(1), 1-22.
 
-7. **Hochreiter, S., & Schmidhuber, J.** (1997). Long Short-Term Memory. _Neural Computation_, 9(8), 1735-1780.
+7. **Hochreiter, S., & Schmidhuber, J.** (1997). Long Short-Term Memory. *Neural Computation*, 9(8), 1735-1780.
 
-8. **Lo, A. W.** (2004). The Adaptive Markets Hypothesis. _The Journal of Portfolio Management_, 30(5), 15-29.
+8. **Lo, A. W.** (2004). The Adaptive Markets Hypothesis. *The Journal of Portfolio Management*, 30(5), 15-29.
 
-9. **Markowitz, H.** (1952). Portfolio Selection. _The Journal of Finance_, 7(1), 77-91.
+9. **Markowitz, H.** (1952). Portfolio Selection. *The Journal of Finance*, 7(1), 77-91.
 
-10. **Sharpe, W. F.** (1966). Mutual Fund Performance. _Journal of Business_, 39(1), 119-138.
+10. **Sharpe, W. F.** (1966). Mutual Fund Performance. *Journal of Business*, 39(1), 119-138.
 
-11. **Vaswani, A., et al.** (2017). Attention Is All You Need. _Advances in Neural Information Processing Systems_, 30.
+11. **Vaswani, A., et al.** (2017). Attention Is All You Need. *Advances in Neural Information Processing Systems*, 30.
 
 ### Technical Documentation
 
-- PyTorch Documentation: <https://pytorch.org/docs/>
-- Statsmodels Documentation: <https://www.statsmodels.org/>
-- Scikit-learn Documentation: <https://scikit-learn.org/>
-- Polars Documentation: <https://pola.rs/>
+- PyTorch Documentation: https://pytorch.org/docs/
+- Statsmodels Documentation: https://www.statsmodels.org/
+- Scikit-learn Documentation: https://scikit-learn.org/
+- Polars Documentation: https://pola.rs/
 
 ---
 
@@ -890,12 +830,12 @@ $$MCR_i = \frac{\partial \sigma_p}{\partial w_i} = \frac{(\Sigma \mathbf{w})_i}{
 
 ## License
 
-MIT License © 2026 Lumina Quant Lab
+MIT License © 2025 Lumina Quant Lab
 
 ---
 
-**Version**: 2.0.0
-**Last Updated**: January 2026
+**Version**: 2.0.0  
+**Last Updated**: January 2025  
 **Authors**: Lumina Quant Lab Research Team
 
 </div>
