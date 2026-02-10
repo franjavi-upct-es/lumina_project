@@ -1,6 +1,3 @@
-# README.md
-<!-- lumina-v2/README.md -->
-
 <div align="center">
 
 # LUMINA 2.0
@@ -659,7 +656,7 @@ Where $Z \sim N(0,1)$.
 
 **Bootstrap Resampling**:
 
-$$r_t^* \sim \{r_1, r_2, ..., r_T\}$$ (with replacement)
+$$r_t^* \sim \{r_1, r_2, ..., r_T\}\qquad\text{(with replacement)}$$
 
 ---
 
@@ -830,12 +827,12 @@ $$MCR_i = \frac{\partial \sigma_p}{\partial w_i} = \frac{(\Sigma \mathbf{w})_i}{
 
 ## License
 
-MIT License © 2025 Lumina Quant Lab
+MIT License © 2026 Lumina Quant Lab
 
 ---
 
 **Version**: 2.0.0  
-**Last Updated**: January 2025  
-**Authors**: Lumina Quant Lab Research Team
+**Last Updated**: January 2026  
+**Authors**: Francisco Javier Mercader Martínez
 
 </div>
