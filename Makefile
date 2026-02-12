@@ -30,7 +30,12 @@ up:
 	cd docker && $(DOCKER_COMPOSE) up -d
 
 up-gpu:
-	cd docker && $(DOCKER_COMPOSE) --profile gpu up -d
+	@if command -v nvidia-smi >/dev/null 2>&1; then \
+		cd docker && $(DOCKER_COMPOSE) --profile gpu up -d; \
+    else \
+        echo "Warning: NVIDIA GPU not detected, falling back to CPU mode"; \
+        make up; \
+    fi	
 
 down:
 	cd docker && $(DOCKER_COMPOSE) down

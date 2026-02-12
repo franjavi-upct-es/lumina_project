@@ -564,6 +564,20 @@ async def close_db():
         logger.info("Database connections closed")
 
 
+def reset_db_engine():
+    """
+    Synchronously reset the global engine and session factory.
+
+    Must be called before creating a new event loop in Celery workers
+    to avoid 'Future attached to a different loop' errors. The old engine's
+    connections are bound to a previous (now closed) event loop and cannot
+    be reused.
+    """
+    global _engine, _async_session_factory
+    _engine = None
+    _async_session_factory = None
+
+
 # ============================================================================
 # UTILITY FUNCTIONS
 # ============================================================================
