@@ -1,19 +1,26 @@
 # backend/data_engine/collectors/__init__.py
 """
-Data Collectors Module for Lumina Quant Lab
+Data Collectors Module for Lumina V3
+====================================
 
-Provides various data collection interfaces for different data sources:
+Provides various data collection interfaces for different data sources.
 
-Market Data:
+Market Data (Maintained from V2):
 - YFinanceCollector: Free historical stock data from Yahoo Finance
 - AlphaVantageCollector: Premium market data with fundamentals
 
-Economic Data:
+Economic Data (Maintained from V2):
 - FREDCollector: Federal Reserve Economic Data
 
-News & Sentiment:
+News & Sentiment (Maintained from V2):
 - NewsCollector: Financial news aggregation
 - RedditCollector: Reddit social sentiment
+
+New V3 Collectors:
+- PriceStreamCollector: WebSocket real-time price streaming
+- NewsStreamCollector: WebSocket news streaming
+- SocialScrapperCollector: Unified Twitter/Reddit scraping
+- ChainScrapperCollector: On-chain blockchain data
 
 All collectors inherit from BaseDataCollector and implement:
 - async collect(): Main data collection method
@@ -29,6 +36,8 @@ Usage:
         start_date=datetime(2023, 1, 1),
         end_date=datetime(2024, 1, 1)
     )
+
+Version: 3.0.0
 """
 
 from backend.data_engine.collectors.alpha_vantage import AlphaVantageCollector

@@ -119,9 +119,7 @@ def update_ticker_data(
     try:
         logger.info(f"Updating data for {ticker}")
 
-        result = run_async(
-            _update_ticker_data_async(ticker, days, include_features)
-        )
+        result = run_async(_update_ticker_data_async(ticker, days, include_features))
         return result
 
     except Exception as e:
@@ -320,9 +318,7 @@ def update_all_features(tickers: list[str] | None = None, days: int = 90) -> dic
         raise
 
 
-async def _update_all_features_async(
-    tickers: list[str], days: int
-) -> dict[str, Any]:
+async def _update_all_features_async(tickers: list[str], days: int) -> dict[str, Any]:
     """Async implementation of update_all_features."""
     collector = YFinanceCollector()
     fe = FeatureEngineer()

@@ -30,7 +30,6 @@ Phase C: π_t = argmax_π E_{(s,a,r)~D_real}[Sharpe(τ)]
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Dict, List, Optional
 
 import numpy as np
 from loguru import logger
@@ -80,17 +79,17 @@ class PhaseConfig:
     description: str
 
     # Reward configuration
-    reward_weights: Dict[str, float] = None
+    reward_weights: dict[str, float] = {}
     use_shaped_reward: bool = True
 
     # Environment configuration
     use_domain_randomization: bool = False
-    randomization_params: Dict[str, any] = None
+    randomization_params: dict[str, any] = {}
 
     # Imitation learning
     use_behavioral_cloning: bool = False
     bc_weight: float = 0.0
-    expert_data_path: Optional[str] = None
+    expert_data_path: str | None = None
 
     # Progression criteria
     success_threshold: float = 0.6
@@ -125,7 +124,7 @@ class CurriculumScheduler:
 
     def __init__(
         self,
-        phase_configs: Optional[List[PhaseConfig]] = None,
+        phase_configs: list[PhaseConfig | None] = None,
         auto_advance: bool = True,
     ):
         """
@@ -143,7 +142,7 @@ class CurriculumScheduler:
 
         self.current_phase_idx = 0
         self.episodes_in_phase = 0
-        self.phase_metrics_history: List[Dict] = []
+        self.phase_metrics_history: list[dict] = []
 
         logger.info(f"Curriculum scheduler initialized with {len(phase_configs)} phases")
         logger.info(f"Starting with: {self.current_phase.description}")
@@ -158,7 +157,7 @@ class CurriculumScheduler:
         """Check if currently in final phase."""
         return self.current_phase_idx == len(self.phase_configs) - 1
 
-    def _create_default_phases(self) -> List[PhaseConfig]:
+    def _create_default_phases(self) -> list[PhaseConfig]:
         """
         Create default three-phase curriculum.
 
@@ -248,7 +247,7 @@ class CurriculumScheduler:
 
         return [phase_a, phase_b, phase_c]
 
-    def update(self, episode_metrics: Dict[str, float]):
+    def update(self, episode_metrics: dict[str, float]):
         """
         Update curriculum with episode metrics.
 
@@ -326,12 +325,12 @@ class CurriculumScheduler:
         """Get current phase configuration."""
         return self.current_phase
 
-    def get_phase_statistics(self) -> Dict[str, any]:
+    def get_phase_statistics(self) -> dict[str, any]:
         """
         Get statistics for current phase.
 
         Returns:
-            Dictionary of phase statistics
+            dictionary of phase statistics
         """
         if not self.phase_metrics_history:
             return {
