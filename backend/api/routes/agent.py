@@ -1,9 +1,9 @@
 # backend/api/routes/agent.py
 """
-RL Agent Monitoring and Control Endpoints.
+RL Agent Monitoring and Control Endpoints
 
-This module provides REST API endpoints for interacting with the V3 reinforcement
-learning agent, including:
+This module provides REST API endpoints for interacting with the V3
+reinforcement learning agent, including:
 - Agent status monitoring
 - Training session management
 - Policy evaluation and deployment
@@ -18,21 +18,21 @@ V3 Architecture Integration:
 """
 
 from datetime import datetime, timedelta
-from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from loguru import logger
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.deps import check_rate_limit, get_async_db, verify_api_key
-from backend.cognition import agent
 from backend.config.settings import get_settings
 
-router = APIRouter(dependencies=[Depends(check_rate_limit), Depends(verify_api_key)])
+router = APIRouter(
+    dependencies=[Depends(check_rate_limit), Depends(verify_api_key)]
+)
 settings = get_settings()
+
 
 # ============================================================================
 # Request/Response Models
@@ -45,9 +45,12 @@ class AgentStatusResponse(BaseModel):
     agent_id: str
     status: str = Field(
         ...,
-        description="Agent status: 'idle', 'training', 'evaluating', 'trading', 'paused', 'eror'",
+        description="Agent status: 'idle', 'training',"
+        " 'evaluating', 'trading', 'paused', 'error'",
     )
-    mode: str = Field(..., description="Operating mode: 'simulation', 'paper', 'live'")
+    mode: str = Field(
+        ..., description="Operating mode: 'simulation', 'paper', 'live'"
+    )
     total_episodes: int
     total_steps: int
     uptime_seconds: float
@@ -68,7 +71,7 @@ class AgentMetricsResponse(BaseModel):
     episode_lengths: list[int]
     episode_returns: list[float]
     average_reward: float
-    average_returns: float
+    average_return: float
     win_rate: float
     sharpe_ratio: float
     max_drawdown: float
@@ -82,12 +85,14 @@ class PolicyInfo(BaseModel):
 
     policy_id: str
     version: str
-    architecture: str = Field(..., description="Policy architecture: 'PPO', 'SAC', 'TD3'")
+    architecture: str = Field(
+        ..., description="Policy architecture: 'PPO', 'SAC', 'TD3'"
+    )
     hidden_layers: list[int]
     activation: str
     total_parameters: int
     trained_episodes: int
-    las_updated: datetime
+    last_updated: datetime
     performance_score: float
 
 
@@ -96,7 +101,9 @@ class TrainingSessionRequest(BaseModel):
 
     session_name: str
     algorithm: str = Field("PPO", pattern="^(PPO|SAC|TD3|A2C)$")
-    environment_type: str = Field("discrete", pattern="^(discrete|continuous|multi_asset)$")
+    environment_type: str = Field(
+        "discrete", pattern="^(discrete|continuous|multi_asset)$"
+    )
 
     # Training hyperparameters
     num_episodes: int = Field(1000, ge=1, le=100000)
@@ -112,7 +119,9 @@ class TrainingSessionRequest(BaseModel):
     initial_capital: float = Field(100000.0, ge=1000.0)
 
     # Reward function
-    reward_type: str = Field("sharpe", pattern="^(sharpe|return|risk_adjusted|custom)$")
+    reward_type: str = Field(
+        "sharpe", pattern="^(sharpe|return|risk_adjusted|custom)$"
+    )
     sharpe_penalty: float = Field(0.1, ge=0.0, le=1.0)
     drawdown_penalty: float = Field(0.5, ge=0.0, le=2.0)
 
@@ -122,7 +131,7 @@ class TrainingSessionRequest(BaseModel):
 
     # Curriculum learning
     use_curriculum: bool = False
-    curriculum_stages: list[str] | None = None
+    curriculum_stages: list[str | None] = None
 
 
 class TrainingSessionResponse(BaseModel):
@@ -140,10 +149,13 @@ class ActionRequest(BaseModel):
 
     ticker: str
     market_state: dict = Field(
-        ..., description="Current market state including price, volume, indicators"
+        ...,
+        description="Current market state including price, volume, indicators",
     )
     timestamp: datetime
-    use_safety_override: bool = Field(True, description="Apply safety arbitrator checks")
+    use_safety_override: bool = Field(
+        True, description="Apply safety arbitrator checks"
+    )
 
 
 class ActionResponse(BaseModel):
@@ -154,21 +166,34 @@ class ActionResponse(BaseModel):
 
     # Raw action vector (continuous)
     direction: float = Field(
-        ..., ge=-1.0, le=1.0, description="Position direction: -1.0 (full short) to 1.0 (full long)"
+        ...,
+        ge=-1.0,
+        le=1.0,
+        description="Position direction: -1.0 (full short) to 1.0 (full long)",
     )
     urgency: float = Field(
-        ..., ge=0.0, le=1.0, description="Order urgency: <0.5 (limit), >0.5 (market)"
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Order urgency: <0.5 (limit), >0.5 (market)",
     )
-    sizing: float = Field(..., ge=0.0, le=1.0, description="Position size as fraction of capital")
+    sizing: float = Field(
+        ..., ge=0.0, le=1.0, description="Position size as fraction of capital"
+    )
     stop_distance: float = Field(
         ..., ge=0.0, le=1.0, description="Stop loss distance relative to ATR"
     )
 
     # Uncertainty metrics
     uncertainty_score: float = Field(
-        ..., ge=0.0, le=1.0, description="Epistemic uncertainty from Monte Carlo dropout"
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Epistemic uncertainty from Monte Carlo dropout",
     )
-    confidence_interval: list[float] = Field(..., description="95% confidence interval for action")
+    confidence_interval: list[float] = Field(
+        ..., description="95% confidence interval for action"
+    )
 
     # Safety arbitrator
     safety_override: bool = Field(
@@ -189,12 +214,18 @@ class UncertaintyMetricsResponse(BaseModel):
 
     # Epistemic uncertainty (model confusion)
     epistemic_uncertainty: float = Field(
-        ..., ge=0.0, le=1.0, description="Model uncertainty from Mote Carlo dropout"
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Model uncertainty from Monte Carlo dropout",
     )
 
     # Aleatoric uncertainty (market randomness)
     aleatoric_uncertainty: float | None = Field(
-        None, ge=0.0, le=1.0, description="Estimated market volatility/randomness"
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Estimated market volatility/randomness",
     )
 
     # Prediction variance across ensemble
@@ -206,10 +237,14 @@ class UncertaintyMetricsResponse(BaseModel):
     in_distribution: bool = Field(
         ..., description="True if market state is within training distribution"
     )
-    anomaly_score: float = Field(..., ge=0.0, le=1.0, description="Anomaly detection score")
+    anomaly_score: float = Field(
+        ..., ge=0.0, le=1.0, description="Anomaly detection score"
+    )
 
     # Recommendation
-    recommendation: str = Field(..., description="'confident', 'uncertainty', 'anomaly'")
+    recommendation: str = Field(
+        ..., description="'confident', 'uncertain', 'anomaly'"
+    )
 
 
 # ============================================================================
@@ -225,7 +260,7 @@ async def get_agent_status(
     """
     Get current agent status and metrics.
 
-    Returns comprehensive information about agent including:
+    Returns comprehensive information about agent state including:
     - Current operating mode (simulation/paper/live)
     - Training progress
     - Performance metrics
@@ -252,7 +287,7 @@ async def get_agent_status(
         uptime_seconds=0.0,
         last_action_timestamp=None,
         current_positions=0,
-        portfolio_value=10000.0,
+        portfolio_value=100000.0,
         total_return=0.0,
         sharpe_ratio=None,
         uncertainty_score=None,
@@ -262,7 +297,9 @@ async def get_agent_status(
 @router.get("/metrics", response_model=AgentMetricsResponse)
 async def get_agent_metrics(
     agent_id: str = Query("default", description="Agent identifier"),
-    window_episodes: int = Query(100, ge=1, le=1000, description="Number of recent episodes"),
+    window_episodes: int = Query(
+        100, ge=1, le=1000, description="Number of recent episodes"
+    ),
     db: AsyncSession = Depends(get_async_db),
 ):
     """
@@ -278,7 +315,9 @@ async def get_agent_metrics(
     Returns:
         AgentMetricsResponse: Performance metrics
     """
-    logger.info(f"Fetching metrics for agent: {agent_id}, window: {window_episodes}")
+    logger.info(
+        f"Fetching metrics for agent: {agent_id}, window: {window_episodes}"
+    )
 
     # TODO: Implement actual metrics retrieval from MLflow or database
 
@@ -287,7 +326,7 @@ async def get_agent_metrics(
         episode_lengths=[],
         episode_returns=[],
         average_reward=0.0,
-        average_returns=0.0,
+        average_return=0.0,
         win_rate=0.0,
         sharpe_ratio=0.0,
         max_drawdown=0.0,
@@ -327,7 +366,7 @@ async def get_policy_info(
         activation="relu",
         total_parameters=150000,
         trained_episodes=0,
-        las_updated=datetime.utcnow(),
+        last_updated=datetime.utcnow(),
         performance_score=0.0,
     )
 
@@ -366,7 +405,9 @@ async def start_training_session(
     """
     session_id = str(uuid4())
     logger.info(f"Starting training session: {session_id}")
-    logger.info(f"Algorithm: {request.algorithm}, Episodes: {request.num_episodes}")
+    logger.info(
+        f"Algorithm: {request.algorithm}, Episodes: {request.num_episodes}"
+    )
 
     # TODO: Implement actual training session start
     # background_tasks.add_task(run_training_session, session_id, request)
@@ -381,7 +422,10 @@ async def start_training_session(
 
 
 @router.get("/training/status/{session_id}")
-async def get_training_status(session_id: str, db: AsyncSession = Depends(get_async_db)):
+async def get_training_status(
+    session_id: str,
+    db: AsyncSession = Depends(get_async_db),
+):
     """
     Get training session status.
 
@@ -403,6 +447,39 @@ async def get_training_status(session_id: str, db: AsyncSession = Depends(get_as
         "session_id": session_id,
         "status": "not_found",
         "message": "Training session not found",
+    }
+
+
+@router.post("/training/stop/{session_id}")
+async def stop_training_session(
+    session_id: str,
+    save_checkpoint: bool = Query(
+        True, description="Save checkpoint before stopping"
+    ),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    Stop an active training session.
+
+    Gracefully stops training and optionally saves checkpoint.
+
+    Args:
+        session_id: Training session identifier
+        save_checkpoint: Whether to save checkpoint
+        db: Database session
+
+    Returns:
+        dict: Stop confirmation
+    """
+    logger.info(f"Stopping training session: {session_id}")
+
+    # TODO: Implement actual training stop
+
+    return {
+        "session_id": session_id,
+        "status": "stopped",
+        "checkpoint_saved": save_checkpoint,
+        "stopped_at": datetime.utcnow().isoformat(),
     }
 
 
@@ -433,7 +510,9 @@ async def predict_action(
     Returns:
         ActionResponse: Predicted action with uncertainty metrics
     """
-    logger.info(f"Predicting action for {request.ticker} at {request.timestamp}")
+    logger.info(
+        f"Predicting action for {request.ticker} at {request.timestamp}"
+    )
 
     # TODO: Implement actual action prediction
     # 1. Fetch embeddings from feature store
@@ -497,7 +576,7 @@ async def get_uncertainty_metrics(
         ensemble_variance=[],
         in_distribution=True,
         anomaly_score=0.0,
-        recommendation="confidence",
+        recommendation="confident",
     )
 
 
@@ -513,7 +592,7 @@ async def deploy_policy(
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Deploy a trained policy to specific mode.
+    Deploy a trained policy to specified mode.
 
     Promotes a policy from training to production use. Requires
     validation checks to pass before deployment.
@@ -531,7 +610,7 @@ async def deploy_policy(
     Returns:
         dict: Deployment status
     """
-    logger.info(f"Deploy policy {policy_id} to {mode} mode")
+    logger.info(f"Deploying policy {policy_id} to {mode} mode")
 
     # TODO: Implement policy deployment with validation
 
@@ -604,7 +683,9 @@ async def get_action_logs(
     if end_time is None:
         end_time = datetime.utcnow()
 
-    logger.info(f"Fetching action logs for {agent_id}: {start_time} to {end_time}")
+    logger.info(
+        f"Fetching action logs for {agent_id}: {start_time} to {end_time}"
+    )
 
     # TODO: Implement action log retrieval
 

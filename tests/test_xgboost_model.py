@@ -219,7 +219,11 @@ class TestXGBoostModel:
 
         # Train
         results = model.fit_multistep(
-            X_train=X_train, y_train=y_train, X_val=X_val, y_val=y_val, verbose=0
+            X_train=X_train,
+            y_train=y_train,
+            X_val=X_val,
+            y_val=y_val,
+            verbose=0,
         )
 
         assert model.is_trained
@@ -294,7 +298,9 @@ class TestXGBoostModel:
             "min_child_weight": 5,
         }
 
-        model = XGBoostFinancialModel(model_name="test_custom", hyperparameters=custom_params)
+        model = XGBoostFinancialModel(
+            model_name="test_custom", hyperparameters=custom_params
+        )
 
         assert model.hyperparameters["n_estimators"] == 100
         assert model.hyperparameters["max_depth"] == 10
@@ -314,8 +320,12 @@ class TestXGBoostIntegration:
         """Test training with real market data"""
         from datetime import datetime, timedelta
 
-        from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
-        from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+        from backend.data_engine.collectors.yfinance_collector import (
+            YFinanceCollector,
+        )
+        from backend.data_engine.transformers.feature_engineering import (
+            FeatureEngineer,
+        )
 
         # Collect real data
         collector = YFinanceCollector()

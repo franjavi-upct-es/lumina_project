@@ -53,7 +53,9 @@ class TestFullMLPipeline:
         logger.info("=" * 50)
 
         try:
-            from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
+            from backend.data_engine.collectors.yfinance_collector import (
+                YFinanceCollector,
+            )
 
             collector = YFinanceCollector()
 
@@ -78,10 +80,14 @@ class TestFullMLPipeline:
         logger.info("=" * 50)
 
         try:
-            from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+            from backend.data_engine.transformers.feature_engineering import (
+                FeatureEngineer,
+            )
 
             fe = FeatureEngineer()
-            enriched_data = fe.create_all_features(data, add_lags=True, add_rolling=True)
+            enriched_data = fe.create_all_features(
+                data, add_lags=True, add_rolling=True
+            )
             feature_names = fe.get_all_feature_names()
 
             assert len(feature_names) > 0, "No features generated"
@@ -101,7 +107,9 @@ class TestFullMLPipeline:
             job_id = f"integration_test_{int(time.time())}"
 
             hyperparams = {
-                "start_date": (datetime.now() - timedelta(days=365)).isoformat(),
+                "start_date": (
+                    datetime.now() - timedelta(days=365)
+                ).isoformat(),
                 "end_date": datetime.now().isoformat(),
                 "hidden_dim": 32,  # Small for testing
                 "num_layers": 1,
@@ -116,7 +124,10 @@ class TestFullMLPipeline:
             }
 
             task = train_model_task.delay(
-                job_id=job_id, ticker=ticker, model_type="lstm", hyperparams=hyperparams
+                job_id=job_id,
+                ticker=ticker,
+                model_type="lstm",
+                hyperparams=hyperparams,
             )
 
             logger.info(f"Training task submitted: {task.id}")
@@ -157,7 +168,9 @@ class TestFullMLPipeline:
         try:
             from backend.workers.ml_tasks import predict_task
 
-            pred_task = predict_task.delay(ticker=ticker, model_id=model_id, days_ahead=3)
+            pred_task = predict_task.delay(
+                ticker=ticker, model_id=model_id, days_ahead=3
+            )
 
             logger.info(f"Prediction task submitted: {pred_task.id}")
 
@@ -165,7 +178,9 @@ class TestFullMLPipeline:
             timeout = 120
             start_time = time.time()
 
-            while not pred_task.ready() and (time.time() - start_time) < timeout:
+            while (
+                not pred_task.ready() and (time.time() - start_time) < timeout
+            ):
                 time.sleep(2)
 
             if not pred_task.ready():
@@ -177,10 +192,14 @@ class TestFullMLPipeline:
             prediction = pred_task.result
 
             assert "predictions" in prediction, "No predictions in result"
-            assert len(prediction["predictions"]) == 3, "Expected 3 days of predictions"
+            assert (
+                len(prediction["predictions"]) == 3
+            ), "Expected 3 days of predictions"
 
             logger.success("✓ Predictions generated successfully")
-            logger.info(f"  Current price: ${prediction.get('current_price', 'N/A')}")
+            logger.info(
+                f"  Current price: ${prediction.get('current_price', 'N/A')}"
+            )
             logger.info(f"  Summary: {prediction.get('summary', {})}")
 
             for pred in prediction["predictions"]:
@@ -213,7 +232,9 @@ class TestFullMLPipeline:
 
         # Step 1: Collect Data
         try:
-            from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
+            from backend.data_engine.collectors.yfinance_collector import (
+                YFinanceCollector,
+            )
 
             collector = YFinanceCollector()
 
@@ -232,10 +253,14 @@ class TestFullMLPipeline:
 
         # Step 2: Feature Engineering
         try:
-            from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+            from backend.data_engine.transformers.feature_engineering import (
+                FeatureEngineer,
+            )
 
             fe = FeatureEngineer()
-            enriched_data = fe.create_all_features(data, add_lags=True, add_rolling=True)
+            enriched_data = fe.create_all_features(
+                data, add_lags=True, add_rolling=True
+            )
             logger.success(f"✓ Features engineered: {enriched_data.shape}")
         except Exception as e:
             pytest.fail(f"Feature engineering failed: {e}")
@@ -247,7 +272,9 @@ class TestFullMLPipeline:
             job_id = f"xgb_test_{int(time.time())}"
 
             hyperparams = {
-                "start_date": (datetime.now() - timedelta(days=365)).isoformat(),
+                "start_date": (
+                    datetime.now() - timedelta(days=365)
+                ).isoformat(),
                 "end_date": datetime.now().isoformat(),
                 "n_estimators": 50,
                 "max_depth": 4,
@@ -257,12 +284,17 @@ class TestFullMLPipeline:
             }
 
             task = train_model_task.delay(
-                job_id=job_id, ticker=ticker, model_type="xgboost", hyperparams=hyperparams
+                job_id=job_id,
+                ticker=ticker,
+                model_type="xgboost",
+                hyperparams=hyperparams,
             )
 
             # Wait for training
             result = task.get(timeout=300)
-            logger.success(f"✓ XGBoost model trained: {result.get('metrics', {})}")
+            logger.success(
+                f"✓ XGBoost model trained: {result.get('metrics', {})}"
+            )
         except Exception as e:
             logger.warning(f"XGBoost training: {e}")
             pytest.skip(f"XGBoost training not available: {e}")
@@ -288,21 +320,30 @@ class TestBacktestIntegration:
             config = {
                 "strategy": "momentum",
                 "tickers": ["AAPL", "GOOGL", "MSFT"],
-                "start_date": (datetime.now() - timedelta(days=365)).isoformat(),
+                "start_date": (
+                    datetime.now() - timedelta(days=365)
+                ).isoformat(),
                 "end_date": datetime.now().isoformat(),
                 "initial_capital": 100000,
                 "commission": 0.001,
                 "slippage": 0.0005,
-                "strategy_params": {"lookback_period": 20, "rebalance_frequency": "weekly"},
+                "strategy_params": {
+                    "lookback_period": 20,
+                    "rebalance_frequency": "weekly",
+                },
             }
 
-            task = run_backtest_task.delay(backtest_id=backtest_id, config=config)
+            task = run_backtest_task.delay(
+                backtest_id=backtest_id, config=config
+            )
 
             # Wait for backtest
             result = task.get(timeout=300)
 
             assert "returns" in result or "metrics" in result
-            logger.success(f"✓ Backtest completed: {result.get('metrics', {})}")
+            logger.success(
+                f"✓ Backtest completed: {result.get('metrics', {})}"
+            )
         except ImportError:
             pytest.skip("backtest_tasks not available")
         except Exception as e:
@@ -322,13 +363,20 @@ class TestBacktestIntegration:
             config = {
                 "strategy": "mean_reversion",
                 "tickers": ["AAPL"],
-                "start_date": (datetime.now() - timedelta(days=365)).isoformat(),
+                "start_date": (
+                    datetime.now() - timedelta(days=365)
+                ).isoformat(),
                 "end_date": datetime.now().isoformat(),
                 "initial_capital": 100000,
-                "strategy_params": {"lookback_period": 20, "z_score_threshold": 2.0},
+                "strategy_params": {
+                    "lookback_period": 20,
+                    "z_score_threshold": 2.0,
+                },
             }
 
-            task = run_backtest_task.delay(backtest_id=backtest_id, config=config)
+            task = run_backtest_task.delay(
+                backtest_id=backtest_id, config=config
+            )
             result = task.get(timeout=300)
 
             logger.success("✓ Mean reversion backtest completed")
@@ -352,7 +400,9 @@ class TestRiskAnalysisIntegration:
 
         # Step 1: Collect data for all tickers
         try:
-            from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
+            from backend.data_engine.collectors.yfinance_collector import (
+                YFinanceCollector,
+            )
 
             collector = YFinanceCollector()
 
@@ -384,7 +434,9 @@ class TestRiskAnalysisIntegration:
 
         # Step 3: Calculate CVaR
         try:
-            from backend.quant_engine.risk.cvar_calculator import CVaRCalculator
+            from backend.quant_engine.risk.cvar_calculator import (
+                CVaRCalculator,
+            )
 
             cvar_calc = CVaRCalculator()
             logger.success("✓ CVaR calculator initialized")
@@ -418,10 +470,14 @@ class TestAPIIntegration:
         try:
             payload = {
                 "ticker": "AAPL",
-                "start_date": (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d"),
+                "start_date": (datetime.now() - timedelta(days=30)).strftime(
+                    "%Y-%m-%d"
+                ),
                 "end_date": datetime.now().strftime("%Y-%m-%d"),
             }
-            response = requests.post(f"{api_url}/api/v1/data/collect", json=payload, timeout=60)
+            response = requests.post(
+                f"{api_url}/api/v1/data/collect", json=payload, timeout=60
+            )
             assert response.status_code in [200, 202]
             logger.success("✓ Data collection submitted")
         except requests.RequestException as e:
@@ -437,7 +493,9 @@ class TestAPIIntegration:
                     "num_epochs": 3,
                 },
             }
-            response = requests.post(f"{api_url}/api/v1/ml/train", json=payload, timeout=30)
+            response = requests.post(
+                f"{api_url}/api/v1/ml/train", json=payload, timeout=30
+            )
             if response.status_code in [200, 202]:
                 data = response.json()
                 job_id = data.get("job_id") or data.get("task_id")
@@ -453,7 +511,8 @@ class TestAPIIntegration:
 # Pytest configuration
 def pytest_configure(config):
     config.addinivalue_line(
-        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+        "markers",
+        "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     )
 
 

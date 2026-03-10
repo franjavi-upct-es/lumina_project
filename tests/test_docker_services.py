@@ -96,7 +96,13 @@ class TestTimescaleDBService:
         """Test required tables exist"""
         import psycopg2
 
-        expected_tables = ["market_data", "features", "predictions", "models", "backtests"]
+        expected_tables = [
+            "market_data",
+            "features",
+            "predictions",
+            "models",
+            "backtests",
+        ]
 
         try:
             conn = psycopg2.connect(db_connection_string)
@@ -104,8 +110,8 @@ class TestTimescaleDBService:
 
             cursor.execute(
                 """
-                SELECT table_name 
-                FROM information_schema.tables 
+                SELECT table_name
+                FROM information_schema.tables
                 WHERE table_schema = 'public';
             """
             )
@@ -122,7 +128,9 @@ class TestTimescaleDBService:
                     print(f"✓ Table exists: {table}")
 
             if missing_tables:
-                print(f"⚠ Missing tables (may need migration): {missing_tables}")
+                print(
+                    f"⚠ Missing tables (may need migration): {missing_tables}"
+                )
                 # Warning, not failure - tables might be created later
         except psycopg2.OperationalError as e:
             pytest.fail(f"Table check failed: {e}")
@@ -274,7 +282,9 @@ class TestFastAPIService:
     @pytest.fixture
     def api_base_url(self):
         """Build API base URL"""
-        return f"http://{DOCKER_CONFIG['API_HOST']}:{DOCKER_CONFIG['API_PORT']}"
+        return (
+            f"http://{DOCKER_CONFIG['API_HOST']}:{DOCKER_CONFIG['API_PORT']}"
+        )
 
     def test_api_health_endpoint(self, api_base_url):
         """Test API health endpoint"""
@@ -346,11 +356,16 @@ class TestFastAPIService:
             ]
 
             for endpoint in endpoints:
-                response = requests.get(f"{api_base_url}{endpoint}", timeout=10)
-                # Accept 200, 404 (no data), or 405 (method not allowed - POST only)
-                assert response.status_code in [200, 404, 405, 422], (
-                    f"Unexpected status for {endpoint}: {response.status_code}"
+                response = requests.get(
+                    f"{api_base_url}{endpoint}", timeout=10
                 )
+                # Accept 200, 404 (no data), or 405 (method not allowed - POST only)
+                assert response.status_code in [
+                    200,
+                    404,
+                    405,
+                    422,
+                ], f"Unexpected status for {endpoint}: {response.status_code}"
                 print(f"✓ Endpoint {endpoint}: {response.status_code}")
         except requests.RequestException as e:
             pytest.fail(f"API data endpoint test failed: {e}")
@@ -484,12 +499,16 @@ class TestMLflowService:
         import requests
 
         try:
-            response = requests.get(f"{mlflow_url}/api/2.0/mlflow/experiments/search", timeout=10)
+            response = requests.get(
+                f"{mlflow_url}/api/2.0/mlflow/experiments/search", timeout=10
+            )
 
             assert response.status_code == 200
             data = response.json()
             experiments = data.get("experiments", [])
-            print(f"✓ MLflow API working: {len(experiments)} experiments found")
+            print(
+                f"✓ MLflow API working: {len(experiments)} experiments found"
+            )
         except requests.RequestException as e:
             pytest.fail(f"MLflow API test failed: {e}")
 
@@ -555,7 +574,9 @@ class TestStreamlitService:
         import requests
 
         try:
-            response = requests.get(f"{streamlit_url}/_stcore/health", timeout=10)
+            response = requests.get(
+                f"{streamlit_url}/_stcore/health", timeout=10
+            )
 
             assert response.status_code == 200
             print("✓ Streamlit health check passed")
@@ -571,7 +592,9 @@ class TestServiceIntegration:
         """Test API can communicate with database"""
         import requests
 
-        api_url = f"http://{DOCKER_CONFIG['API_HOST']}:{DOCKER_CONFIG['API_PORT']}"
+        api_url = (
+            f"http://{DOCKER_CONFIG['API_HOST']}:{DOCKER_CONFIG['API_PORT']}"
+        )
 
         try:
             response = requests.get(f"{api_url}/health", timeout=10)
@@ -589,7 +612,9 @@ class TestServiceIntegration:
         """Test API can communicate with Redis"""
         import requests
 
-        api_url = f"http://{DOCKER_CONFIG['API_HOST']}:{DOCKER_CONFIG['API_PORT']}"
+        api_url = (
+            f"http://{DOCKER_CONFIG['API_HOST']}:{DOCKER_CONFIG['API_PORT']}"
+        )
 
         try:
             response = requests.get(f"{api_url}/health", timeout=10)
@@ -607,7 +632,9 @@ class TestServiceIntegration:
 # Pytest configuration
 def pytest_configure(config):
     """Configure pytest markers"""
-    config.addinivalue_line("markers", "docker: marks tests as Docker integration tests")
+    config.addinivalue_line(
+        "markers", "docker: marks tests as Docker integration tests"
+    )
 
 
 if __name__ == "__main__":

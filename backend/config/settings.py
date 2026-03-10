@@ -29,9 +29,13 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = "Lumina Quant Lab"
     VERSION: str = "2.0.0"
-    ENVIRONMENT: str = Field(default="development", pattern="^(development|staging|production)$")
+    ENVIRONMENT: str = Field(
+        default="development", pattern="^(development|staging|production)$"
+    )
     DEBUG: bool = Field(default=False)
-    LOG_LEVEL: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)")
+    LOG_LEVEL: str = Field(
+        default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)"
+    )
 
     # API
     API_V2_PREFIX: str = "/api/v2"
@@ -141,10 +145,14 @@ class Settings(BaseSettings):
     @classmethod
     def validate_database_url(cls, v):
         if not str(v).startswith("postgresql"):
-            raise ValueError("DATABASE_URL must be a PostgreSQL connection string")
+            raise ValueError(
+                "DATABASE_URL must be a PostgreSQL connection string"
+            )
         return v
 
-    @field_validator("ALLOWED_ORIGINS", "API_KEYS", "API_KEY_HASHES", mode="before")
+    @field_validator(
+        "ALLOWED_ORIGINS", "API_KEYS", "API_KEY_HASHES", mode="before"
+    )
     @classmethod
     def split_csv_values(cls, v):
         if v is None:
@@ -157,9 +165,13 @@ class Settings(BaseSettings):
     def validate_security_settings(self):
         if self.is_production:
             if "*" in self.ALLOWED_ORIGINS:
-                raise ValueError("ALLOWED_ORIGINS cannot include '*' in production")
+                raise ValueError(
+                    "ALLOWED_ORIGINS cannot include '*' in production"
+                )
             if not (self.API_KEYS or self.API_KEY_HASHES):
-                raise ValueError("API_KEYS or API_KEY_HASHES must be set in production")
+                raise ValueError(
+                    "API_KEYS or API_KEY_HASHES must be set in production"
+                )
         return self
 
     @property

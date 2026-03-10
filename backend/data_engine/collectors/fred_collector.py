@@ -187,7 +187,13 @@ class FredCollector(BaseDataCollector):
 
                 try:
                     value = float(value_str)
-                    records.append({"date": obs["date"], "value": value, "series_id": series_id})
+                    records.append(
+                        {
+                            "date": obs["date"],
+                            "value": value,
+                            "series_id": series_id,
+                        }
+                    )
                 except (ValueError, TypeError):
                     continue
 
@@ -209,7 +215,9 @@ class FredCollector(BaseDataCollector):
             # Add metadata
             df = self._add_metadata(df, series_id, "fred")
 
-            logger.success(f"Collected {df.height} observations for {series_id}")
+            logger.success(
+                f"Collected {df.height} observations for {series_id}"
+            )
             return df
 
         except Exception as e:
@@ -224,7 +232,9 @@ class FredCollector(BaseDataCollector):
             return False
 
         required_columns = ["time", "value"]
-        missing_columns = [col for col in required_columns if col not in data.columns]
+        missing_columns = [
+            col for col in required_columns if col not in data.columns
+        ]
 
         if missing_columns:
             logger.error(f"Missing columns: {missing_columns}")
@@ -290,7 +300,9 @@ class FredCollector(BaseDataCollector):
             logger.error(f"Error fetching series info for {series_id}: {e}")
             return None
 
-    async def search_series(self, search_text: str, limit: int = 10) -> list[dict[str, Any]] | None:
+    async def search_series(
+        self, search_text: str, limit: int = 10
+    ) -> list[dict[str, Any]] | None:
         """
         Search for FRED series by keyword
 

@@ -1,152 +1,135 @@
-# ============================================================================
-# ML Worker Dockerfile
-# ============================================================================
+# ./docker/Dockerfile.perception
+# =============================================================================
+# LUMINA V3 - PERCEPTION ENCODING SERVICE (GPU)
+# =============================================================================
+# The Perception Service embodies Layer 1 of the Chimera architecture —
+# the three specialized encoder modules that transform raw multi-modal data
+# into dense compressed embedding vectors for the RL agent:
+#
+#   [A] Temporal Encoder (TFT):
+#       Input:  OHLCV candles (1m, 5m, 1h) + technical indicators + static covariates
+#       Output: Price Embedding (dim=128) → Redis key: embeddings:price:{ticker}
+#       Update: Every 1 minute via Celery Beat scheduler
+#
+#   [B] Semantic Encoder (Distilled Quant-LLM / DistilRoBERTa-financial):
+#       Input:  Raw news text, SEC filings, Twitter/Reddit posts
+#       Output: Context Embedding (dim=64) → Redis key: embeddings:news:{ticker}
+#       Update: On new article ingestion (event-driven), TTL=3600s
+#       Latency target: <100ms inference per document
+#
+#   [C] Structural Encoder (GATv2 Graph Neural Network):
+#       Input:  Rolling 30-day correlation matrix + static sector edges
+#       Output: Graph Embedding (dim=32) → Redis key: embeddings:graph:{ticker}
+#       Update: Every hour, TTL=7200s
+#
+# This is the heaviest computational service and REQUIRES GPU access.
+# CUDA 12.1 base image is used to support PyTorch 2.x with Flash Attention.
+# =============================================================================
 
-# ============================================================================
-# Builder Stage - Install dependencies
-# ============================================================================
-FROM nvidia/cuda:12.6.0-cudnn-devel-ubuntu22.04 AS builder
+# NVIDIA CUDA 12.1 base with cuDNN 8 for PyTorch GPU support
+# python3.11 variant bundles the correct Python version
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04 AS base
 
-# Build arguments
-ARG UV_VERSION=0.5.11
-ARG PYTHON_VERSION=3.11
-ARG PYTORCH_VERSION=2.5.1
-ARG CUDA_VERSION=cu124
+LABEL org.opencontainers.image.title="Lumina V3 - Perception Encoding Service"
+LABEL org.opencontainers.image.description="TFT + Distilled LLM + GATv2 GNN encoder pipeline (GPU)"
+LABEL org.opencontainers.image.version="3.0.0"
+LABEL org.opencontainers.image.authors="Lumina Quant Lab"
 
-# Environment variables
-ENV DEBIAN_FRONTEND=noninteractive \
+# Set CUDA visible devices (overridden by docker-compose runtime config)
+ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app \
+    UV_NO_CACHE=1 \
     UV_SYSTEM_PYTHON=1 \
-    UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy \
-    UV_HTTP_TIMEOUT=600 \
-    UV_CONCURRENT_DOWNLOADS=4 \
-    PATH="/root/.local/bin:$PATH" \
-    CUDA_HOME=/usr/local/cuda \
-    TORCH_CUDA_ARCH_LIST="9.0" \
-    CUDA_LAUNCH_BLOCKING=0
+    # CUDA memory management: expandable segments reduce fragmentation
+    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+    # Tokenizer parallelism: disabled inside worker processes to avoid forking issues
+    TOKENIZERS_PARALLELISM=false \
+    # Hugging Face cache: point to a mounted volume for model weight persistence
+    HF_HOME=/app/.cache/huggingface \
+    TRANSFORMERS_CACHE=/app/.cache/huggingface/transformers
 
-# Install system dependencies
+# Install Python 3.11 and required system libraries
+# libgomp1: OpenMP runtime required by PyTorch parallel operations
+# git: required to clone some PyG (PyTorch Geometric) dependencies at build time
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python${PYTHON_VERSION} \
-    python${PYTHON_VERSION}-dev \
+    python3.11 \
+    python3.11-dev \
     python3-pip \
+    python3.11-venv \
     build-essential \
+    libpq-dev \
+    libgomp1 \
     git \
     curl \
-    ca-certificates \
-    libgomp1 \
-    wget \
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Create symlink for python
-RUN ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python && \
-    ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3
+RUN pip install --no-cache-dir uv==0.4.29
 
-# Install UV package manager
-RUN curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+# ---- Dependency Stage ----
+FROM base AS dependencies
 
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml uv.lock* ./
+COPY requirements/base.txt requirements/base.txt
+COPY requirements/ml.txt requirements/ml.txt
 
-# ============================================================================
-# CRITICAL: Install PyTorch FIRST with correct CUDA version
-# ============================================================================
-RUN echo "Installing PyTorch ${PYTORCH_VERSION} with CUDA ${CUDA_VERSION}..." && \
-    pip install --no-cache-dir --timeout 300 --retries 10 \
-    torch==${PYTORCH_VERSION}+${CUDA_VERSION} \
-    torchvision==0.20.1+${CUDA_VERSION} \
-    torchaudio==${PYTORCH_VERSION}+${CUDA_VERSION} \
-    --index-url https://download.pytorch.org/whl/${CUDA_VERSION}
+# Install ML stack:
+# - PyTorch 2.x with CUDA 12.1 support (cu121 index)
+# - PyTorch Geometric (PyG) for GATv2 GNN implementation
+# - Hugging Face Transformers for DistilRoBERTa-financial
+# - pytorch-forecasting for Temporal Fusion Transformer
+RUN uv pip install --no-cache \
+    -r requirements/base.txt \
+    -r requirements/ml.txt \
+    # PyTorch with CUDA 12.1 — installed separately with the CUDA-specific index
+    torch==2.3.1+cu121 \
+    torchvision==0.18.1+cu121 \
+    --extra-index-url https://download.pytorch.org/whl/cu121
 
-# Verify PyTorch installation
-RUN python -c "import torch; \
-    print(f'PyTorch version: {torch.__version__}'); \
-    print(f'CUDA available: {torch.cuda.is_available()}'); \
-    print(f'CUDA version: {torch.version.cuda}'); \
-    print(f'cuDNN version: {torch.backends.cudnn.version()}'); \
-    assert '${CUDA_VERSION}' in torch.__version__, 'Wrong CUDA version!'"
+# PyTorch Geometric dependencies (scatter, sparse) must match the PyTorch version
+# Using pre-built wheels from the PyG CDN
+RUN pip install --no-cache-dir \
+    torch-scatter \
+    torch-sparse \
+    torch-geometric \
+    -f https://data.pyg.org/whl/torch-2.3.1+cu121.html
 
-# ============================================================================
-# Install dependencies with retries and increased timeout
-# ============================================================================
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-cache --no-install-project \
-    --group ml --group db --group celery --group mlflow --group data || \
-    (echo "First attempt failed, retrying with longer timeout..." && \
-    UV_HTTP_TIMEOUT=900 uv sync --frozen --no-cache --no-install-project \
-    --group ml --group db --group celery --group mlflow --group data)
-
-# Verify installations
-RUN .venv/bin/python -c "import torch, sklearn, pandas, numpy; \
-    print('All core packages installed')"
-
-# ============================================================================
-# Runtime Stage - Production image
-# ============================================================================
-FROM nvidia/cuda:12.6.0-cudnn-runtime-ubuntu22.04 AS runtime
-
-ARG PYTHON_VERSION=3.11
-
-# Environment variables
-ENV DEBIAN_FRONTEND=noninteractive \
-    PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/app/.venv/bin:$PATH" \
-    PYTHONPATH="/app:/app/backend" \
-    CUDA_HOME=/usr/local/cuda \
-    TORCH_CUDA_ARCH_LIST="9.0" \
-    PYTORCH_ALLOC_CONF="expandable_segments:True" \
-    OMP_NUM_THREADS=4 \
-    MKL_NUM_THREADS=4 \
-    NVIDIA_VISIBLE_DEVICES=all \
-    NVIDIA_DRIVER_CAPABILITIES=compute,utility
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python${PYTHON_VERSION} \
-    python${PYTHON_VERSION}-distutils \
-    libgomp1 \
-    libopenblas0 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create symlink for python
-RUN ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python && \
-    ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3
+# ---- Final Stage ----
+FROM dependencies AS final
 
 WORKDIR /app
 
-# Copy virtual environment from builder
-COPY --from=builder /app/.venv /app/.venv
+# Copy the perception module and its shared dependencies
+COPY backend/perception/ ./backend/perception/
+COPY backend/feature_store/ ./backend/feature_store/
+COPY backend/config/ ./backend/config/
+COPY backend/workers/embedding_tasks.py ./backend/workers/embedding_tasks.py
+COPY backend/workers/celery_app.py ./backend/workers/celery_app.py
+COPY backend/utils/ ./backend/utils/
+COPY pyproject.toml ./
 
-# Copy application code
-COPY backend/ backend/
+# Pre-create Hugging Face cache directory with correct permissions
+RUN mkdir -p /app/.cache/huggingface && \
+    groupadd --gid 1001 lumina && \
+    useradd --uid 1001 --gid lumina --shell /bin/bash --create-home lumina && \
+    chown -R lumina:lumina /app
 
-# Create necessary directories
-RUN mkdir -p /app/models /app/data/parquet /app/logs && \
-    chmod -R 755 /app/models /app/data /app/logs
+USER lumina
 
-# Verify installation in runtime
-RUN python -c "import torch; \
-    print(f'✓ PyTorch {torch.__version__}'); \
-    print(f'✓ CUDA: {torch.version.cuda}'); \
-    print(f'✓ cuDNN: {torch.backends.cudnn.version()}'); \
-    print(f'✓ GPU Available: {torch.cuda.is_available()}')" || \
-    echo "⚠ Warning: CUDA not available (will work in CPU mode)"
+EXPOSE 8002
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python -c "import torch; exit(0 if torch.cuda.is_available() else 1)" || exit 0
+HEALTHCHECK --interval=60s --timeout=20s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8002/health || exit 1
 
-# Default command
+# The perception service runs as a Celery worker consuming embedding tasks
+# (TFT updates, NLP inference, GNN correlation updates) from the Redis queue.
+# --concurrency 2: GPU tasks are serialized; 2 workers allow mild parallelism
+# --queues perception: isolates perception tasks from general task queues
 CMD ["celery", "-A", "backend.workers.celery_app", "worker", \
-    "--loglevel=info", \
-    "--concurrency=2", \
-    "--max-tasks-per-child=50", \
-    "--task-events", \
-    "--time-limit=3600", \
-    "--soft-time-limit=3300", \
-    "-Q", "ml"]
+     "--loglevel=info", \
+     "--concurrency=2", \
+     "--queues=perception,embeddings", \
+     "--hostname=perception@%h"]

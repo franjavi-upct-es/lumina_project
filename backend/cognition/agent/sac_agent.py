@@ -3,7 +3,8 @@
 Soft Actor-Critic (SAC) Agent for Continuous Action Space
 
 Implements SAC (Haarnoja et al., 2018) for trading with continuous actions.
-SAC is chosen for its sample efficiency and automatic exploration via entropy maximization.
+SAC is chosen for its sample efficiency and automatic exploration via
+entropy maximization.
 
 Key Features:
 - Off-policy learning (uses replay buffer)
@@ -13,7 +14,8 @@ Key Features:
 - Squashed Gaussian policy
 
 References:
-- Haarnoja et al. (2018): "Soft Actor-Critic: Off-Policy Maximum Entropy Deep RL"
+- Haarnoja et al. (2018): "Soft Actor-Critic: Off-Policy Maximum Entropy
+  Deep RL"
 - Haarnoja et al. (2018): "Soft Actor-Critic Algorithms and Applications"
 
 Mathematical Formulation:
@@ -194,8 +196,12 @@ class SACAgent:
 
         # Optimizers
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=actor_lr)
-        self.critic1_optimizer = optim.Adam(self.critic1.parameters(), lr=critic_lr)
-        self.critic2_optimizer = optim.Adam(self.critic2.parameters(), lr=critic_lr)
+        self.critic1_optimizer = optim.Adam(
+            self.critic1.parameters(), lr=critic_lr
+        )
+        self.critic2_optimizer = optim.Adam(
+            self.critic2.parameters(), lr=critic_lr
+        )
 
         # Temperature parameter (entropy regularization)
         self.auto_alpha = auto_alpha
@@ -215,11 +221,22 @@ class SACAgent:
         self.training_step = 0
         self.total_steps = 0
 
-        logger.info(f"SAC Agent initialized with state_dim={state_dim}, action_dim={action_dim}")
-        logger.info(f"Actor parameters: {sum(p.numel() for p in self.actor.parameters()):,}")
-        logger.info(f"Critic parameters: {sum(p.numel() for p in self.critic1.parameters()):,}")
+        logger.info(
+            f"SAC Agent initialized with state_dim={state_dim}, "
+            f"action_dim={action_dim}"
+        )
+        logger.info(
+            "Actor parameters: "
+            f"{sum(p.numel() for p in self.actor.parameters()):,}"
+        )
+        logger.info(
+            "Critic parameters: "
+            f"{sum(p.numel() for p in self.critic1.parameters()):,}"
+        )
 
-    def select_action(self, state: np.ndarray, deterministic: bool = False) -> np.ndarray:
+    def select_action(
+        self, state: np.ndarray, deterministic: bool = False
+    ) -> np.ndarray:
         """
         Select action given state.
 
@@ -233,7 +250,9 @@ class SACAgent:
         # Warmup: random actions
         if self.total_steps < self.warmup_steps:
             return np.random.uniform(
-                self.action_bounds[0], self.action_bounds[1], size=self.action_dim
+                self.action_bounds[0],
+                self.action_bounds[1],
+                size=self.action_dim,
             )
 
         state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
@@ -242,7 +261,9 @@ class SACAgent:
             if deterministic:
                 action, _ = self.actor.sample(state_tensor, deterministic=True)
             else:
-                action, _ = self.actor.sample(state_tensor, deterministic=False)
+                action, _ = self.actor.sample(
+                    state_tensor, deterministic=False
+                )
 
         return action.cpu().numpy()[0]
 
@@ -278,7 +299,9 @@ class SACAgent:
             return {}
 
         # Sample batch
-        states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.batch_size)
+        states, actions, rewards, next_states, dones = (
+            self.replay_buffer.sample(self.batch_size)
+        )
 
         # Convert to tensors
         states = torch.FloatTensor(states).to(self.device)
@@ -312,7 +335,7 @@ class SACAgent:
 
         # Critic losses (MSE)
         critic1_loss = F.mse_loss(q1, q_target)
-        critic2_loss = F.mse_loss(states, actions)
+        critic2_loss = F.mse_loss(q2, q_target)
 
         # Update critic 1
         self.critic1_optimizer.zero_grad()
@@ -350,7 +373,9 @@ class SACAgent:
 
         if self.auto_alpha:
             # Temperature loss: α * (log π + target_entropy)
-            alpha_loss = -(self.log_alpha * (log_probs + self.target_entropy).detach()).mean()
+            alpha_loss = -(
+                self.log_alpha * (log_probs + self.target_entropy).detach()
+            ).mean()
 
             # Update temperature
             self.alpha_optimizer.zero_grad()
@@ -397,9 +422,12 @@ class SACAgent:
             source: Source network
             target: Target network
         """
-        for target_param, source_param in zip(target.parameters(), source.parameters()):
+        for target_param, source_param in zip(
+            target.parameters(), source.parameters()
+        ):
             target_param.data.copy_(
-                self.tau * source_param.data + (1 - self.tau) * target_param.data
+                self.tau * source_param.data
+                + (1 - self.tau) * target_param.data
             )
 
     def save(self, path: str):
@@ -416,13 +444,21 @@ class SACAgent:
                 "critic2_state_dict": self.critic2.state_dict(),
                 "critic1_target_state_dict": self.critic1_target.state_dict(),
                 "critic2_target_state_dict": self.critic2_target.state_dict(),
-                "actor_optimizer_state_dict": self.actor_optimizer.state_dict(),
-                "critic1_optimizer_state_dict": self.critic1_optimizer.state_dict(),
-                "critic2_optimizer_state_dict": self.critic2_optimizer.state_dict(),
+                "actor_optimizer_state_dict": (
+                    self.actor_optimizer.state_dict()
+                ),
+                "critic1_optimizer_state_dict": (
+                    self.critic1_optimizer.state_dict()
+                ),
+                "critic2_optimizer_state_dict": (
+                    self.critic2_optimizer.state_dict()
+                ),
                 "log_alpha": self.log_alpha if self.auto_alpha else None,
-                "alpha_optimizer_state_dict": self.alpha_optimizer.state_dict()
-                if self.auto_alpha
-                else None,
+                "alpha_optimizer_state_dict": (
+                    self.alpha_optimizer.state_dict()
+                    if self.auto_alpha
+                    else None
+                ),
                 "training_step": self.training_step,
                 "total_steps": self.total_steps,
             },
@@ -442,16 +478,28 @@ class SACAgent:
         self.actor.load_state_dict(checkpoint["actor_state_dict"])
         self.critic1.load_state_dict(checkpoint["critic1_state_dict"])
         self.critic2.load_state_dict(checkpoint["critic2_state_dict"])
-        self.critic1_target.load_state_dict(checkpoint["critic1_target_state_dict"])
-        self.critic2_target.load_state_dict(checkpoint["critic2_target_state_dict"])
+        self.critic1_target.load_state_dict(
+            checkpoint["critic1_target_state_dict"]
+        )
+        self.critic2_target.load_state_dict(
+            checkpoint["critic2_target_state_dict"]
+        )
 
-        self.actor_optimizer.load_state_dict(checkpoint["actor_optimizer_state_dict"])
-        self.critic1_optimizer.load_state_dict(checkpoint["critic1_optimizer_state_dict"])
-        self.critic2_optimizer.load_state_dict(checkpoint["critic2_optimizer_state_dict"])
+        self.actor_optimizer.load_state_dict(
+            checkpoint["actor_optimizer_state_dict"]
+        )
+        self.critic1_optimizer.load_state_dict(
+            checkpoint["critic1_optimizer_state_dict"]
+        )
+        self.critic2_optimizer.load_state_dict(
+            checkpoint["critic2_optimizer_state_dict"]
+        )
 
         if self.auto_alpha and checkpoint["log_alpha"] is not None:
             self.log_alpha = checkpoint["log_alpha"]
-            self.alpha_optimizer.load_state_dict(checkpoint["alpha_optimizer_state_dict"])
+            self.alpha_optimizer.load_state_dict(
+                checkpoint["alpha_optimizer_state_dict"]
+            )
             self.alpha = self.log_alpha.exp()
 
         self.training_step = checkpoint.get("training_step", 0)

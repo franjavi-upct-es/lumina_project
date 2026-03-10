@@ -259,7 +259,9 @@ def format_metric_summary(metrics: dict[str, float]) -> str:
             formatted_value = format_ratio(value)
         elif "drawdown" in name.lower():
             formatted_value = format_percentage(value)
-        elif any(x in name.lower() for x in ["capital", "pnl", "profit", "loss"]):
+        elif any(
+            x in name.lower() for x in ["capital", "pnl", "profit", "loss"]
+        ):
             formatted_value = format_currency(value)
         else:
             formatted_value = format_number(value)

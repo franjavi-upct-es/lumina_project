@@ -21,8 +21,12 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from backend.config.settings import Settings
-    from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
-    from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+    from backend.data_engine.collectors.yfinance_collector import (
+        YFinanceCollector,
+    )
+    from backend.data_engine.transformers.feature_engineering import (
+        FeatureEngineer,
+    )
     from backend.ml_engine.models.lstm_advanced import AdvancedLSTM
     from backend.ml_engine.models.transformer import TransformerModel
 

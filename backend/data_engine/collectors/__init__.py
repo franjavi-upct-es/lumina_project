@@ -42,7 +42,9 @@ Version: 3.0.0
 
 from backend.data_engine.collectors.alpha_vantage import AlphaVantageCollector
 from backend.data_engine.collectors.base_collector import BaseDataCollector
-from backend.data_engine.collectors.fred_collector import FredCollector as FREDCollector
+from backend.data_engine.collectors.fred_collector import (
+    FredCollector as FREDCollector,
+)
 from backend.data_engine.collectors.news_collector import NewsCollector
 from backend.data_engine.collectors.reddit_collector import RedditCollector
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector

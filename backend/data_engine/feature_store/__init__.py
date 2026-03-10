@@ -10,7 +10,8 @@ Hot Storage (Online - Redis):
     - Pre-computed embeddings from perception encoders
     - TTL-based caching for real-time access
     - Microsecond-level lookup for trading decisions
-    - Stores: Price embeddings (TFT), Semantic vectors (LLM), Graph embeddings (GNN)
+    - Stores: Price embeddings (TFT), Semantic vectors (LLM),
+      Graph embeddings (GNN)
 
 Cold Storage (Offline - TimescaleDB + Parquet):
     - Historical features for model training

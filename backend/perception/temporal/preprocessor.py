@@ -76,7 +76,9 @@ class TemporalPreprocessor:
         self.mean_ = None
         self.std_ = None
 
-        logger.debug(f"TemporalPreprocessor initialized: window={self.config.lookback_window}")
+        logger.debug(
+            f"TemporalPreprocessor initialized: window={self.config.lookback_window}"
+        )
 
     def preprocess(
         self, df: pd.DataFrame, static_features: dict | None = None
@@ -111,14 +113,18 @@ class TemporalPreprocessor:
         df = df.dropna()
 
         if len(df) < self.config.lookback_window:
-            raise ValueError(f"Insufficient data: {len(df)} < {self.config.lookback_window}")
+            raise ValueError(
+                f"Insufficient data: {len(df)} < {self.config.lookback_window}"
+            )
 
         # Extract last window
         features_df = df.iloc[-self.config.lookback_window :]
 
         # Select feature columns (exclude date/time)
         feature_cols = [
-            c for c in features_df.columns if c not in ["date", "datetime", "timestamp"]
+            c
+            for c in features_df.columns
+            if c not in ["date", "datetime", "timestamp"]
         ]
 
         features = features_df[feature_cols].values
@@ -154,7 +160,9 @@ class TemporalPreprocessor:
         high_low = df["high"] - df["low"]
         high_close = abs(df["high"] - df["close"].shift())
         low_close = abs(df["low"] - df["close"].shift())
-        true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+        true_range = pd.concat([high_low, high_close, low_close], axis=1).max(
+            axis=1
+        )
         df["atr"] = true_range.rolling(14).mean()
 
         # Bollinger Bands
@@ -229,7 +237,9 @@ class TemporalPreprocessor:
         df = df.dropna()
 
         # Extract features
-        feature_cols = [c for c in df.columns if c not in ["date", "datetime", "timestamp"]]
+        feature_cols = [
+            c for c in df.columns if c not in ["date", "datetime", "timestamp"]
+        ]
         features = df[feature_cols].values
 
         # Fit normalization

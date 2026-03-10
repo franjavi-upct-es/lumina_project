@@ -107,12 +107,18 @@ class GATv2Layer(nn.Module):
 
         # Linear transformation for each head
         self.W = nn.ModuleList(
-            [nn.Linear(in_features, out_features, bias=False) for _ in range(num_heads)]
+            [
+                nn.Linear(in_features, out_features, bias=False)
+                for _ in range(num_heads)
+            ]
         )
 
         # Attention mechanism (GATv2 style)
         self.a = nn.ParameterList(
-            [nn.Parameter(torch.FloatTensor(2 * out_features, 1)) for _ in range(num_heads)]
+            [
+                nn.Parameter(torch.FloatTensor(2 * out_features, 1))
+                for _ in range(num_heads)
+            ]
         )
 
         # Dropout
@@ -124,7 +130,9 @@ class GATv2Layer(nn.Module):
         # Initialize parameters
         self._init_parameters()
 
-        logger.debug(f"GATv2Layer: {num_heads} heads, in={in_features}, out={out_features}")
+        logger.debug(
+            f"GATv2Layer: {num_heads} heads, in={in_features}, out={out_features}"
+        )
 
     def _init_parameters(self):
         """Initialize parameters using Xavier initialization."""
@@ -132,7 +140,10 @@ class GATv2Layer(nn.Module):
             nn.init.xavier_uniform_(a_head)
 
     def forward(
-        self, x: torch.Tensor, edge_index: torch.Tensor, edge_weights: torch.Tensor | None = None
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_weights: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Forward pass through GAT layer.
@@ -156,7 +167,9 @@ class GATv2Layer(nn.Module):
             h = self.W[head](x)  # [num_nodes, out_features]
 
             # Compute attention
-            attention = self._compute_attention(h, edge_index, edge_weights, head)
+            attention = self._compute_attention(
+                h, edge_index, edge_weights, head
+            )
 
             # Apply attention and aggregate
             h_prime = self._aggregate(h, edge_index, attention)
@@ -200,7 +213,9 @@ class GATv2Layer(nn.Module):
         h_target = h[target_idx]  # [num_edges, out_features]
 
         # Concatenate source and target (GATv2)
-        h_cat = torch.cat([h_source, h_target], dim=-1)  # [num_edges, 2*out_features]
+        h_cat = torch.cat(
+            [h_source, h_target], dim=-1
+        )  # [num_edges, 2*out_features]
 
         # Compute attention scores
         e = self.leakyrelu(torch.matmul(h_cat, self.a[head]))  # [num_edges, 1]
@@ -233,8 +248,12 @@ class GATv2Layer(nn.Module):
             Normalized attention [num_edges]
         """
         # Compute max per node for numerical stability
-        max_scores = torch.full((num_nodes,), float("-inf"), device=scores.device)
-        max_scores.scatter_reduce_(0, target_idx, scores, reduce="amax", include_self=False)
+        max_scores = torch.full(
+            (num_nodes,), float("-inf"), device=scores.device
+        )
+        max_scores.scatter_reduce_(
+            0, target_idx, scores, reduce="amax", include_self=False
+        )
 
         # Subtract max and exponentiate
         scores_shifted = scores - max_scores[target_idx]
@@ -250,7 +269,10 @@ class GATv2Layer(nn.Module):
         return attention
 
     def _aggregate(
-        self, h: torch.Tensor, edge_index: torch.Tensor, attention: torch.Tensor
+        self,
+        h: torch.Tensor,
+        edge_index: torch.Tensor,
+        attention: torch.Tensor,
     ) -> torch.Tensor:
         """
         Aggregate neighbor features using attention.
@@ -273,9 +295,13 @@ class GATv2Layer(nn.Module):
         weighted_features = h[source_idx] * attention.unsqueeze(-1)
 
         # Aggregate to target nodes
-        aggregated = torch.zeros(num_nodes, out_features, device=h.device, dtype=h.dtype)
+        aggregated = torch.zeros(
+            num_nodes, out_features, device=h.device, dtype=h.dtype
+        )
         aggregated.scatter_add_(
-            0, target_idx.unsqueeze(-1).expand_as(weighted_features), weighted_features
+            0,
+            target_idx.unsqueeze(-1).expand_as(weighted_features),
+            weighted_features,
         )
 
         return aggregated

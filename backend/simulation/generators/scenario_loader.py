@@ -79,9 +79,13 @@ class ScenarioLoader:
     def __init__(self):
         """Initialize scenario loader."""
         self._scenarios = self._create_scenario_database()
-        logger.info(f"ScenarioLoader initialized with {len(self._scenarios)} scenarios")
+        logger.info(
+            f"ScenarioLoader initialized with {len(self._scenarios)} scenarios"
+        )
 
-    def _create_scenario_database(self) -> dict[HistoricalCrash, ScenarioMetadata]:
+    def _create_scenario_database(
+        self,
+    ) -> dict[HistoricalCrash, ScenarioMetadata]:
         """Create database of historical scenarios with metadata."""
         return {
             HistoricalCrash.BLACK_MONDAY_1987: ScenarioMetadata(
@@ -151,7 +155,10 @@ class ScenarioLoader:
         return [crash.value for crash in HistoricalCrash]
 
     def load_scenario(
-        self, crash: HistoricalCrash, scale_factor: float = 1.0, num_steps: int = 252
+        self,
+        crash: HistoricalCrash,
+        scale_factor: float = 1.0,
+        num_steps: int = 252,
     ) -> pd.DataFrame:
         """
         Load historical crash scenario.
@@ -171,22 +178,35 @@ class ScenarioLoader:
 
         # Generate crash pattern
         if crash == HistoricalCrash.BLACK_MONDAY_1987:
-            data = self._generate_single_day_crash(metadata.max_drawdown * scale_factor, num_steps)
+            data = self._generate_single_day_crash(
+                metadata.max_drawdown * scale_factor, num_steps
+            )
 
         elif crash == HistoricalCrash.FLASH_CRASH_2010:
-            data = self._generate_flash_crash(metadata.max_drawdown * scale_factor, num_steps)
+            data = self._generate_flash_crash(
+                metadata.max_drawdown * scale_factor, num_steps
+            )
 
-        elif crash in [HistoricalCrash.FINANCIAL_CRISIS_2008, HistoricalCrash.COVID_CRASH_2020]:
+        elif crash in [
+            HistoricalCrash.FINANCIAL_CRISIS_2008,
+            HistoricalCrash.COVID_CRASH_2020,
+        ]:
             data = self._generate_extended_crash(
-                metadata.max_drawdown * scale_factor, metadata.duration_days, num_steps
+                metadata.max_drawdown * scale_factor,
+                metadata.duration_days,
+                num_steps,
             )
 
         else:
             # Default: gradual decline
-            data = self._generate_gradual_decline(metadata.max_drawdown * scale_factor, num_steps)
+            data = self._generate_gradual_decline(
+                metadata.max_drawdown * scale_factor, num_steps
+            )
 
         # Add volatility
-        data = self._add_volatility(data, metadata.peak_volatility * scale_factor)
+        data = self._add_volatility(
+            data, metadata.peak_volatility * scale_factor
+        )
 
         logger.info(
             f"Loaded {metadata.name} scenario: "
@@ -196,7 +216,9 @@ class ScenarioLoader:
 
         return data
 
-    def _generate_single_day_crash(self, crash_magnitude: float, num_steps: int) -> pd.DataFrame:
+    def _generate_single_day_crash(
+        self, crash_magnitude: float, num_steps: int
+    ) -> pd.DataFrame:
         """Generate single-day crash (Black Monday style)."""
         initial_price = 100.0
         prices = [initial_price]
@@ -219,7 +241,9 @@ class ScenarioLoader:
 
         return self._prices_to_ohlcv(np.array(prices[:num_steps]))
 
-    def _generate_flash_crash(self, crash_magnitude: float, num_steps: int) -> pd.DataFrame:
+    def _generate_flash_crash(
+        self, crash_magnitude: float, num_steps: int
+    ) -> pd.DataFrame:
         """Generate flash crash (rapid crash and recovery)."""
         initial_price = 100.0
         prices = [initial_price]
@@ -242,7 +266,9 @@ class ScenarioLoader:
         # Recovery phase
         for i in range(recovery_duration):
             progress = i / recovery_duration
-            price = crash_bottom + (prices[crash_start] - crash_bottom) * progress
+            price = (
+                crash_bottom + (prices[crash_start] - crash_bottom) * progress
+            )
             prices.append(price)
 
         # Continue normal
@@ -271,7 +297,11 @@ class ScenarioLoader:
             decline = np.exp(-crash_rate * (i + 1))
             volatility = 0.03 * (1 + i / crash_steps)  # Increasing volatility
             noise = np.random.normal(0, volatility)
-            prices.append(initial_price * (1 - max_drawdown * (1 - decline)) * (1 + noise))
+            prices.append(
+                initial_price
+                * (1 - max_drawdown * (1 - decline))
+                * (1 + noise)
+            )
 
         # Recovery phase
         bottom = prices[-1]
@@ -281,23 +311,33 @@ class ScenarioLoader:
                 num_steps - buildup - crash_steps
             )
             target = bottom * (1 + recovery_factor * 0.5)  # 50% recovery
-            prices.append(prices[-1] * 0.95 + target * 0.05 + np.random.normal(0, 0.02))
+            prices.append(
+                prices[-1] * 0.95 + target * 0.05 + np.random.normal(0, 0.02)
+            )
 
         return self._prices_to_ohlcv(np.array(prices[:num_steps]))
 
-    def _generate_gradual_decline(self, max_drawdown: float, num_steps: int) -> pd.DataFrame:
+    def _generate_gradual_decline(
+        self, max_drawdown: float, num_steps: int
+    ) -> pd.DataFrame:
         """Generate gradual market decline."""
         initial_price = 100.0
         decline_rate = max_drawdown / num_steps
 
         prices = []
         for i in range(num_steps):
-            price = initial_price * (1 - decline_rate * i) * (1 + np.random.normal(0, 0.015))
+            price = (
+                initial_price
+                * (1 - decline_rate * i)
+                * (1 + np.random.normal(0, 0.015))
+            )
             prices.append(price)
 
         return self._prices_to_ohlcv(np.array(prices))
 
-    def _add_volatility(self, data: pd.DataFrame, peak_volatility: float) -> pd.DataFrame:
+    def _add_volatility(
+        self, data: pd.DataFrame, peak_volatility: float
+    ) -> pd.DataFrame:
         """Add volatility to price data."""
         # Scale volatility relative to normal (VIX ~20)
         vol_multiplier = peak_volatility / 20.0
@@ -306,7 +346,10 @@ class ScenarioLoader:
             close = data.loc[data.index[i], "close"]
 
             # Widen high-low range
-            current_range = data.loc[data.index[i], "high"] - data.loc[data.index[i], "low"]
+            current_range = (
+                data.loc[data.index[i], "high"]
+                - data.loc[data.index[i], "low"]
+            )
             new_range = current_range * vol_multiplier
 
             data.loc[data.index[i], "high"] = close + new_range / 2
@@ -328,13 +371,23 @@ class ScenarioLoader:
                 open_price = prices[i - 1]
 
             # Simple OHLC
-            high = max(open_price, close) * (1 + abs(np.random.normal(0, 0.005)))
-            low = min(open_price, close) * (1 - abs(np.random.normal(0, 0.005)))
+            high = max(open_price, close) * (
+                1 + abs(np.random.normal(0, 0.005))
+            )
+            low = min(open_price, close) * (
+                1 - abs(np.random.normal(0, 0.005))
+            )
 
             volume = np.random.lognormal(15, 0.5) * 1_000_000
 
             ohlcv.append(
-                {"open": open_price, "high": high, "low": low, "close": close, "volume": volume}
+                {
+                    "open": open_price,
+                    "high": high,
+                    "low": low,
+                    "close": close,
+                    "volume": volume,
+                }
             )
 
         df = pd.DataFrame(ohlcv)
@@ -359,7 +412,9 @@ class ScenarioLoader:
 
         for crash in scenarios:
             metadata = self._scenarios[crash]
-            scenario_data = self.load_scenario(crash, num_steps=metadata.duration_days)
+            scenario_data = self.load_scenario(
+                crash, num_steps=metadata.duration_days
+            )
             combined.append(scenario_data)
 
             # Add spacing (normal market)
@@ -369,9 +424,13 @@ class ScenarioLoader:
 
         # Concatenate all
         result = pd.concat(combined, ignore_index=True)
-        result.index = pd.date_range(start="2020-01-01", periods=len(result), freq="D")
+        result.index = pd.date_range(
+            start="2020-01-01", periods=len(result), freq="D"
+        )
 
-        logger.info(f"Combined {len(scenarios)} scenarios, total steps: {len(result)}")
+        logger.info(
+            f"Combined {len(scenarios)} scenarios, total steps: {len(result)}"
+        )
 
         return result
 

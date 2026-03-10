@@ -16,15 +16,23 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Environment configuration for tests
 TEST_CONFIG = {
     # Database
-    "DATABASE_URL": os.getenv("DATABASE_URL", "postgresql://localhost:5435/lumina_db"),
+    "DATABASE_URL": os.getenv(
+        "DATABASE_URL", "postgresql://localhost:5435/lumina_db"
+    ),
     # Redis
     "REDIS_URL": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
-    "CELERY_BROKER_URL": os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/1"),
-    "CELERY_RESULT_BACKEND": os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/2"),
+    "CELERY_BROKER_URL": os.getenv(
+        "CELERY_BROKER_URL", "redis://localhost:6379/1"
+    ),
+    "CELERY_RESULT_BACKEND": os.getenv(
+        "CELERY_RESULT_BACKEND", "redis://localhost:6379/2"
+    ),
     # API
     "API_BASE_URL": os.getenv("API_BASE_URL", "http://localhost:8000"),
     # MLflow
-    "MLFLOW_TRACKING_URI": os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"),
+    "MLFLOW_TRACKING_URI": os.getenv(
+        "MLFLOW_TRACKING_URI", "http://localhost:5000"
+    ),
 }
 
 # Set environment variables
@@ -35,11 +43,16 @@ for key, value in TEST_CONFIG.items():
 def pytest_configure(config):
     """Configure pytest markers"""
     config.addinivalue_line(
-        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+        "markers",
+        "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     )
-    config.addinivalue_line("markers", "integration: marks tests as integration tests")
+    config.addinivalue_line(
+        "markers", "integration: marks tests as integration tests"
+    )
     config.addinivalue_line("markers", "unit: marks tests as unit tests")
-    config.addinivalue_line("markers", "docker: marks tests requiring Docker services")
+    config.addinivalue_line(
+        "markers", "docker: marks tests requiring Docker services"
+    )
     config.addinivalue_line("markers", "gpu: marks tests requiring GPU")
 
 
@@ -157,7 +170,10 @@ def backtest_config(extended_date_range, sample_tickers):
         "initial_capital": 100000,
         "commission": 0.001,
         "slippage": 0.0005,
-        "strategy_params": {"lookback_period": 20, "rebalance_frequency": "weekly"},
+        "strategy_params": {
+            "lookback_period": 20,
+            "rebalance_frequency": "weekly",
+        },
     }
 
 
@@ -181,7 +197,9 @@ def celery_app():
 def yfinance_collector():
     """Return YFinance collector instance"""
     try:
-        from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
+        from backend.data_engine.collectors.yfinance_collector import (
+            YFinanceCollector,
+        )
 
         return YFinanceCollector(rate_limit=100)
     except ImportError:
@@ -192,7 +210,9 @@ def yfinance_collector():
 def feature_engineer():
     """Return Feature Engineer instance"""
     try:
-        from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+        from backend.data_engine.transformers.feature_engineering import (
+            FeatureEngineer,
+        )
 
         return FeatureEngineer()
     except ImportError:
@@ -302,7 +322,9 @@ def wait_for_task(task, timeout=120, poll_interval=2):
                 raise Exception(f"Task failed: {task.info}")
         time.sleep(poll_interval)
 
-    raise TimeoutError(f"Task {task.id} did not complete within {timeout} seconds")
+    raise TimeoutError(
+        f"Task {task.id} did not complete within {timeout} seconds"
+    )
 
 
 def check_service_health(service_name, check_func):

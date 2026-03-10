@@ -71,7 +71,9 @@ class LiveShadowEnv(TradingEnv):
 
         logger.info(f"LiveShadowEnv initialized: live_mode={live_mode}")
 
-    def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
+    def step(
+        self, action: np.ndarray
+    ) -> tuple[np.ndarray, float, bool, bool, dict]:
         """
         Execute step with realistic market conditions.
 
@@ -88,15 +90,21 @@ class LiveShadowEnv(TradingEnv):
         market_conditions = self._get_market_conditions()
 
         # Adjust action for market conditions
-        adjusted_action = self._adjust_for_market_conditions(action, market_conditions)
+        adjusted_action = self._adjust_for_market_conditions(
+            action, market_conditions
+        )
 
         # Execute parent step with adjusted action
-        obs, reward, terminated, truncated, info = super().step(adjusted_action)
+        obs, reward, terminated, truncated, info = super().step(
+            adjusted_action
+        )
 
         # Add shadow trading specific info
         info["paper_trading"] = True
         info["market_conditions"] = market_conditions
-        info["slippage_realized"] = self.slippage_realized[-1] if self.slippage_realized else 0.0
+        info["slippage_realized"] = (
+            self.slippage_realized[-1] if self.slippage_realized else 0.0
+        )
 
         return obs, reward, terminated, truncated, info
 
@@ -114,7 +122,12 @@ class LiveShadowEnv(TradingEnv):
             dictionary with market metrics
         """
         if self.current_step >= len(self.df):
-            return {"volatility": 0.02, "spread": 0.001, "volume": 1000000, "liquidity": 1.0}
+            return {
+                "volatility": 0.02,
+                "spread": 0.001,
+                "volume": 1000000,
+                "liquidity": 1.0,
+            }
 
         current_data = self.df.iloc[self.current_step]
 
@@ -164,7 +177,9 @@ class LiveShadowEnv(TradingEnv):
 
         # Calculate realized slippage
         base_slippage = self.config.slippage
-        volatility_factor = 1 + (conditions["volatility"] / 0.02)  # Scale by volatility
+        volatility_factor = 1 + (
+            conditions["volatility"] / 0.02
+        )  # Scale by volatility
         urgency_factor = 1 + urgency  # More urgency = more slippage
 
         realized_slippage = base_slippage * volatility_factor * urgency_factor
@@ -183,13 +198,19 @@ class LiveShadowEnv(TradingEnv):
             return {}
 
         portfolio_array = np.array(self.portfolio_history)
-        returns_array = np.array(self.returns_history) if self.returns_history else np.array([])
+        returns_array = (
+            np.array(self.returns_history)
+            if self.returns_history
+            else np.array([])
+        )
 
         summary = {
             "total_steps": self.current_step,
             "initial_capital": self.config.initial_capital,
             "final_capital": self.portfolio_value,
-            "total_return": (self.portfolio_value - self.config.initial_capital)
+            "total_return": (
+                self.portfolio_value - self.config.initial_capital
+            )
             / self.config.initial_capital,
             "num_trades": len(self.actions_history),
         }

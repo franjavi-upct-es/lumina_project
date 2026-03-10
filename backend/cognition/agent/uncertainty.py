@@ -15,7 +15,8 @@ Techniques:
 
 References:
 - Gal & Ghahramani (2016): "Dropout as a Bayesian Approximation"
-- Lakshminarayanan et al. (2017): "Simple and Scalable Predictive Uncertainty Estimation"
+- Lakshminarayanan et al. (2017): "Simple and Scalable Predictive Uncertainty
+  Estimation"
 - Osband et al. (2016): "Deep Exploration via Bootstrapped DQN"
 
 Safety Integration:
@@ -82,7 +83,8 @@ class MonteCarloDropout:
 
         Returns:
             mean_action: Mean predicted action
-            uncertainty: Standard deviation across samples (epistemic uncertainty)
+            uncertainty: Standard deviation across samples (epistemic
+            uncertainty)
             all_samples: All MC samples (if requested)
         """
         samples = []
@@ -104,7 +106,7 @@ class MonteCarloDropout:
         mean_action = samples.mean(dim=0)
         std_action = samples.std(dim=0)
 
-        # Uncertainty score (average std across)
+        # Uncertainty score (average std across action dimensions)
         uncertainty = std_action.mean(dim=-1)
 
         if return_all_samples:
@@ -112,29 +114,146 @@ class MonteCarloDropout:
         else:
             return mean_action, uncertainty, None
 
-    def estimate_epistemic_uncertainty(
-        self,
-        state: torch.Tensor,
-    ) -> float:
+    def estimate_epistemic_uncertainty(self, state: torch.Tensor) -> float:
         """
-        Estimate epistemic uncertainty from ensemble disagreement.
+        Estimate epistemic uncertainty (model confusion).
+
+        High values indicate the model is uncertain about what action to take,
+        suggesting the state is outside the training distribution.
 
         Args:
-            state: Input shape
+            state: Input state
 
         Returns:
             uncertainty_score: Normalized uncertainty score [0, 1]
         """
         _, uncertainty, _ = self.predict_with_uncertainty(state)
 
-        # Normalized to [0, 1]
+        # Normalize to [0, 1] range
+        # For continuous actions in [-1, 1], max std is ~0.5
         uncertainty_score = torch.clamp(uncertainty / 0.5, 0, 1)
 
-        return uncertainty_score
+        return uncertainty_score.item()
+
+    def get_prediction_interval(
+        self, state: torch.Tensor, confidence: float = 0.95
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Get prediction interval for action.
+
+        Args:
+            state: Input state
+            confidence: Confidence level (e.g., 0.95 for 95% interval)
+
+        Returns:
+            lower_bound: Lower confidence bound
+            upper_bound: Upper confidence bound
+        """
+        _, _, samples = self.predict_with_uncertainty(
+            state, return_all_samples=True
+        )
+
+        # Compute percentiles
+        alpha = (1 - confidence) / 2
+        lower_percentile = alpha * 100
+        upper_percentile = (1 - alpha) * 100
+
+        lower_bound = torch.quantile(samples, lower_percentile / 100, dim=0)
+        upper_bound = torch.quantile(samples, upper_percentile / 100, dim=0)
+
+        return lower_bound, upper_bound
+
+
+class DeepEnsemble:
+    """
+    Deep Ensemble for uncertainty estimation.
+
+    Trains multiple independent models and measures prediction variance.
+    Generally more accurate than MC Dropout but computationally expensive.
+
+    Each model in the ensemble is trained with different random initialization,
+    providing diverse predictions that capture epistemic uncertainty.
+    """
+
+    def __init__(
+        self,
+        models: list[nn.Module],
+    ):
+        """
+        Initialize Deep Ensemble.
+
+        Args:
+            models: list of trained models
+        """
+        self.models = models
+        self.n_models = len(models)
+
+        # Set all models to eval mode
+        for model in self.models:
+            model.eval()
+
+    def predict_with_uncertainty(
+        self, state: torch.Tensor, return_all_predictions: bool = False
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
+        """
+        Predict action with ensemble uncertainty.
+
+        Args:
+            state: Input state
+            return_all_predictions: If True, return all ensemble predictions
+
+        Returns:
+            mean_action: Mean predicted action
+            uncertainty: Standard deviation across ensemble
+            all_predictions: All ensemble predictions (if requested)
+        """
+        predictions = []
+
+        # Get prediction from each model
+        for model in self.models:
+            with torch.no_grad():
+                action_dist, _ = model(state)
+                action = (
+                    action_dist.mean
+                )  # Use mean for deterministic prediction
+                predictions.append(action)
+
+        # Stack predictions
+        predictions = torch.stack(
+            predictions
+        )  # [n_models, batch_size, action_dim]
+
+        # Compute statistics
+        mean_action = predictions.mean(dim=0)
+        std_action = predictions.std(dim=0)
+
+        # Uncertainty score
+        uncertainty = std_action.mean(dim=-1)
+
+        if return_all_predictions:
+            return mean_action, uncertainty, predictions
+        else:
+            return mean_action, uncertainty, None
+
+    def estimate_epistemic_uncertainty(self, state: torch.Tensor) -> float:
+        """
+        Estimate epistemic uncertainty from ensemble disagreement.
+
+        Args:
+            state: Input state
+
+        Returns:
+            uncertainty_score: Normalized uncertainty score [0, 1]
+        """
+        _, uncertainty, _ = self.predict_with_uncertainty(state)
+
+        # Normalize to [0, 1]
+        uncertainty_score = torch.clamp(uncertainty / 0.5, 0, 1)
+
+        return uncertainty_score.item()
 
     def get_ensemble_statistics(
-        self,
-        state: torch.Tensor,
+        self, state: torch.Tensor
     ) -> dict[str, torch.Tensor]:
         """
         Get comprehensive ensemble statistics.
@@ -143,10 +262,10 @@ class MonteCarloDropout:
             state: Input state
 
         Returns:
-            statistics: Dictionary of ensemble statistics
+            statistics: dictionary of ensemble statistics
         """
         mean_action, uncertainty, predictions = self.predict_with_uncertainty(
-            state, return_all_samples=True
+            state, return_all_predictions=True
         )
 
         # Compute additional statistics
@@ -181,7 +300,7 @@ class UncertaintyEstimator:
         model: nn.Module,
         method: str = "mc_dropout",
         n_samples: int = 10,
-        ensemble_models: list[nn.Module] | None = None,
+        ensemble_models: list[nn.Module | None] = None,
         critical_threshold: float = 0.8,
     ):
         """
@@ -189,7 +308,7 @@ class UncertaintyEstimator:
 
         Args:
             model: Primary model
-            method: Uncertainty of MC samples
+            method: Uncertainty method ('mc_dropout' or 'ensemble')
             n_samples: Number of MC samples
             ensemble_models: List of ensemble models (for ensemble method)
             critical_threshold: Threshold for safety intervention
@@ -198,24 +317,28 @@ class UncertaintyEstimator:
         self.critical_threshold = critical_threshold
 
         if method == "mc_dropout":
+            self.estimator = MonteCarloDropout(
+                model=model, n_samples=n_samples
+            )
+        elif method == "ensemble":
             if ensemble_models is None:
-                raise ValueError("Ensemble models required for ensemble method")
+                raise ValueError(
+                    "Ensemble models required for ensemble method"
+                )
             self.estimator = DeepEnsemble(models=ensemble_models)
         else:
             raise ValueError(f"Unknown uncertainty method: {method}")
 
-        logger.info(f"Uncertainty estimator intialized with method={method}")
+        logger.info(f"Uncertainty estimator initialized with method={method}")
 
     def estimate_uncertainty(
-        self,
-        state: torch.Tensor,
-        return_action: bool = True,
+        self, state: torch.Tensor, return_action: bool = True
     ) -> tuple[float, torch.Tensor | None]:
         """
         Estimate uncertainty for state.
 
         Args:
-            state: Input shape
+            state: Input state
             return_action: If True, also return predicted action
 
         Returns:
@@ -223,9 +346,13 @@ class UncertaintyEstimator:
             action: Predicted action (if requested)
         """
         if self.method == "mc_dropout":
-            mean_action, uncertainty, _ = self.estimator.predict_with_uncertainty(state)
+            mean_action, uncertainty, _ = (
+                self.estimator.predict_with_uncertainty(state)
+            )
         else:  # ensemble
-            mean_action, uncertainty, _ = self.estimator.predict_with_uncertainty(state)
+            mean_action, uncertainty, _ = (
+                self.estimator.predict_with_uncertainty(state)
+            )
 
         # Normalize uncertainty to [0, 1]
         uncertainty_score = torch.clamp(uncertainty / 0.5, 0, 1).item()
@@ -243,21 +370,27 @@ class UncertaintyEstimator:
         the system should fall back to defensive strategies.
 
         Args:
-            state: Input shape
+            state: Input state
 
         Returns:
             is_safe: True if uncertainty is below threshold
             uncertainty_score: Uncertainty score
             recommendation: Safety recommendation
         """
-        uncertainty_score, _ = self.estimate_uncertainty(state, return_action=False)
+        uncertainty_score, _ = self.estimate_uncertainty(
+            state, return_action=False
+        )
 
         if uncertainty_score > self.critical_threshold:
             is_safe = False
-            recommendation = "REJECT - High epistemic uncertainty. State likely OOD"
+            recommendation = (
+                "REJECT - High epistemic uncertainty. State likely OOD."
+            )
         elif uncertainty_score > self.critical_threshold * 0.7:
             is_safe = True
-            recommendation = "CAUTION - Moderate uncertainty. Reduce position size."
+            recommendation = (
+                "CAUTION - Moderate uncertainty. Reduce position size."
+            )
         else:
             is_safe = True
             recommendation = "CONFIDENT - Low uncertainty. Normal operation."
@@ -274,12 +407,16 @@ class UncertaintyEstimator:
         Returns:
             analysis: Comprehensive uncertainty analysis
         """
-        uncertainty_score, action = self.estimate_uncertainty(state, return_action=True)
+        uncertainty_score, action = self.estimate_uncertainty(
+            state, return_action=True
+        )
         is_safe, _, recommendation = self.is_safe_to_act(state)
 
         # Get prediction interval (95% confidence)
         if self.method == "mc_dropout":
-            lower, upper = self.estimator.get_prediction_interval(state, confidence=0.95)
+            lower, upper = self.estimator.get_prediction_interval(
+                state, confidence=0.95
+            )
         else:
             # For ensemble, use min/max
             stats = self.estimator.get_ensemble_statistics(state)
@@ -293,7 +430,9 @@ class UncertaintyEstimator:
             "uncertainty_score": uncertainty_score,
             "is_safe": is_safe,
             "recommendation": recommendation,
-            "predicted_action": action.cpu().numpy() if action is not None else None,
+            "predicted_action": (
+                action.cpu().numpy() if action is not None else None
+            ),
             "prediction_interval": {
                 "lower": lower.cpu().numpy(),
                 "upper": upper.cpu().numpy(),
@@ -304,10 +443,7 @@ class UncertaintyEstimator:
         }
 
     def log_uncertainty_event(
-        self,
-        state: torch.Tensor,
-        ticker: str,
-        context: dict | None = None,
+        self, state: torch.Tensor, ticker: str, context: dict | None = None
     ):
         """
         Log high uncertainty event for monitoring.

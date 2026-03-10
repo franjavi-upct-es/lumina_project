@@ -1,0 +1,100 @@
+# ./docker/Dockerfile.data
+# =============================================================================
+# LUMINA V3 - DATA ENGINE SERVICE (Celery Workers)
+# =============================================================================
+# This service runs the data collection, cleaning, and ingestion workers that
+# feed the Feature Store's Cold (TimescaleDB) and Hot (Redis) layers.
+#
+# Responsibilities:
+#   - Historical OHLCV collection: Alpha Vantage, YFinance, FRED (macro data)
+#   - Real-time price streaming: WebSocket price feed (price_stream.py)
+#   - News ingestion: NewsAPI polling + WebSocket news stream (news_stream.py)
+#   - Social data: Reddit + Twitter/X unified scraper (social_scraper.py)
+#   - On-chain data: Blockchain metrics collector (chain_scraper.py)
+#   - ETL Pipeline: async ingestion → outlier detection → TimescaleDB write
+#   - Redis cache management: deduplication and TTL enforcement
+#
+# This service is CPU-only. GPU is not required for data collection.
+# Heavy feature engineering (embedding generation) is delegated to Dockerfile.perception.
+#
+# Celery queues consumed by this worker:
+#   - "data":       periodic collection tasks (prices, news, fundamentals)
+#   - "ingestion":  ETL pipeline tasks (clean, normalize, store)
+#   - "streaming":  websocket management tasks
+# =============================================================================
+
+FROM python:3.11-slim-bookworm AS base
+
+LABEL org.opencontainers.image.title="Lumina V3 - Data Engine Service"
+LABEL org.opencontainers.image.description="Celery workers for data collection, ETL and Feature Store population"
+LABEL org.opencontainers.image.version="3.0.0"
+LABEL org.opencontainers.image.authors="Lumina Quant Lab"
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    UV_NO_CACHE=1 \
+    UV_SYSTEM_PYTHON=1
+
+# ta-lib system dependency: required for some native TA indicator calculations
+# libpq-dev: PostgreSQL client for TimescaleDB writes
+# libxml2-dev, libxslt1-dev: for lxml used in web scraping
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    libxml2-dev \
+    libxslt1-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir uv==0.4.29
+
+# ---- Dependency Stage ----
+FROM base AS dependencies
+
+WORKDIR /app
+
+COPY requirements/base.txt requirements/base.txt
+
+# Data service dependencies — subset of base requirements focused on:
+# aiohttp/websockets for async streaming, beautifulsoup4/lxml for scraping,
+# praw for Reddit, tweepy for Twitter, pandas-datareader for FRED
+RUN uv pip install --no-cache -r requirements/base.txt
+
+# ---- Final Stage ----
+FROM dependencies AS final
+
+WORKDIR /app
+
+# Copy only the data-related modules to keep the image lean
+COPY backend/data_engine/ ./backend/data_engine/
+COPY backend/feature_store/ ./backend/feature_store/
+COPY backend/config/ ./backend/config/
+COPY backend/utils/ ./backend/utils/
+COPY backend/db/ ./backend/db/
+COPY backend/workers/celery_app.py ./backend/workers/celery_app.py
+COPY backend/workers/data_tasks.py ./backend/workers/data_tasks.py
+COPY backend/workers/backtest_tasks.py ./backend/workers/backtest_tasks.py
+COPY pyproject.toml ./
+
+# Non-root security hardening
+RUN groupadd --gid 1001 lumina && \
+    useradd --uid 1001 --gid lumina --shell /bin/bash --create-home lumina && \
+    chown -R lumina:lumina /app
+
+# Create a local parquet cache directory (mounted as a volume in compose)
+RUN mkdir -p /app/data/parquet && chown -R lumina:lumina /app/data
+
+USER lumina
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD celery -A backend.workers.celery_app inspect ping -d data@$(hostname) || exit 1
+
+# --concurrency 4: data tasks are I/O-bound (API calls, DB writes),
+# so higher concurrency is beneficial vs GPU-bound perception tasks.
+# --queues data,ingestion,streaming: consume all data-related task queues
+CMD ["celery", "-A", "backend.workers.celery_app", "worker", \
+     "--loglevel=info", \
+     "--concurrency=4", \
+     "--queues=data,ingestion,streaming,backtest", \
+     "--hostname=data@%h"]

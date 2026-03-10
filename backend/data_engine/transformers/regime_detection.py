@@ -77,7 +77,9 @@ class RegimeDetector:
             vol_median = volatility.median()
 
             # Detect crash (large drawdown)
-            max_close = pl.col("close").rolling_max(window_size=self.vol_window)
+            max_close = pl.col("close").rolling_max(
+                window_size=self.vol_window
+            )
             drawdown = pl.col("close") / max_close - 1.0
 
             df = df.with_columns(

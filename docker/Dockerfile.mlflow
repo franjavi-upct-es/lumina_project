@@ -1,30 +1,86 @@
-# MLflow Tracking Server
-FROM python:3.11-slim
+# ./docker/Dockerfile.mlflow
+# =============================================================================
+# LUMINA V3 - MLFLOW EXPERIMENT TRACKING SERVER
+# =============================================================================
+# MLflow tracks all experiments across the Spartan Training Curriculum:
+#   - Phase A (Behavioral Cloning): imitation learning runs vs V2 teacher
+#   - Phase B (Domain Randomization): 100,000+ warped episode experiments
+#   - Phase C (Pure RL): Sharpe Ratio maximization fine-tuning runs
+#
+# Artifacts (model checkpoints, confusion matrices, embedding visualizations)
+# are stored in a mounted volume. Metadata is persisted to TimescaleDB's
+# dedicated "mlflow" database (created by 00_create_mlflow_db.sh).
+#
+# The V3 constants tracked per run include:
+#   - EMBEDDING_DIM_TEMPORAL (128), EMBEDDING_DIM_SEMANTIC (64), EMBEDDING_DIM_STRUCTURAL (32)
+#   - SUPER_STATE_DIM (224)
+#   - UNCERTAINTY_CRITICAL threshold (0.8)
+#   - Training curriculum phase (A / B / C)
+# =============================================================================
 
-WORKDIR /app
+FROM python:3.11-slim-bookworm AS base
 
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    MLFLOW_DEFAULT_ARTIFACT_ROOT=/app/mlartifacts
+LABEL org.opencontainers.image.title="Lumina V3 - MLflow Tracking Server"
+LABEL org.opencontainers.image.description="Experiment tracking for Spartan Training Curriculum"
+LABEL org.opencontainers.image.version="3.0.0"
+LABEL org.opencontainers.image.authors="Lumina Quant Lab"
 
-# Install system dependencies
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_NO_CACHE=1 \
+    UV_SYSTEM_PYTHON=1
+
+# libpq-dev: required by psycopg2 to connect MLflow to TimescaleDB as its backend
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
+    libpq-dev \
+    build-essential \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install MLflow and dependencies
-RUN pip install --no-cache-dir \
-    mlflow>=2.15.0 \
-    psycopg2-binary>=2.9.9 \
-    boto3>=1.34.0
+RUN pip install --no-cache-dir uv==0.4.29
 
-# Create directories
-RUN mkdir -p /app/mlartifacts /app/mlruns
+# ---- Dependency Stage ----
+FROM base AS dependencies
+
+WORKDIR /mlflow
+
+# MLflow server requires: mlflow, psycopg2 (PostgreSQL backend), and boto3
+# if using S3-compatible artifact storage (optional for future cloud migration)
+RUN uv pip install --no-cache \
+    "mlflow==2.15.1" \
+    "psycopg2-binary==2.9.9" \
+    "boto3==1.35.0"
+
+# ---- Final Stage ----
+FROM dependencies AS final
+
+WORKDIR /mlflow
+
+# Create directory for local artifact storage
+# In production this is mounted as a Docker volume for persistence
+RUN mkdir -p /mlflow/artifacts
+
+# Non-root user for security
+RUN groupadd --gid 1001 lumina && \
+    useradd --uid 1001 --gid lumina --shell /bin/bash --create-home lumina && \
+    chown -R lumina:lumina /mlflow
+
+USER lumina
 
 EXPOSE 5000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl --fail http://localhost:5000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD curl -f http://localhost:5000/health || exit 1
 
-CMD ["sh", "-c", "mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri ${MLFLOW_BACKEND_STORE_URI} --default-artifact-root ${MLFLOW_DEFAULT_ARTIFACT_ROOT:-/app/mlartifacts} --serve-artifacts"]
+# MLflow server launch:
+# --backend-store-uri: PostgreSQL connection string (set via env in docker-compose)
+# --default-artifact-root: local filesystem path (mounted volume)
+# --host 0.0.0.0: bind to all interfaces inside the container
+# --workers 2: sufficient for experiment metadata serving (not a high-traffic service)
+CMD ["sh", "-c", \
+     "mlflow server \
+      --backend-store-uri ${MLFLOW_BACKEND_STORE_URI} \
+      --default-artifact-root /mlflow/artifacts \
+      --host 0.0.0.0 \
+      --port 5000 \
+      --workers 2"]

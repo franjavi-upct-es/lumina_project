@@ -134,7 +134,9 @@ class OnlineFeatureStore:
 
             await self.redis.set(key, value, ex=self.embedding_ttl)
 
-            logger.debug(f"Stored {encoder} embedding for {ticker} (dim={len(vector)})")
+            logger.debug(
+                f"Stored {encoder} embedding for {ticker} (dim={len(vector)})"
+            )
             return True
 
         except Exception as e:
@@ -213,7 +215,9 @@ class OnlineFeatureStore:
         if not embeddings:
             logger.warning(f"No embeddings available for {ticker}")
         else:
-            logger.debug(f"Retrieved {len(embeddings)} embeddings for {ticker}")
+            logger.debug(
+                f"Retrieved {len(embeddings)} embeddings for {ticker}"
+            )
 
         return embeddings
 
@@ -338,10 +342,14 @@ class OnlineFeatureStore:
             sample_embeddings = 0
             sample_features = 0
 
-            async for key in self.redis.scan_iter(match="embeddings:*", count=100):
+            async for key in self.redis.scan_iter(
+                match="embeddings:*", count=100
+            ):
                 sample_embeddings += 1
 
-            async for key in self.redis.scan_iter(match="features:*", count=100):
+            async for key in self.redis.scan_iter(
+                match="features:*", count=100
+            ):
                 sample_features += 1
 
             return {

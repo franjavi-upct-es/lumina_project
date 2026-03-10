@@ -37,7 +37,11 @@ from backend.config.settings import get_settings
 from backend.data_engine.feature_store.definitions import FeatureMetadata
 from backend.data_engine.storage.parquet_writer import ParquetWriter
 from backend.data_engine.storage.timescale_adapter import TimescaleAdapter
-from backend.db.models import Feature, bulk_insert_features, get_async_session_factory
+from backend.db.models import (
+    Feature,
+    bulk_insert_features,
+    get_async_session_factory,
+)
 
 settings = get_settings()
 
@@ -111,7 +115,9 @@ class OfflineFeatureStore:
                 ]
 
             # Store in TimescaleDB
-            db_count = await self._store_to_timescale(ticker, features, feature_names, categories)
+            db_count = await self._store_to_timescale(
+                ticker, features, feature_names, categories
+            )
 
             # Store in Parquet (if enabled)
             parquet_path = None
@@ -127,7 +133,9 @@ class OfflineFeatureStore:
                 categories=categories or {},
                 time_range=(time_col.min(), time_col.max()),
                 data_points=len(features),
-                missing_ratio=self._calculate_missing_ratio(features, feature_names),
+                missing_ratio=self._calculate_missing_ratio(
+                    features, feature_names
+                ),
                 storage_location=str(parquet_path) if parquet_path else None,
                 **(metadata or {}),
             )
@@ -161,9 +169,16 @@ class OfflineFeatureStore:
                 for fname in feature_names:
                     if (
                         fname in row.index
-                        and not pl.DataFrame({fname: [row[fname]]}).null_count().item() > 0
+                        and not pl.DataFrame({fname: [row[fname]]})
+                        .null_count()
+                        .item()
+                        > 0
                     ):
-                        category = categories.get(fname, "unknown") if categories else "unknown"
+                        category = (
+                            categories.get(fname, "unknown")
+                            if categories
+                            else "unknown"
+                        )
 
                         feature_records.append(
                             {
@@ -197,7 +212,9 @@ class OfflineFeatureStore:
         try:
             # Add ticker column if not present
             if "ticker" not in features.columns:
-                features = features.with_columns(pl.lit(ticker).alias("ticker"))
+                features = features.with_columns(
+                    pl.lit(ticker).alias("ticker")
+                )
 
             # Determine file path based on date
             min_date = features["time"].min()
@@ -238,12 +255,16 @@ class OfflineFeatureStore:
         try:
             # Try Parquet first (faster for bulk access)
             if use_parquet_first and self.use_parquet:
-                df = await self._read_from_parquet(ticker, start_date, end_date, feature_names)
+                df = await self._read_from_parquet(
+                    ticker, start_date, end_date, feature_names
+                )
                 if df is not None:
                     return df
 
             # Fall back to TimescaleDB
-            return await self._read_from_timescale(ticker, feature_names, start_date, end_date)
+            return await self._read_from_timescale(
+                ticker, feature_names, start_date, end_date
+            )
 
         except Exception as e:
             logger.error(f"Error retrieving features: {e}")
@@ -264,7 +285,9 @@ class OfflineFeatureStore:
                 query = select(Feature).where(Feature.ticker == ticker)
 
                 if feature_names:
-                    query = query.where(Feature.feature_name.in_(feature_names))
+                    query = query.where(
+                        Feature.feature_name.in_(feature_names)
+                    )
                 if start_date:
                     query = query.where(Feature.time >= start_date)
                 if end_date:
@@ -297,7 +320,9 @@ class OfflineFeatureStore:
                     columns="feature_name",
                 )
 
-                logger.success(f"Retrieved {len(df_wide)} records from TimescaleDB")
+                logger.success(
+                    f"Retrieved {len(df_wide)} records from TimescaleDB"
+                )
                 return df_wide
 
         except Exception as e:
@@ -336,13 +361,17 @@ class OfflineFeatureStore:
     ) -> float:
         """Calculate ratio of missing values"""
         try:
-            feature_cols = [col for col in feature_names if col in features.columns]
+            feature_cols = [
+                col for col in feature_names if col in features.columns
+            ]
             total_values = len(features) * len(feature_cols)
 
             if total_values == 0:
                 return 0.0
 
-            missing_count = features.select(feature_cols).null_count().sum().item()
+            missing_count = (
+                features.select(feature_cols).null_count().sum().item()
+            )
             return missing_count / total_values
 
         except Exception as e:
@@ -375,7 +404,9 @@ class OfflineFeatureStore:
                 query = delete(Feature).where(Feature.ticker == ticker)
 
                 if feature_names:
-                    query = query.where(Feature.feature_name.in_(feature_names))
+                    query = query.where(
+                        Feature.feature_name.in_(feature_names)
+                    )
                 if start_date:
                     query = query.where(Feature.time >= start_date)
                 if end_date:

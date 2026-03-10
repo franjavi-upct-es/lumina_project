@@ -30,7 +30,9 @@ from backend.data_engine.collectors import (
     YFinanceCollector,
 )
 from backend.data_engine.feature_store.client import get_feature_store_client
-from backend.data_engine.transformers.feature_engineering import get_feature_engineer
+from backend.data_engine.transformers.feature_engineering import (
+    get_feature_engineer,
+)
 
 
 class IngestionPipeline:
@@ -160,9 +162,14 @@ class IngestionPipeline:
         for i in range(0, len(tickers), max_concurrent):
             batch = tickers[i : i + max_concurrent]
 
-            tasks = [self.ingest_ticker(ticker, start_date, end_date) for ticker in batch]
+            tasks = [
+                self.ingest_ticker(ticker, start_date, end_date)
+                for ticker in batch
+            ]
 
-            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            batch_results = await asyncio.gather(
+                *tasks, return_exceptions=True
+            )
 
             for result in batch_results:
                 if isinstance(result, Exception):
@@ -179,7 +186,9 @@ class IngestionPipeline:
     async def _collect_fundamentals(self, ticker: str) -> pl.DataFrame | None:
         """Collect fundamental data"""
         try:
-            fundamentals = await self.alpha_vantage.get_company_overview(ticker)
+            fundamentals = await self.alpha_vantage.get_company_overview(
+                ticker
+            )
             return fundamentals
         except Exception as e:
             logger.error(f"Error collecting fundamentals: {e}")

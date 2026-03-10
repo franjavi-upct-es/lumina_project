@@ -154,7 +154,9 @@ class DynamicEdgeComputer:
             Correlation matrix [n_assets, n_assets]
         """
         if len(data) < self.config.min_periods:
-            logger.warning(f"Insufficient data: {len(data)} < {self.config.min_periods}")
+            logger.warning(
+                f"Insufficient data: {len(data)} < {self.config.min_periods}"
+            )
             # Return identity matrix (no correlations)
             return np.eye(len(data.columns))
 
@@ -172,7 +174,9 @@ class DynamicEdgeComputer:
         elif self.config.method == "kendall":
             corr_matrix = returns.corr(method="kendall").values
         else:
-            raise ValueError(f"Unknown correlation method: {self.config.method}")
+            raise ValueError(
+                f"Unknown correlation method: {self.config.method}"
+            )
 
         # Handle NaN values
         corr_matrix = np.nan_to_num(corr_matrix, nan=0.0)
@@ -183,7 +187,9 @@ class DynamicEdgeComputer:
 
         return corr_matrix
 
-    def _matrix_to_edges(self, corr_matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def _matrix_to_edges(
+        self, corr_matrix: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Convert correlation matrix to edge list.
 
@@ -296,13 +302,18 @@ class DynamicEdgeComputer:
         breakdowns.sort(key=lambda x: x[2], reverse=True)
 
         if breakdowns:
-            logger.warning(f"Detected {len(breakdowns)} correlation breakdowns")
+            logger.warning(
+                f"Detected {len(breakdowns)} correlation breakdowns"
+            )
 
         return breakdowns
 
 
 def compute_rolling_correlation(
-    series1: pd.Series, series2: pd.Series, window: int = 30, min_periods: int = 20
+    series1: pd.Series,
+    series2: pd.Series,
+    window: int = 30,
+    min_periods: int = 20,
 ) -> pd.Series:
     """
     Compute rolling correlation between two time series.
@@ -323,7 +334,9 @@ def compute_rolling_correlation(
 
     # Compute rolling correlation
     rolling_corr = (
-        aligned["series1"].rolling(window=window, min_periods=min_periods).corr(aligned["series2"])
+        aligned["series1"]
+        .rolling(window=window, min_periods=min_periods)
+        .corr(aligned["series2"])
     )
 
     return rolling_corr

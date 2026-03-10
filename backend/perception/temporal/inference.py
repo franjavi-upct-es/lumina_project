@@ -30,10 +30,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from backend.perception.temporal.encoder import (
-    TemporalEncoder,
-    TFTConfig,
-)
+from backend.perception.temporal.encoder import TemporalEncoder, TFTConfig
 from backend.perception.temporal.preprocessor import (
     PreprocessorConfig,
     TemporalPreprocessor,
@@ -100,7 +97,9 @@ class TemporalInference:
 
         # Initialize preprocessor
         if preprocessor is None:
-            preproc_config = PreprocessorConfig(lookback_window=self.config.lookback_window)
+            preproc_config = PreprocessorConfig(
+                lookback_window=self.config.lookback_window
+            )
             self.preprocessor = TemporalPreprocessor(preproc_config)
         else:
             self.preprocessor = preprocessor

@@ -75,7 +75,9 @@ class GBMGenerator:
         if self.config.seed is not None:
             np.random.seed(self.config.seed)
 
-        logger.debug(f"GBM Generator: μ={self.config.mu:.2%}, σ={self.config.sigma:.2%}")
+        logger.debug(
+            f"GBM Generator: μ={self.config.mu:.2%}, σ={self.config.sigma:.2%}"
+        )
 
     def generate(self) -> np.ndarray:
         """
@@ -120,11 +122,15 @@ class GBMGenerator:
             prev_close = self.config.initial_price if i == 0 else prices[i - 1]
 
             # Generate intraday path
-            intraday_returns = np.random.normal(intraday_mu, intraday_sigma, intraday_steps)
+            intraday_returns = np.random.normal(
+                intraday_mu, intraday_sigma, intraday_steps
+            )
             intraday_prices = prev_close * np.exp(np.cumsum(intraday_returns))
 
             # Ensure close matches generated price
-            intraday_prices = intraday_prices * (close_price / intraday_prices[-1])
+            intraday_prices = intraday_prices * (
+                close_price / intraday_prices[-1]
+            )
 
             # OHLC
             open_price = prev_close
@@ -216,7 +222,9 @@ class JumpDiffusionGenerator:
         for i in range(self.config.num_steps):
             if jumps[i] > 0:
                 # Sum of multiple jumps if more than one occurs
-                jump_sizes[i] = np.sum(np.random.normal(self.jump_mean, self.jump_std, jumps[i]))
+                jump_sizes[i] = np.sum(
+                    np.random.normal(self.jump_mean, self.jump_std, jumps[i])
+                )
 
         # Combine diffusion and jumps
         log_returns = diffusion + jump_sizes
@@ -254,8 +262,12 @@ class JumpDiffusionGenerator:
                 open_price = prev_close
 
             # High/Low with some noise
-            high_price = max(open_price, close_price) * (1 + abs(np.random.normal(0, 0.01)))
-            low_price = min(open_price, close_price) * (1 - abs(np.random.normal(0, 0.01)))
+            high_price = max(open_price, close_price) * (
+                1 + abs(np.random.normal(0, 0.01))
+            )
+            low_price = min(open_price, close_price) * (
+                1 - abs(np.random.normal(0, 0.01))
+            )
 
             # Volume spikes on jumps
             base_volume = 1_000_000
@@ -288,7 +300,12 @@ class SyntheticDataGenerator:
     with various stochastic processes.
     """
 
-    def __init__(self, model: str = "gbm", config: SyntheticDataConfig | None = None, **kwargs):
+    def __init__(
+        self,
+        model: str = "gbm",
+        config: SyntheticDataConfig | None = None,
+        **kwargs,
+    ):
         """
         Initialize synthetic data generator.
 
@@ -346,14 +363,22 @@ class SyntheticDataGenerator:
             Z = np.random.standard_normal(self.config.num_steps)
 
             # Apply correlation via Cholesky decomposition
-            correlated_Z = L[i] @ np.random.standard_normal((n_assets, self.config.num_steps))
+            correlated_Z = L[i] @ np.random.standard_normal(
+                (n_assets, self.config.num_steps)
+            )
 
             # Generate prices
             log_returns = (
                 self.config.mu - 0.5 * self.config.sigma**2
-            ) * self.config.dt + self.config.sigma * np.sqrt(self.config.dt) * correlated_Z[i]
+            ) * self.config.dt + self.config.sigma * np.sqrt(
+                self.config.dt
+            ) * correlated_Z[
+                i
+            ]
 
-            log_prices = np.log(self.config.initial_price) + np.cumsum(log_returns)
+            log_prices = np.log(self.config.initial_price) + np.cumsum(
+                log_returns
+            )
             prices = np.exp(log_prices)
 
             prices_dict[f"asset_{i + 1}"] = prices
@@ -379,7 +404,11 @@ def generate_test_data(
         OHLCV DataFrame
     """
     config = SyntheticDataConfig(
-        initial_price=100.0, num_steps=days, dt=1 / 252, mu=trend, sigma=volatility
+        initial_price=100.0,
+        num_steps=days,
+        dt=1 / 252,
+        mu=trend,
+        sigma=volatility,
     )
 
     generator = SyntheticDataGenerator(model="gbm", config=config)

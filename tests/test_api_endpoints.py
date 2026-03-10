@@ -34,17 +34,22 @@ class TestDataEndpoints:
 
         payload = {
             "ticker": "AAPL",
-            "start_date": (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d"),
+            "start_date": (datetime.now() - timedelta(days=30)).strftime(
+                "%Y-%m-%d"
+            ),
             "end_date": datetime.now().strftime("%Y-%m-%d"),
         }
 
         try:
-            response = requests.post(f"{api_url}/collect", json=payload, timeout=60)
+            response = requests.post(
+                f"{api_url}/collect", json=payload, timeout=60
+            )
 
             # Accept 200 (sync) or 202 (async task)
-            assert response.status_code in [200, 202], (
-                f"Unexpected status: {response.status_code} - {response.text}"
-            )
+            assert response.status_code in [
+                200,
+                202,
+            ], f"Unexpected status: {response.status_code} - {response.text}"
 
             data = response.json()
             if response.status_code == 202:
@@ -62,12 +67,16 @@ class TestDataEndpoints:
 
         payload = {
             "ticker": "INVALID_TICKER_12345",
-            "start_date": (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d"),
+            "start_date": (datetime.now() - timedelta(days=30)).strftime(
+                "%Y-%m-%d"
+            ),
             "end_date": datetime.now().strftime("%Y-%m-%d"),
         }
 
         try:
-            response = requests.post(f"{api_url}/collect", json=payload, timeout=60)
+            response = requests.post(
+                f"{api_url}/collect", json=payload, timeout=60
+            )
 
             # Should return error or empty result
             assert response.status_code in [200, 202, 400, 404, 422]
@@ -82,12 +91,14 @@ class TestDataEndpoints:
         payload = {"ticker": "AAPL"}  # Missing dates
 
         try:
-            response = requests.post(f"{api_url}/collect", json=payload, timeout=30)
+            response = requests.post(
+                f"{api_url}/collect", json=payload, timeout=30
+            )
 
             # Should return validation error
-            assert response.status_code == 422, (
-                f"Expected 422 validation error, got {response.status_code}"
-            )
+            assert (
+                response.status_code == 422
+            ), f"Expected 422 validation error, got {response.status_code}"
             print("✓ Missing fields validation working")
         except requests.RequestException as e:
             pytest.fail(f"Missing fields test failed: {e}")
@@ -115,12 +126,16 @@ class TestDataEndpoints:
 
         payload = {
             "tickers": ["AAPL", "GOOGL", "MSFT"],
-            "start_date": (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d"),
+            "start_date": (datetime.now() - timedelta(days=30)).strftime(
+                "%Y-%m-%d"
+            ),
             "end_date": datetime.now().strftime("%Y-%m-%d"),
         }
 
         try:
-            response = requests.post(f"{api_url}/collect/batch", json=payload, timeout=120)
+            response = requests.post(
+                f"{api_url}/collect/batch", json=payload, timeout=120
+            )
 
             if response.status_code in [200, 202]:
                 data = response.json()
@@ -148,7 +163,9 @@ class TestMLEndpoints:
             "ticker": "AAPL",
             "model_type": "lstm",
             "hyperparams": {
-                "start_date": (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d"),
+                "start_date": (datetime.now() - timedelta(days=365)).strftime(
+                    "%Y-%m-%d"
+                ),
                 "end_date": datetime.now().strftime("%Y-%m-%d"),
                 "hidden_dim": 64,
                 "num_layers": 2,
@@ -163,12 +180,15 @@ class TestMLEndpoints:
         }
 
         try:
-            response = requests.post(f"{api_url}/train", json=payload, timeout=30)
+            response = requests.post(
+                f"{api_url}/train", json=payload, timeout=30
+            )
 
             # Training is async, should return 202 Accepted
-            assert response.status_code in [200, 202], (
-                f"Unexpected status: {response.status_code} - {response.text}"
-            )
+            assert response.status_code in [
+                200,
+                202,
+            ], f"Unexpected status: {response.status_code} - {response.text}"
 
             data = response.json()
             assert "job_id" in data or "task_id" in data
@@ -184,7 +204,9 @@ class TestMLEndpoints:
             "ticker": "MSFT",
             "model_type": "xgboost",
             "hyperparams": {
-                "start_date": (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d"),
+                "start_date": (datetime.now() - timedelta(days=365)).strftime(
+                    "%Y-%m-%d"
+                ),
                 "end_date": datetime.now().strftime("%Y-%m-%d"),
                 "n_estimators": 100,
                 "max_depth": 6,
@@ -194,7 +216,9 @@ class TestMLEndpoints:
         }
 
         try:
-            response = requests.post(f"{api_url}/train", json=payload, timeout=30)
+            response = requests.post(
+                f"{api_url}/train", json=payload, timeout=30
+            )
 
             assert response.status_code in [200, 202]
             data = response.json()
@@ -213,7 +237,9 @@ class TestMLEndpoints:
 
             if response.status_code == 200:
                 data = response.json()
-                print(f"✓ Models listed: {len(data) if isinstance(data, list) else data}")
+                print(
+                    f"✓ Models listed: {len(data) if isinstance(data, list) else data}"
+                )
             else:
                 print("⚠ No models found (empty list)")
         except requests.RequestException as e:
@@ -250,7 +276,9 @@ class TestMLEndpoints:
         }
 
         try:
-            response = requests.post(f"{api_url}/predict", json=payload, timeout=60)
+            response = requests.post(
+                f"{api_url}/predict", json=payload, timeout=60
+            )
 
             # 404 expected if model doesn't exist
             assert response.status_code in [200, 202, 404, 500]
@@ -259,7 +287,9 @@ class TestMLEndpoints:
                 data = response.json()
                 print(f"✓ Prediction response: {data}")
             else:
-                print(f"✓ Prediction endpoint responded: {response.status_code}")
+                print(
+                    f"✓ Prediction endpoint responded: {response.status_code}"
+                )
         except requests.RequestException as e:
             pytest.fail(f"Predict endpoint failed: {e}")
 
@@ -291,7 +321,9 @@ class TestPortfolioEndpoints:
 
         payload = {
             "tickers": ["AAPL", "GOOGL", "MSFT", "AMZN"],
-            "start_date": (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d"),
+            "start_date": (datetime.now() - timedelta(days=365)).strftime(
+                "%Y-%m-%d"
+            ),
             "end_date": datetime.now().strftime("%Y-%m-%d"),
             "optimization_method": "max_sharpe",
             "risk_free_rate": 0.05,
@@ -299,7 +331,9 @@ class TestPortfolioEndpoints:
         }
 
         try:
-            response = requests.post(f"{api_url}/optimize", json=payload, timeout=120)
+            response = requests.post(
+                f"{api_url}/optimize", json=payload, timeout=120
+            )
 
             assert response.status_code in [200, 202, 404]
 
@@ -317,13 +351,17 @@ class TestPortfolioEndpoints:
 
         payload = {
             "tickers": ["AAPL", "GOOGL", "MSFT"],
-            "start_date": (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d"),
+            "start_date": (datetime.now() - timedelta(days=365)).strftime(
+                "%Y-%m-%d"
+            ),
             "end_date": datetime.now().strftime("%Y-%m-%d"),
             "num_portfolios": 100,
         }
 
         try:
-            response = requests.post(f"{api_url}/efficient-frontier", json=payload, timeout=120)
+            response = requests.post(
+                f"{api_url}/efficient-frontier", json=payload, timeout=120
+            )
 
             if response.status_code in [200, 202]:
                 data = response.json()
@@ -347,7 +385,9 @@ class TestRiskEndpoints:
 
         payload = {
             "ticker": "AAPL",
-            "start_date": (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d"),
+            "start_date": (datetime.now() - timedelta(days=365)).strftime(
+                "%Y-%m-%d"
+            ),
             "end_date": datetime.now().strftime("%Y-%m-%d"),
             "confidence_level": 0.95,
             "holding_period": 1,
@@ -355,7 +395,9 @@ class TestRiskEndpoints:
         }
 
         try:
-            response = requests.post(f"{api_url}/var", json=payload, timeout=60)
+            response = requests.post(
+                f"{api_url}/var", json=payload, timeout=60
+            )
 
             if response.status_code == 200:
                 data = response.json()
@@ -372,13 +414,17 @@ class TestRiskEndpoints:
 
         payload = {
             "ticker": "AAPL",
-            "start_date": (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d"),
+            "start_date": (datetime.now() - timedelta(days=365)).strftime(
+                "%Y-%m-%d"
+            ),
             "end_date": datetime.now().strftime("%Y-%m-%d"),
             "confidence_level": 0.95,
         }
 
         try:
-            response = requests.post(f"{api_url}/cvar", json=payload, timeout=60)
+            response = requests.post(
+                f"{api_url}/cvar", json=payload, timeout=60
+            )
 
             if response.status_code == 200:
                 data = response.json()
@@ -399,7 +445,9 @@ class TestRiskEndpoints:
         }
 
         try:
-            response = requests.post(f"{api_url}/stress-test", json=payload, timeout=120)
+            response = requests.post(
+                f"{api_url}/stress-test", json=payload, timeout=120
+            )
 
             if response.status_code in [200, 202]:
                 data = response.json()
@@ -424,16 +472,23 @@ class TestBacktestEndpoints:
         payload = {
             "strategy": "momentum",
             "tickers": ["AAPL", "GOOGL", "MSFT"],
-            "start_date": (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d"),
+            "start_date": (datetime.now() - timedelta(days=365)).strftime(
+                "%Y-%m-%d"
+            ),
             "end_date": datetime.now().strftime("%Y-%m-%d"),
             "initial_capital": 100000,
             "commission": 0.001,
             "slippage": 0.0005,
-            "strategy_params": {"lookback_period": 20, "rebalance_frequency": "weekly"},
+            "strategy_params": {
+                "lookback_period": 20,
+                "rebalance_frequency": "weekly",
+            },
         }
 
         try:
-            response = requests.post(f"{api_url}/run", json=payload, timeout=120)
+            response = requests.post(
+                f"{api_url}/run", json=payload, timeout=120
+            )
 
             assert response.status_code in [200, 202, 404]
 
@@ -452,7 +507,9 @@ class TestBacktestEndpoints:
         backtest_id = "test_backtest_id"
 
         try:
-            response = requests.get(f"{api_url}/results/{backtest_id}", timeout=30)
+            response = requests.get(
+                f"{api_url}/results/{backtest_id}", timeout=30
+            )
 
             assert response.status_code in [200, 404]
 
@@ -490,7 +547,9 @@ class TestTaskStatusEndpoints:
         task_id = "test_task_id"
 
         try:
-            response = requests.get(f"{API_BASE_URL}/api/v1/tasks/{task_id}", timeout=30)
+            response = requests.get(
+                f"{API_BASE_URL}/api/v1/tasks/{task_id}", timeout=30
+            )
 
             # Accept various status codes
             assert response.status_code in [200, 404, 422]
@@ -510,7 +569,9 @@ class TestTaskStatusEndpoints:
         task_id = "test_task_id"
 
         try:
-            response = requests.delete(f"{API_BASE_URL}/api/v1/tasks/{task_id}", timeout=30)
+            response = requests.delete(
+                f"{API_BASE_URL}/api/v1/tasks/{task_id}", timeout=30
+            )
 
             assert response.status_code in [200, 404, 405]
             print(f"✓ Cancel task endpoint: {response.status_code}")
@@ -536,9 +597,9 @@ class TestAPIValidation:
                 f"{API_BASE_URL}/api/v1/data/collect", json=payload, timeout=30
             )
 
-            assert response.status_code == 422, (
-                f"Expected 422 for invalid date, got {response.status_code}"
-            )
+            assert (
+                response.status_code == 422
+            ), f"Expected 422 for invalid date, got {response.status_code}"
             print("✓ Invalid date format handled correctly")
         except requests.RequestException as e:
             pytest.fail(f"Date validation test failed: {e}")
@@ -548,7 +609,9 @@ class TestAPIValidation:
         import requests
 
         try:
-            response = requests.post(f"{API_BASE_URL}/api/v1/data/collect", json={}, timeout=30)
+            response = requests.post(
+                f"{API_BASE_URL}/api/v1/data/collect", json={}, timeout=30
+            )
 
             assert response.status_code == 422
             print("✓ Empty payload handled correctly")

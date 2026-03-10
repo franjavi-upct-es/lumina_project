@@ -54,7 +54,9 @@ class DiagonalGaussian:
         self.std = torch.exp(self.log_std)
 
         # Create underlying Normal distribution
-        self._distribution = Independent(Normal(self.mean, self.std), reinterpreted_batch_ndims=1)
+        self._distribution = Independent(
+            Normal(self.mean, self.std), reinterpreted_batch_ndims=1
+        )
 
     def sample(self) -> torch.Tensor:
         """
@@ -143,7 +145,9 @@ class BoundedNormal:
         self.high = high
 
         # Underlying Gaussian
-        self._distribution = Independent(Normal(self.mean, self.std), reinterpreted_batch_ndims=1)
+        self._distribution = Independent(
+            Normal(self.mean, self.std), reinterpreted_batch_ndims=1
+        )
 
     def sample(self) -> torch.Tensor:
         """
@@ -347,7 +351,9 @@ def create_distribution(
     elif distribution_type == "bounded":
         if action_bounds is None:
             action_bounds = (-1.0, 1.0)
-        return BoundedNormal(mean, log_std, low=action_bounds[0], high=action_bounds[1])
+        return BoundedNormal(
+            mean, log_std, low=action_bounds[0], high=action_bounds[1]
+        )
 
     elif distribution_type == "squashed":
         return SquashedGaussian(mean, log_std)

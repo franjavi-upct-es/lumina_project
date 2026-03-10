@@ -127,7 +127,9 @@ class TemporalEncoder(nn.Module):
 
         # Variable selection
         self.vsn = VariableSelectionNetwork(
-            input_dim=config.input_dim, hidden_dim=config.hidden_dim, dropout=config.dropout
+            input_dim=config.input_dim,
+            hidden_dim=config.hidden_dim,
+            dropout=config.dropout,
         )
 
         # Input projection
@@ -162,9 +164,13 @@ class TemporalEncoder(nn.Module):
             nn.LayerNorm(config.output_dim),
         )
 
-        logger.info(f"TemporalEncoder initialized: {config.input_dim} → {config.output_dim}d")
+        logger.info(
+            f"TemporalEncoder initialized: {config.input_dim} → {config.output_dim}d"
+        )
 
-    def forward(self, x: torch.Tensor, static_features: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, static_features: torch.Tensor | None = None
+    ) -> torch.Tensor:
         """
         Forward pass through TFT.
 
@@ -198,7 +204,9 @@ class TemporalEncoder(nn.Module):
 
         return embedding
 
-    def encode(self, features: np.ndarray, static_features: np.ndarray | None = None) -> np.ndarray:
+    def encode(
+        self, features: np.ndarray, static_features: np.ndarray | None = None
+    ) -> np.ndarray:
         """
         Encode to numpy (inference mode).
 
@@ -240,6 +248,8 @@ def create_temporal_encoder(
     Returns:
         Configured TemporalEncoder
     """
-    config = TFTConfig(input_dim=input_dim, output_dim=output_dim, lookback_window=lookback)
+    config = TFTConfig(
+        input_dim=input_dim, output_dim=output_dim, lookback_window=lookback
+    )
 
     return TemporalEncoder(config)

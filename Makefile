@@ -1,4 +1,4 @@
-DOCKER_COMPOSE = docker-compose --env-file ../backend/.env
+DOCKER_COMPOSE = docker compose --env-file ../.env
 
 .PHONY: help build up up-gpu down restart logs clean build-ml test lint format setup-gpu check-gpu
 
@@ -35,7 +35,7 @@ up-gpu:
     else \
         echo "Warning: NVIDIA GPU not detected, falling back to CPU mode"; \
         make up; \
-    fi	
+    fi
 
 down:
 	cd docker && $(DOCKER_COMPOSE) down

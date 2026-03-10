@@ -22,7 +22,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api.deps import check_rate_limit, get_async_db, verify_api_key
 from backend.config.settings import get_settings
 
-router = APIRouter(dependencies=[Depends(check_rate_limit), Depends(verify_api_key)])
+router = APIRouter(
+    dependencies=[Depends(check_rate_limit), Depends(verify_api_key)]
+)
 settings = get_settings()
 
 # ============================================================================
@@ -36,13 +38,18 @@ class PortfolioOptimizationRequest(BaseModel):
     tickers: list[str] = Field(..., min_length=2, max_length=50)
     method: str = Field(
         "markowitz",
-        pattern="^(markowitz|black_litterman|risk_parity|hierarchical_risk_parity|equal_weight)$",
+        pattern=(
+            "^(markowitz|black_litterman|risk_parity|"
+            "hierarchical_risk_parity|equal_weight)$"
+        ),
     )
 
     # Optimization objective
     objective: str = Field(
         "max_sharpe",
-        pattern="^(max_sharpe|min_variance|max_return|target_risk|target_return)$",
+        pattern=(
+            "^(max_sharpe|min_variance|max_return|target_risk|target_return)$"
+        ),
     )
 
     # Constraints
@@ -74,7 +81,9 @@ class PortfolioWeights(BaseModel):
 class PortfolioAnalyticsRequest(BaseModel):
     """Request for portfolio analytics"""
 
-    holdings: dict[str, float] = Field(..., description="Portfolio holdings as {ticker: weight}")
+    holdings: dict[str, float] = Field(
+        ..., description="Portfolio holdings as {ticker: weight}"
+    )
     lookback_days: int = Field(252, ge=30, le=1260)
     benchmark: str = Field("SPY")
 
@@ -144,7 +153,10 @@ async def optimize_portfolio(
     Returns:
         PortfolioWeights: Optimized weights and metrics
     """
-    logger.info(f"Optimizing portfolio with {request.method} for {len(request.tickers)} assets")
+    logger.info(
+        f"Optimizing portfolio with {request.method} "
+        f"for {len(request.tickers)} assets"
+    )
 
     # TODO: Implement actual portfolio optimization
     # For now, return equal weights
@@ -205,7 +217,8 @@ async def calculate_efficient_frontier(
 
 @router.post("/analytics", response_model=PortfolioAnalyticsResponse)
 async def analyze_portfolio(
-    request: PortfolioAnalyticsRequest, db: AsyncSession = Depends(get_async_db)
+    request: PortfolioAnalyticsRequest,
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Analyze portfolio performance and risk.

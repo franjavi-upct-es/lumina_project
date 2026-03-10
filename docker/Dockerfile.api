@@ -1,45 +1,88 @@
-# API Service with FastAPI
-FROM python:3.11-slim AS builder
+# ./docker/Dockerfile.api
+# =============================================================================
+# LUMINA V3 - API SERVICE (FastAPI)
+# =============================================================================
+# This container runs the core FastAPI backend, exposing all REST endpoints
+# for agent monitoring, risk management, data retrieval, and portfolio ops.
+# It is a CPU-only, lightweight service designed for low-latency responses.
+# All heavy perception/cognition computation is delegated to dedicated services.
+# =============================================================================
 
-WORKDIR /app
+# ---- Base Stage: slim Python 3.11 on Debian Bookworm ----
+FROM python:3.11-slim-bookworm AS base
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# Build-time metadata labels (OCI standard)
+LABEL org.opencontainers.image.title="Lumina V3 - API Service"
+LABEL org.opencontainers.image.description="FastAPI backend exposing V3 REST endpoints"
+LABEL org.opencontainers.image.version="3.0.0"
+LABEL org.opencontainers.image.authors="Lumina Quant Lab"
 
-# Copy dependency files
-COPY pyproject.toml uv.lock ./
+# Prevent Python from writing .pyc bytecode and force stdout/stderr unbuffered
+# so logs are immediately visible in Docker log streams
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    # UV settings: no cache in Docker (reduces image size), system-level install
+    UV_NO_CACHE=1 \
+    UV_SYSTEM_PYTHON=1
 
-# Install API + DB dependencies
-RUN uv sync --frozen --no-cache --no-install-project --group api --group db --group ml
-
-# Production stage
-FROM python:3.11-slim
-
-WORKDIR /app
-
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/app/.venv/bin:$PATH" \
-    PYTHONPATH="/app:/app/backend"
-
-# Install runtime dependencies
+# Install OS-level dependencies required to compile Python C extensions
+# (libpq-dev = PostgreSQL client headers for psycopg2, build-essential = gcc)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
+    build-essential \
+    libpq-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy virtual environment from builder
-COPY --from=builder /app/.venv /app/.venv
+# Install UV package manager for fast, deterministic dependency resolution
+RUN pip install --no-cache-dir uv==0.4.29
 
-# Copy application code
+# ---- Dependency Stage: install Python packages separately for layer caching ----
+FROM base AS dependencies
+
+WORKDIR /app
+
+# Copy only dependency manifests first — this layer is cached unless deps change
+COPY requirements/base.txt requirements/base.txt
+COPY requirements/production.txt requirements/production.txt
+
+# Install production dependencies using UV (significantly faster than pip)
+# base.txt = shared core deps; production.txt = API-specific prod deps
+RUN uv pip install --no-cache \
+    -r requirements/base.txt \
+    -r requirements/production.txt
+
+# ---- Final Stage: copy application code ----
+FROM dependencies AS final
+
+WORKDIR /app
+
+# Copy the entire backend source tree into the container
 COPY backend/ ./backend/
+COPY pyproject.toml ./
 
-# Create directories
-RUN mkdir -p /app/data/parquet /app/models /app/logs
+# Create a non-root system user for security hardening
+# Running as root inside a container is a security anti-pattern
+RUN groupadd --gid 1001 lumina && \
+    useradd --uid 1001 --gid lumina --shell /bin/bash --create-home lumina && \
+    chown -R lumina:lumina /app
 
+USER lumina
+
+# Expose the port that Uvicorn will bind to (mapped in docker-compose)
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+# Health check: polls the /health endpoint every 30s
+# Allows Docker/orchestrators to detect unhealthy containers and restart them
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-CMD ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Production entrypoint using Uvicorn with multiple workers
+# --workers 4: matches typical 4-core CPU allocation for the API container
+# --proxy-headers: trust X-Forwarded-* headers from the reverse proxy (Nginx/Traefik)
+CMD ["uvicorn", "backend.api.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "4", \
+     "--proxy-headers", \
+     "--log-level", "info"]

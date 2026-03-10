@@ -24,7 +24,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api.deps import check_rate_limit, get_async_db, verify_api_key
 from backend.config.settings import get_settings
 
-router = APIRouter(dependencies=[Depends(check_rate_limit), Depends(verify_api_key)])
+router = APIRouter(
+    dependencies=[Depends(check_rate_limit), Depends(verify_api_key)]
+)
 settings = get_settings()
 
 
@@ -34,7 +36,7 @@ settings = get_settings()
 
 
 class BacktestRequest(BaseModel):
-    """Request for runnning a backtest"""
+    """Request for running a backtest"""
 
     strategy: str = Field(..., description="Strategy name or code")
     tickers: list[str] = Field(..., min_length=1, max_length=50)
@@ -42,38 +44,7 @@ class BacktestRequest(BaseModel):
     end_date: datetime
 
     # Capital and sizing
-    initial_capital: float = Field(100000.0, ge=1000.0, le=1000000.0)
-    position_size: float = Field(0.1, ge=0.01, le=1.0)
-    max_positions: int = Field(10, ge=1, le=50)
-
-    # Transaction costs
-    commission: float = Field(0.001, ge=0.0, le=0.1)
-    slippage: float = Field(0.0005, ge=0.0, le=0.05)
-
-    # Risk management
-    stop_loss: float | None = Field(None, ge=0.01, le=0.5)
-    take_profit: float | None = Field(None, ge=0.01, le=2.0)
-
-    # Strategy parameters
-    strategy_params: dict[str, Any] = Field(default_factory=dict)
-
-    # Benchmark
-    benchmark: str = Field("SPY")
-
-    # Engine options
-    engine: str = Field("event_driven", pattern="^(vectorized|event_driven)$")
-
-
-class BacktestResponse(BaseModel):
-    """Backtest results"""
-
-    backtest_id: str
-    status: str
-    start_date: datetime
-    end_date: datetime
-
-    # Capital and sizing
-    initial_capital: float = Field(100000.0, ge=1000.0, le=1000000.0)
+    initial_capital: float = Field(100000.0, ge=1000.0, le=10000000.0)
     position_size: float = Field(0.1, ge=0.01, le=1.0)
     max_positions: int = Field(10, ge=1, le=50)
 
@@ -132,11 +103,14 @@ class OptimizationRequest(BaseModel):
     initial_capital: float = 100000.0
 
     # Parameters to optimize
-    param_grid: dict[str, list[Any]] = Field(..., description="Parameter grid for optimization")
+    param_grid: dict[str, list[Any]] = Field(
+        ..., description="Parameter grid for optimization"
+    )
 
     # Optimization settings
     optimization_metric: str = Field(
-        ..., pattern="^(sharpe_ratio|total_return|sortino_ratio|max_drawdown)$"
+        "sharpe_ratio",
+        pattern="^(sharpe_ratio|total_return|sortino_ratio|max_drawdown)$",
     )
 
     # Walk-forward settings
@@ -159,8 +133,9 @@ async def run_backtest(
     """
     Run a backtest on a trading strategy.
 
-    Executes backtest with specific parameters and returns performance metrics.
-    For long-running, use the async endpoint.
+    Executes backtest with specified parameters and returns
+    performance metrics.
+    For long-running backtests, use the async endpoint.
 
     Args:
         request: Backtest configuration
@@ -170,7 +145,7 @@ async def run_backtest(
     Returns:
         BacktestResponse: Backtest results
     """
-    backtest_id: str(uuid4())
+    backtest_id = str(uuid4())
     logger.info(f"Running backtest {backtest_id}: {request.strategy}")
 
     # TODO: Implement actual backtest execution
@@ -197,7 +172,7 @@ async def run_backtest(
 
 
 @router.post("/run-async")
-async def run_bactest_async(
+async def run_backtest_async(
     request: BacktestRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_async_db),
@@ -215,7 +190,7 @@ async def run_bactest_async(
     Returns:
         dict: Job information
     """
-    backtest_id: str(uuid4())
+    backtest_id = str(uuid4())
     logger.info(f"Queuing async backtest {backtest_id}")
 
     # TODO: Queue backtest task
@@ -274,7 +249,9 @@ async def get_backtest_results(
 
     # TODO: Implement results retrieval from database
 
-    raise HTTPException(status_code=404, detail=f"Backtest {backtest_id} not found")
+    raise HTTPException(
+        status_code=404, detail=f"Backtest {backtest_id} not found"
+    )
 
 
 # ============================================================================
@@ -289,7 +266,7 @@ async def optimize_strategy(
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Optimize stratey parameters.
+    Optimize strategy parameters.
 
     Performs grid search or walk-forward optimization to find best parameters.
 
@@ -310,10 +287,16 @@ async def optimize_strategy(
     param_combinations = list(itertools.product(*request.param_grid.values()))
     total_combinations = len(param_combinations)
 
-    logger.info(f"Optimization will test {total_combinations} parameter combinations")
+    logger.info(
+        f"Optimization will test {total_combinations} parameter combinations"
+    )
 
     # TODO: Queue optimization task
-    # background_tasks.add_task(run_optimization_task, optimization_id, request)
+    # background_tasks.add_task(
+    #   run_optimization_task,
+    #   optimization_id,
+    #   request
+    # )
 
     return {
         "optimization_id": optimization_id,
@@ -326,7 +309,10 @@ async def optimize_strategy(
 
 
 @router.get("/optimize/results/{optimization_id}")
-async def get_optimization_results(optimization_id: str, db: AsyncSession = Depends(get_async_db)):
+async def get_optimization_results(
+    optimization_id: str,
+    db: AsyncSession = Depends(get_async_db),
+):
     """
     Get optimization results.
 
@@ -341,7 +327,9 @@ async def get_optimization_results(optimization_id: str, db: AsyncSession = Depe
 
     # TODO: Implement results retrieval
 
-    raise HTTPException(status_code=404, detail=f"Optimization {optimization_id} not found")
+    raise HTTPException(
+        status_code=404, detail=f"Optimization {optimization_id} not found"
+    )
 
 
 # ============================================================================
@@ -357,16 +345,16 @@ async def list_backtests(
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    List recent backtests.
+    list recent backtests.
 
     Args:
         limit: Number of results
         offset: Pagination offset
-        strategy: FIlter by strategy
+        strategy: Filter by strategy
         db: Database session
 
     Returns:
-        dict: List of backtests
+        dict: list of backtests
     """
     # TODO: Implement backtest listing from database
 
@@ -412,7 +400,7 @@ async def delete_backtest(
 @router.get("/strategies")
 async def list_strategies():
     """
-    List available strategies.
+    list available strategies.
 
     Returns:
         dict: Available strategies with descriptions

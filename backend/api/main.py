@@ -20,7 +20,6 @@ Architecture:
 
 import sys
 from datetime import datetime
-from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,10 +28,14 @@ from loguru import logger
 from redis import Redis
 from sqlalchemy import text
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from backend.api.routes import agent, backtest, data, monitoring, portfolio, risk
+from backend.api.routes import (
+    agent,
+    backtest,
+    data,
+    monitoring,
+    portfolio,
+    risk,
+)
 from backend.config.logging_config import setup_logging
 from backend.config.settings import get_settings
 from backend.db.models import get_async_engine
@@ -51,7 +54,8 @@ app = FastAPI(
     - Multi-modal market perception (TFT, BERT, GNN)
     - Deep sensor fusion architecture
     - Proximal Policy Optimization (PPO) agent
-    - Three-layer safety system (Risk Gate, Circuit Breakers, Safety Arbitrator)
+    - Three-layer safety system (Risk Gate, Circuit Breakers,
+      Safety Arbitrator)
     - Real-time monitoring and metrics
     - Event-driven backtesting
     - Portfolio optimization
@@ -74,7 +78,8 @@ allow_credentials = settings.CORS_ALLOW_CREDENTIALS
 # Security check for CORS
 if "*" in allow_origins and allow_credentials:
     logger.warning(
-        "CORS allow_origins '*' with credentials enabled; disabling credentials for security."
+        "CORS allow_origins '*' with credentials enabled; "
+        "disabling credentials for security."
     )
     allow_credentials = False
 
@@ -188,10 +193,16 @@ async def health_check():
         engine = get_async_engine()
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-        health_status["components"]["database"] = {"status": "healthy", "type": "TimescaleDB"}
+        health_status["components"]["database"] = {
+            "status": "healthy",
+            "type": "TimescaleDB",
+        }
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
-        health_status["components"]["database"] = {"status": "unhealthy", "error": str(e)}
+        health_status["components"]["database"] = {
+            "status": "unhealthy",
+            "error": str(e),
+        }
         health_status["status"] = "degraded"
 
     # Check Redis
@@ -251,9 +262,11 @@ async def health_check():
             health_status["components"]["gpu"] = {
                 "status": "available",
                 "device_count": torch.cuda.device_count(),
-                "device_name": torch.cuda.get_device_name(0)
-                if torch.cuda.device_count() > 0
-                else None,
+                "device_name": (
+                    torch.cuda.get_device_name(0)
+                    if torch.cuda.device_count() > 0
+                    else None
+                ),
             }
         else:
             health_status["components"]["gpu"] = {
@@ -349,7 +362,9 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={
             "error": "Internal server error",
-            "detail": str(exc) if not settings.is_production else "An error occurred",
+            "detail": (
+                str(exc) if not settings.is_production else "An error occurred"
+            ),
             "timestamp": datetime.utcnow().isoformat(),
             "path": str(request.url),
         },
@@ -377,7 +392,7 @@ async def startup_event():
     logger.info("=" * 70)
     logger.info(f"Environment: {settings.ENVIRONMENT}")
     logger.info(f"Debug Mode: {settings.DEBUG}")
-    logger.info(f"API Version: 3.0.0")
+    logger.info("API Version: 3.0.0")
     logger.info(f"Python Path: {sys.executable}")
     logger.info("=" * 70)
 

@@ -65,7 +65,9 @@ class EmbeddingProjection(nn.Module):
         hidden_size → intermediate → output_dim
     """
 
-    def __init__(self, hidden_size: int, output_dim: int, dropout: float = 0.1):
+    def __init__(
+        self, hidden_size: int, output_dim: int, dropout: float = 0.1
+    ):
         super().__init__()
 
         intermediate_dim = (hidden_size + output_dim) // 2
@@ -115,16 +117,22 @@ class DistilledLLMEncoder(nn.Module):
 
         # Projection head to output dimension
         self.projection = EmbeddingProjection(
-            hidden_size=config.hidden_size, output_dim=config.output_dim, dropout=config.dropout
+            hidden_size=config.hidden_size,
+            output_dim=config.output_dim,
+            dropout=config.dropout,
         )
 
         # Pooling strategy
         self.pooling_strategy = "mean"  # or "cls", "max"
 
-        logger.info(f"DistilledLLMEncoder initialized: {config.model_name} → {config.output_dim}d")
+        logger.info(
+            f"DistilledLLMEncoder initialized: {config.model_name} → {config.output_dim}d"
+        )
 
     def forward(
-        self, input_ids: torch.Tensor, attention_mask: torch.Tensor | None = None
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Forward pass through encoder.
@@ -142,7 +150,9 @@ class DistilledLLMEncoder(nn.Module):
 
         if self.transformer is not None:
             # Real transformer forward pass
-            outputs = self.transformer(input_ids=input_ids, attention_mask=attention_mask)
+            outputs = self.transformer(
+                input_ids=input_ids, attention_mask=attention_mask
+            )
             hidden_states = outputs.last_hidden_state  # [batch, seq, hidden]
 
             # Pool
@@ -157,7 +167,9 @@ class DistilledLLMEncoder(nn.Module):
         return embeddings
 
     def _pool(
-        self, hidden_states: torch.Tensor, attention_mask: torch.Tensor | None = None
+        self,
+        hidden_states: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Pool hidden states to single vector.
@@ -177,7 +189,9 @@ class DistilledLLMEncoder(nn.Module):
                 return hidden_states.mean(dim=1)
 
             # Masked mean
-            mask_expanded = attention_mask.unsqueeze(-1).expand(hidden_states.size())
+            mask_expanded = attention_mask.unsqueeze(-1).expand(
+                hidden_states.size()
+            )
             sum_hidden = (hidden_states * mask_expanded).sum(dim=1)
             sum_mask = mask_expanded.sum(dim=1).clamp(min=1e-9)
             return sum_hidden / sum_mask
@@ -187,7 +201,9 @@ class DistilledLLMEncoder(nn.Module):
             return hidden_states.max(dim=1)[0]
 
         else:
-            raise ValueError(f"Unknown pooling strategy: {self.pooling_strategy}")
+            raise ValueError(
+                f"Unknown pooling strategy: {self.pooling_strategy}"
+            )
 
     def encode(
         self,
@@ -211,7 +227,9 @@ class DistilledLLMEncoder(nn.Module):
             if isinstance(input_ids, np.ndarray):
                 input_ids = torch.from_numpy(input_ids)
 
-            if attention_mask is not None and isinstance(attention_mask, np.ndarray):
+            if attention_mask is not None and isinstance(
+                attention_mask, np.ndarray
+            ):
                 attention_mask = torch.from_numpy(attention_mask)
 
             # Forward pass
@@ -228,7 +246,9 @@ class DistilledLLMEncoder(nn.Module):
             model_path: Path to model weights
         """
         try:
-            state_dict = torch.load(model_path, map_location=self.config.device)
+            state_dict = torch.load(
+                model_path, map_location=self.config.device
+            )
             self.load_state_dict(state_dict)
             logger.success(f"Loaded pretrained weights from {model_path}")
         except Exception as e:
@@ -245,7 +265,9 @@ class DistilledLLMEncoder(nn.Module):
         logger.success(f"Saved model to {save_path}")
 
 
-def create_distilled_encoder(output_dim: int = 64, device: str = "cpu") -> DistilledLLMEncoder:
+def create_distilled_encoder(
+    output_dim: int = 64, device: str = "cpu"
+) -> DistilledLLMEncoder:
     """
     Factory function to create distilled LLM encoder.
 

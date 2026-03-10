@@ -23,7 +23,12 @@ from sqlalchemy import (
     Text,
     text,
 )
-from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION, JSONB, TIMESTAMP, UUID
+from sqlalchemy.dialects.postgresql import (
+    DOUBLE_PRECISION,
+    JSONB,
+    TIMESTAMP,
+    UUID,
+)
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -61,7 +66,9 @@ class PriceData(Base):
     time: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), primary_key=True, nullable=False
     )
-    ticker: Mapped[str] = mapped_column(String(10), primary_key=True, nullable=False)
+    ticker: Mapped[str] = mapped_column(
+        String(10), primary_key=True, nullable=False
+    )
     open: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
     high: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
     low: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
@@ -91,8 +98,12 @@ class Feature(Base):
     time: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), primary_key=True, nullable=False
     )
-    ticker: Mapped[str] = mapped_column(String(10), primary_key=True, nullable=False)
-    feature_name: Mapped[str] = mapped_column(String(100), primary_key=True, nullable=False)
+    ticker: Mapped[str] = mapped_column(
+        String(10), primary_key=True, nullable=False
+    )
+    feature_name: Mapped[str] = mapped_column(
+        String(100), primary_key=True, nullable=False
+    )
     feature_value: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
     feature_category: Mapped[str | None] = mapped_column(
         String(50)
@@ -116,9 +127,7 @@ class Feature(Base):
     )
 
     def __repr__(self) -> str:
-        return (
-            f"<Feature(ticker={self.ticker}, name={self.feature_name}, value={self.feature_value})>"
-        )
+        return f"<Feature(ticker={self.ticker}, name={self.feature_name}, value={self.feature_value})>"
 
 
 class SentimentData(Base):
@@ -132,19 +141,27 @@ class SentimentData(Base):
     time: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), primary_key=True, nullable=False
     )
-    ticker: Mapped[str] = mapped_column(String(10), primary_key=True, nullable=False)
+    ticker: Mapped[str] = mapped_column(
+        String(10), primary_key=True, nullable=False
+    )
     source: Mapped[str] = mapped_column(
         String(50), primary_key=True, nullable=False
     )  # 'news', 'reddit', 'twitter', 'finbert'
     sentiment_score: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
     confidence: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
-    volume: Mapped[int | None] = mapped_column(Integer)  # Number of mentions/articles
+    volume: Mapped[int | None] = mapped_column(
+        Integer
+    )  # Number of mentions/articles
     text_snippet: Mapped[str | None] = mapped_column(Text)
     meta_data: Mapped[dict | None] = mapped_column(JSONB)
 
     __table_args__ = (
-        Index("idx_sentiment_ticker", "ticker", "time", postgresql_using="btree"),
-        Index("idx_sentiment_source", "source", "time", postgresql_using="btree"),
+        Index(
+            "idx_sentiment_ticker", "ticker", "time", postgresql_using="btree"
+        ),
+        Index(
+            "idx_sentiment_source", "source", "time", postgresql_using="btree"
+        ),
         {"timescaledb_hypertable": {"time_column_name": "time"}},
     )
 
@@ -163,16 +180,26 @@ class Prediction(Base):
     prediction_time: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), primary_key=True, nullable=False
     )
-    ticker: Mapped[str] = mapped_column(String(10), primary_key=True, nullable=False)
-    model_name: Mapped[str] = mapped_column(String(50), primary_key=True, nullable=False)
-    horizon_days: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
+    ticker: Mapped[str] = mapped_column(
+        String(10), primary_key=True, nullable=False
+    )
+    model_name: Mapped[str] = mapped_column(
+        String(50), primary_key=True, nullable=False
+    )
+    horizon_days: Mapped[int] = mapped_column(
+        Integer, primary_key=True, nullable=False
+    )
     model_version: Mapped[str | None] = mapped_column(String(20))
     predicted_price: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
     confidence_lower: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
     confidence_upper: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
     uncertainty: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
-    actual_price: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)  # NULL until realized
-    error: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)  # Computed when actual available
+    actual_price: Mapped[float | None] = mapped_column(
+        DOUBLE_PRECISION
+    )  # NULL until realized
+    error: Mapped[float | None] = mapped_column(
+        DOUBLE_PRECISION
+    )  # Computed when actual available
 
     __table_args__ = (
         Index(
@@ -205,15 +232,21 @@ class MarketRegime(Base):
     time: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), primary_key=True, nullable=False
     )
-    ticker: Mapped[str] = mapped_column(String(10), primary_key=True, nullable=False)
-    regime_type: Mapped[str | None] = mapped_column(String(20))  # 'bull', 'bear', 'sideways'
+    ticker: Mapped[str] = mapped_column(
+        String(10), primary_key=True, nullable=False
+    )
+    regime_type: Mapped[str | None] = mapped_column(
+        String(20)
+    )  # 'bull', 'bear', 'sideways'
     probability: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
     volatility: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
     expected_duration_days: Mapped[int | None] = mapped_column(Integer)
     meta_data: Mapped[dict | None] = mapped_column(JSONB)
 
     __table_args__ = (
-        Index("idx_regimes_ticker", "ticker", "time", postgresql_using="btree"),
+        Index(
+            "idx_regimes_ticker", "ticker", "time", postgresql_using="btree"
+        ),
         {"timescaledb_hypertable": {"time_column_name": "time"}},
     )
 
@@ -234,7 +267,9 @@ class BacktestResult(Base):
 
     __tablename__ = "backtest_results"
 
-    backtest_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    backtest_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid4
+    )
     strategy_name: Mapped[str] = mapped_column(String(100), nullable=False)
     start_date: Mapped[datetime] = mapped_column(Date, nullable=False)
     end_date: Mapped[datetime] = mapped_column(Date, nullable=False)
@@ -252,12 +287,18 @@ class BacktestResult(Base):
     profit_factor: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
     num_trades: Mapped[int] = mapped_column(Integer)
     avg_trade: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
-    config: Mapped[dict | None] = mapped_column(JSONB)  # Store backtest configuration
-    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    config: Mapped[dict | None] = mapped_column(
+        JSONB
+    )  # Store backtest configuration
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), default=datetime.utcnow
+    )
 
     # Relationship to trades
     trades: Mapped[list["BacktestTrade"]] = relationship(
-        "BacktestTrade", back_populates="backtest", cascade="all, delete-orphan"
+        "BacktestTrade",
+        back_populates="backtest",
+        cascade="all, delete-orphan",
     )
 
     __table_args__ = (
@@ -267,7 +308,12 @@ class BacktestResult(Base):
             "created_at",
             postgresql_using="btree",
         ),
-        Index("idx_backtest_dates", "start_date", "end_date", postgresql_using="btree"),
+        Index(
+            "idx_backtest_dates",
+            "start_date",
+            "end_date",
+            postgresql_using="btree",
+        ),
     )
 
     def __repr__(self) -> str:
@@ -281,14 +327,20 @@ class BacktestTrade(Base):
 
     __tablename__ = "backtest_trades"
 
-    trade_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    trade_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid4
+    )
     backtest_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("backtest_results.backtest_id", ondelete="CASCADE"),
         nullable=False,
     )
-    entry_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
-    exit_time: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+    entry_time: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+    exit_time: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True)
+    )
     ticker: Mapped[str] = mapped_column(String(10), nullable=False)
     direction: Mapped[str] = mapped_column(String(10))  # 'long', 'short'
     entry_price: Mapped[float] = mapped_column(DOUBLE_PRECISION)
@@ -301,11 +353,20 @@ class BacktestTrade(Base):
     meta_data: Mapped[dict | None] = mapped_column(JSONB)
 
     # Relationship to backtest
-    backtest: Mapped["BacktestResult"] = relationship("BacktestResult", back_populates="trades")
+    backtest: Mapped["BacktestResult"] = relationship(
+        "BacktestResult", back_populates="trades"
+    )
 
     __table_args__ = (
-        Index("idx_trades_backtest", "backtest_id", "entry_time", postgresql_using="btree"),
-        CheckConstraint("direction IN ('long', 'short')", name="check_direction"),
+        Index(
+            "idx_trades_backtest",
+            "backtest_id",
+            "entry_time",
+            postgresql_using="btree",
+        ),
+        CheckConstraint(
+            "direction IN ('long', 'short')", name="check_direction"
+        ),
     )
 
     def __repr__(self) -> str:
@@ -325,13 +386,17 @@ class Model(Base):
 
     __tablename__ = "models"
 
-    model_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    model_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid4
+    )
     model_name: Mapped[str] = mapped_column(String(100), nullable=False)
     model_type: Mapped[str] = mapped_column(
         String(50)
     )  # 'lstm', 'transformer', 'xgboost', 'ensemble'
     version: Mapped[str] = mapped_column(String(20))
-    trained_on: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    trained_on: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), default=datetime.utcnow
+    )
     ticker: Mapped[str | None] = mapped_column(String(10))
     training_samples: Mapped[int] = mapped_column(Integer)
     validation_samples: Mapped[int] = mapped_column(Integer)
@@ -351,12 +416,29 @@ class Model(Base):
 
     # Status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), default=datetime.utcnow
+    )
 
     __table_args__ = (
-        Index("idx_models_name", "model_name", "version", postgresql_using="btree"),
-        Index("idx_models_ticker", "ticker", "trained_on", postgresql_using="btree"),
-        Index("idx_models_active", "is_active", "created_at", postgresql_using="btree"),
+        Index(
+            "idx_models_name",
+            "model_name",
+            "version",
+            postgresql_using="btree",
+        ),
+        Index(
+            "idx_models_ticker",
+            "ticker",
+            "trained_on",
+            postgresql_using="btree",
+        ),
+        Index(
+            "idx_models_active",
+            "is_active",
+            "created_at",
+            postgresql_using="btree",
+        ),
         CheckConstraint(
             "model_type IN ('lstm', 'transformer', 'xgboost', 'ensemble')",
             name="check_model_type",
@@ -379,7 +461,9 @@ class PortfolioPosition(Base):
 
     __tablename__ = "portfolio_positions"
 
-    position_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    position_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid4
+    )
     user_id: Mapped[str] = mapped_column(String(50), nullable=False)
     ticker: Mapped[str] = mapped_column(String(10), nullable=False)
     transaction_type: Mapped[str] = mapped_column(String(10))  # 'buy', 'sell'
@@ -388,12 +472,27 @@ class PortfolioPosition(Base):
     commission: Mapped[float] = mapped_column(DOUBLE_PRECISION)
     total_amount: Mapped[float] = mapped_column(DOUBLE_PRECISION)
     balance_after: Mapped[float] = mapped_column(DOUBLE_PRECISION)
-    executed_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    executed_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), default=datetime.utcnow
+    )
 
     __table_args__ = (
-        Index("idx_transactions_user", "user_id", "executed_at", postgresql_using="btree"),
-        Index("idx_transactions_ticker", "ticker", "executed_at", postgresql_using="btree"),
-        CheckConstraint("transaction_type IN ('buy', 'sell')", name="check_transaction_type"),
+        Index(
+            "idx_transactions_user",
+            "user_id",
+            "executed_at",
+            postgresql_using="btree",
+        ),
+        Index(
+            "idx_transactions_ticker",
+            "ticker",
+            "executed_at",
+            postgresql_using="btree",
+        ),
+        CheckConstraint(
+            "transaction_type IN ('buy', 'sell')",
+            name="check_transaction_type",
+        ),
     )
 
     def __repr__(self) -> str:
@@ -410,9 +509,13 @@ class PortfolioBalance(Base):
     user_id: Mapped[str] = mapped_column(String(50), primary_key=True)
     cash: Mapped[float] = mapped_column(DOUBLE_PRECISION, default=100000.0)
     equity: Mapped[float] = mapped_column(DOUBLE_PRECISION, default=0.0)
-    total_value: Mapped[float] = mapped_column(DOUBLE_PRECISION, default=100000.0)
+    total_value: Mapped[float] = mapped_column(
+        DOUBLE_PRECISION, default=100000.0
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
+        TIMESTAMP(timezone=True),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
 
     __table_args__ = (
@@ -465,12 +568,16 @@ def get_async_engine() -> AsyncEngine:
             pool_recycle=settings.DB_POOL_RECYCLE,
             pool_pre_ping=True,  # Verify connections before using
             poolclass=NullPool if settings.is_production else None,
-            connect_args={"server_settings": {"jit": "off"}, "ssl": False}
-            if "localhost" in database_url
-            else {},
+            connect_args=(
+                {"server_settings": {"jit": "off"}, "ssl": False}
+                if "localhost" in database_url
+                else {}
+            ),
         )
 
-        logger.info(f"Created async database engine: {database_url.split('@')[1]}")
+        logger.info(
+            f"Created async database engine: {database_url.split('@')[1]}"
+        )
 
     return _engine
 
@@ -673,7 +780,11 @@ async def bulk_insert_price_data(data: list[dict]) -> int:
                     else t.tz_convert("UTC").to_pydatetime()
                 )
             elif isinstance(t, datetime):
-                row["time"] = t.replace(tzinfo=UTC) if t.tzinfo is None else t.astimezone(UTC)
+                row["time"] = (
+                    t.replace(tzinfo=UTC)
+                    if t.tzinfo is None
+                    else t.astimezone(UTC)
+                )
 
         session_factory = get_async_session_factory()
 
@@ -722,7 +833,11 @@ async def bulk_insert_features(data: list[dict]) -> int:
                     else t.tz_convert("UTC").to_pydatetime()
                 )
             elif isinstance(t, datetime):
-                row["time"] = t.replace(tzinfo=UTC) if t.tzinfo is None else t.astimezone(UTC)
+                row["time"] = (
+                    t.replace(tzinfo=UTC)
+                    if t.tzinfo is None
+                    else t.astimezone(UTC)
+                )
 
         session_factory = get_async_session_factory()
 
@@ -838,7 +953,9 @@ async def get_active_models(ticker: str | None = None) -> list[Model]:
         return list(result.scalars().all())
 
 
-async def delete_features_by_ticker(ticker: str, start_date: datetime, end_date: datetime) -> int:
+async def delete_features_by_ticker(
+    ticker: str, start_date: datetime, end_date: datetime
+) -> int:
     """
     Delete features for a ticker in date range
 
@@ -856,7 +973,11 @@ async def delete_features_by_ticker(ticker: str, start_date: datetime, end_date:
 
     async with session_factory() as session:
         stmt = delete(Feature).where(
-            and_(Feature.ticker == ticker, Feature.time >= start_date, Feature.time <= end_date)
+            and_(
+                Feature.ticker == ticker,
+                Feature.time >= start_date,
+                Feature.time <= end_date,
+            )
         )
         result = await session.execute(stmt)
         await session.commit()

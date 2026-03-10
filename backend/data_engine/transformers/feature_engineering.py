@@ -79,9 +79,15 @@ class FeatureEngineer:
             # Moving averages
             df = df.with_columns(
                 [
-                    pl.col("close").rolling_mean(window_size=20).alias("sma_20"),
-                    pl.col("close").rolling_mean(window_size=50).alias("sma_50"),
-                    pl.col("close").rolling_mean(window_size=200).alias("sma_200"),
+                    pl.col("close")
+                    .rolling_mean(window_size=20)
+                    .alias("sma_20"),
+                    pl.col("close")
+                    .rolling_mean(window_size=50)
+                    .alias("sma_50"),
+                    pl.col("close")
+                    .rolling_mean(window_size=200)
+                    .alias("sma_200"),
                 ]
             )
 
@@ -111,13 +117,18 @@ class FeatureEngineer:
         try:
             df = df.with_columns(
                 [
-                    pl.col("volume").rolling_mean(window_size=20).alias("volume_sma_20"),
-                    (pl.col("volume") / pl.col("volume").rolling_mean(window_size=20)).alias(
-                        "volume_ratio"
-                    ),
-                    ((pl.col("close") - pl.col("open")) * pl.col("volume") / 1000000).alias(
-                        "money_flow"
-                    ),
+                    pl.col("volume")
+                    .rolling_mean(window_size=20)
+                    .alias("volume_sma_20"),
+                    (
+                        pl.col("volume")
+                        / pl.col("volume").rolling_mean(window_size=20)
+                    ).alias("volume_ratio"),
+                    (
+                        (pl.col("close") - pl.col("open"))
+                        * pl.col("volume")
+                        / 1000000
+                    ).alias("money_flow"),
                 ]
             )
 
@@ -154,7 +165,10 @@ class FeatureEngineer:
                 [
                     (sma_20 + 2 * std_20).alias("bb_upper"),
                     (sma_20 - 2 * std_20).alias("bb_lower"),
-                    ((pl.col("close") - (sma_20 - 2 * std_20)) / (4 * std_20)).alias("bb_width"),
+                    (
+                        (pl.col("close") - (sma_20 - 2 * std_20))
+                        / (4 * std_20)
+                    ).alias("bb_width"),
                 ]
             )
 
@@ -162,7 +176,9 @@ class FeatureEngineer:
             returns = pl.col("close").pct_change()
             df = df.with_columns(
                 [
-                    returns.rolling_std(window_size=20).alias("volatility_20d"),
+                    returns.rolling_std(window_size=20).alias(
+                        "volatility_20d"
+                    ),
                 ]
             )
 

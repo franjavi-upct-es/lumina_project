@@ -35,8 +35,7 @@ Usage:
         await bulk_insert_price_data(session, data)
 """
 
-from backend.db.models import (
-    # Models
+from backend.db.models import (  # Models; Utilities; Engine and session
     BacktestResult,
     BacktestTrade,
     Base,
@@ -45,10 +44,8 @@ from backend.db.models import (
     Prediction,
     PriceData,
     SentimentData,
-    # Utilities
     bulk_insert_features,
     bulk_insert_price_data,
-    # Engine and session
     get_async_engine,
     get_async_session,
     init_db,

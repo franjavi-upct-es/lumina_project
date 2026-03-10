@@ -13,7 +13,9 @@ Modules:
 Version: 3.0.0
 """
 
-from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+from backend.data_engine.transformers.feature_engineering import (
+    FeatureEngineer,
+)
 from backend.data_engine.transformers.normalization import FeatureNormalizer
 from backend.data_engine.transformers.regime_detection import RegimeDetector
 

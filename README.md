@@ -4,7 +4,7 @@
 
 ## A Quantitative Research Platform for Financial Markets Analysis
 
-### *Integrating Statistical Learning, Time Series Econometrics, and Natural Language Processing*
+### _Integrating Statistical Learning, Time Series Econometrics, and Natural Language Processing_
 
 ---
 
@@ -58,6 +58,7 @@ Asset prices are modeled as stochastic processes. The fundamental price dynamics
 $$dS_t = \mu(S_t, t)dt + \sigma(S_t, t)dW_t$$
 
 Where:
+
 - $S_t$ denotes the asset price at time $t$
 - $\mu(S_t, t)$ represents the drift coefficient (expected return)
 - $\sigma(S_t, t)$ represents the diffusion coefficient (volatility)
@@ -68,6 +69,7 @@ In discrete time, log-returns are computed as:
 $$r_t = \ln\left(\frac{P_t}{P_{t-1}}\right)$$
 
 The platform assumes returns follow a generalized distribution that accounts for:
+
 - **Fat tails** (leptokurtosis)
 - **Volatility clustering** (heteroskedasticity)
 - **Asymmetric responses** to positive and negative shocks
@@ -111,6 +113,7 @@ The RSI can be interpreted as a bounded transformation of the ratio of positive 
 $$\%K = \frac{C_t - L_n}{H_n - L_n} \times 100$$
 
 Where:
+
 - $C_t$ = current closing price
 - $L_n$ = lowest low over $n$ periods
 - $H_n$ = highest high over $n$ periods
@@ -220,6 +223,7 @@ Where $\sigma$ denotes the sigmoid activation function and $\odot$ represents el
 #### 3.1.2 Multi-Variate LSTM Configuration
 
 The platform implements a stacked LSTM architecture with:
+
 - Multiple input features (OHLCV + technical indicators)
 - Bidirectional processing for pattern recognition
 - Attention mechanisms for temporal weighting
@@ -269,6 +273,7 @@ $$\Omega(f) = \gamma T + \frac{1}{2}\lambda\sum_{j=1}^{T}w_j^2$$
 $$\mathcal{L}^{(t)} \approx \sum_{i=1}^{n}\left[g_i f_t(x_i) + \frac{1}{2}h_i f_t^2(x_i)\right] + \Omega(f_t)$$
 
 Where:
+
 - $g_i = \partial_{\hat{y}^{(t-1)}}l(y_i, \hat{y}^{(t-1)})$ (first-order gradient)
 - $h_i = \partial^2_{\hat{y}^{(t-1)}}l(y_i, \hat{y}^{(t-1)})$ (second-order gradient)
 
@@ -356,6 +361,7 @@ For portfolio:
 $$VaR_p = z_\alpha \sqrt{\mathbf{w}^T \Sigma \mathbf{w}}$$
 
 Where:
+
 - $\mathbf{w}$ = portfolio weights vector
 - $\Sigma$ = covariance matrix of returns
 - $z_\alpha$ = quantile of standard normal distribution
@@ -393,6 +399,7 @@ For continuous distributions:
 $$CVaR_\alpha = \frac{1}{\alpha}\int_0^\alpha VaR_u \, du$$
 
 **Properties**:
+
 - CVaR is a coherent risk measure (subadditive, positive homogeneous, translation invariant, monotonic)
 - CVaR ≥ VaR for any confidence level
 
@@ -451,6 +458,7 @@ $$\Pi = \delta \Sigma \mathbf{w}_{mkt}$$
 $$E[R] = [(\tau\Sigma)^{-1} + P^T\Omega^{-1}P]^{-1}[(\tau\Sigma)^{-1}\Pi + P^T\Omega^{-1}Q]$$
 
 Where:
+
 - $\tau$ = scalar (uncertainty in equilibrium)
 - $P$ = view matrix (which assets the views are about)
 - $Q$ = view vector (expected returns according to views)
@@ -495,6 +503,7 @@ $$A = \{a_{ij}\}, \quad a_{ij} = P(S_{t+1} = j | S_t = i)$$
 $$P(O_t | S_t = k) = \mathcal{N}(\mu_k, \sigma_k^2)$$
 
 **Model Parameters**: $\lambda = (A, B, \pi)$
+
 - $A$: Transition probabilities
 - $B$: Emission parameters
 - $\pi$: Initial state distribution
@@ -520,11 +529,11 @@ M-step: Update parameters to maximize expected log-likelihood
 
 The platform identifies three primary market regimes:
 
-| Regime | Characteristics | Typical μ | Typical σ |
-|--------|----------------|-----------|-----------|
-| **Bull** | Positive drift, low volatility | > 0 | Low |
-| **Bear** | Negative drift, high volatility | < 0 | High |
-| **Sideways** | Near-zero drift, moderate volatility | ≈ 0 | Medium |
+| Regime       | Characteristics                      | Typical μ | Typical σ |
+| ------------ | ------------------------------------ | --------- | --------- |
+| **Bull**     | Positive drift, low volatility       | > 0       | Low       |
+| **Bear**     | Negative drift, high volatility      | < 0       | High      |
+| **Sideways** | Near-zero drift, moderate volatility | ≈ 0       | Medium    |
 
 ### 5.3 Volatility Regime Models
 
@@ -571,6 +580,7 @@ Multiple sentiment sources are combined using confidence-weighted averaging:
 $$S_{agg} = \frac{\sum_{i=1}^{n}w_i \cdot c_i \cdot s_i}{\sum_{i=1}^{n}w_i \cdot c_i}$$
 
 Where:
+
 - $s_i$ = sentiment score from source $i$
 - $c_i$ = confidence score from source $i$
 - $w_i$ = source reliability weight
@@ -582,6 +592,7 @@ A key signal is the divergence between sentiment and price movement:
 $$Divergence_t = S_t - \frac{r_t - \bar{r}}{\sigma_r}$$
 
 Strong divergence may indicate:
+
 - **Positive divergence**: Bullish sentiment with negative returns → potential reversal
 - **Negative divergence**: Bearish sentiment with positive returns → potential reversal
 
@@ -622,6 +633,7 @@ $$C_{spread} = \frac{1}{2}\left(\frac{P_{ask} - P_{bid}}{P_{mid}}\right)$$
 $$MI = \sigma \cdot sign(Q) \cdot \sqrt{\frac{|Q|}{V}} \cdot \gamma$$
 
 Where:
+
 - $Q$ = order size
 - $V$ = average daily volume
 - $\sigma$ = daily volatility
@@ -675,6 +687,7 @@ $$\beta_i = \frac{Cov(R_i, R_m)}{Var(R_m)}$$
 $$R_i - R_f = \alpha_i + \beta_i^{MKT}(R_m - R_f) + \beta_i^{SMB} \cdot SMB + \beta_i^{HML} \cdot HML + \varepsilon_i$$
 
 **Factor Definitions**:
+
 - **SMB** (Small Minus Big): Size premium
 - **HML** (High Minus Low): Value premium (Book-to-Market)
 
@@ -685,6 +698,7 @@ Extends the three-factor model with profitability and investment factors:
 $$R_i - R_f = \alpha_i + \beta_i^{MKT}MKT + \beta_i^{SMB}SMB + \beta_i^{HML}HML + \beta_i^{RMW}RMW + \beta_i^{CMA}CMA + \varepsilon_i$$
 
 **Additional Factors**:
+
 - **RMW** (Robust Minus Weak): Profitability premium
 - **CMA** (Conservative Minus Aggressive): Investment premium
 
@@ -695,6 +709,7 @@ Adds momentum to the Fama-French three-factor model:
 $$R_i - R_f = \alpha_i + \beta_i^{MKT}MKT + \beta_i^{SMB}SMB + \beta_i^{HML}HML + \beta_i^{MOM}MOM + \varepsilon_i$$
 
 **Momentum Factor (MOM/UMD)**:
+
 - Long: Top 30% past 12-month returns (excluding last month)
 - Short: Bottom 30% past 12-month returns
 
@@ -707,6 +722,7 @@ PCA extracts orthogonal factors that explain maximum variance:
 $$\Sigma = V \Lambda V^T$$
 
 Where:
+
 - $\Lambda$ = diagonal matrix of eigenvalues
 - $V$ = matrix of eigenvectors (principal components)
 
@@ -725,6 +741,7 @@ $$L = V\sqrt{\Lambda}$$
 $$\sigma_p^2 = \mathbf{b}^T \Sigma_F \mathbf{b} + \sigma_\varepsilon^2$$
 
 Where:
+
 - $\mathbf{b}$ = vector of factor exposures (betas)
 - $\Sigma_F$ = factor covariance matrix
 - $\sigma_\varepsilon^2$ = idiosyncratic variance
@@ -772,12 +789,12 @@ $$MCR_i = \frac{\partial \sigma_p}{\partial w_i} = \frac{(\Sigma \mathbf{w})_i}{
 
 ### 9.2 Data Storage Layer
 
-| Component | Purpose | Technology |
-|-----------|---------|------------|
-| Time Series DB | High-frequency price data | TimescaleDB |
-| Feature Store | Computed indicators | TimescaleDB + Parquet |
-| Model Registry | Trained models | MLflow |
-| Cache Layer | Real-time data | Redis |
+| Component      | Purpose                   | Technology            |
+| -------------- | ------------------------- | --------------------- |
+| Time Series DB | High-frequency price data | TimescaleDB           |
+| Feature Store  | Computed indicators       | TimescaleDB + Parquet |
+| Model Registry | Trained models            | MLflow                |
+| Cache Layer    | Real-time data            | Redis                 |
 
 ### 9.3 Processing Framework
 
@@ -792,34 +809,34 @@ $$MCR_i = \frac{\partial \sigma_p}{\partial w_i} = \frac{(\Sigma \mathbf{w})_i}{
 
 ### Academic Literature
 
-1. **Bollerslev, T.** (1986). Generalized Autoregressive Conditional Heteroskedasticity. *Journal of Econometrics*, 31(3), 307-327.
+1. **Bollerslev, T.** (1986). Generalized Autoregressive Conditional Heteroskedasticity. _Journal of Econometrics_, 31(3), 307-327.
 
-2. **Black, F., & Litterman, R.** (1992). Global Portfolio Optimization. *Financial Analysts Journal*, 48(5), 28-43.
+2. **Black, F., & Litterman, R.** (1992). Global Portfolio Optimization. _Financial Analysts Journal_, 48(5), 28-43.
 
-3. **Carhart, M. M.** (1997). On Persistence in Mutual Fund Performance. *The Journal of Finance*, 52(1), 57-82.
+3. **Carhart, M. M.** (1997). On Persistence in Mutual Fund Performance. _The Journal of Finance_, 52(1), 57-82.
 
-4. **de Prado, M. L.** (2018). *Advances in Financial Machine Learning*. Wiley.
+4. **de Prado, M. L.** (2018). _Advances in Financial Machine Learning_. Wiley.
 
-5. **Fama, E. F., & French, K. R.** (1993). Common Risk Factors in the Returns on Stocks and Bonds. *Journal of Financial Economics*, 33(1), 3-56.
+5. **Fama, E. F., & French, K. R.** (1993). Common Risk Factors in the Returns on Stocks and Bonds. _Journal of Financial Economics_, 33(1), 3-56.
 
-6. **Fama, E. F., & French, K. R.** (2015). A Five-Factor Asset Pricing Model. *Journal of Financial Economics*, 116(1), 1-22.
+6. **Fama, E. F., & French, K. R.** (2015). A Five-Factor Asset Pricing Model. _Journal of Financial Economics_, 116(1), 1-22.
 
-7. **Hochreiter, S., & Schmidhuber, J.** (1997). Long Short-Term Memory. *Neural Computation*, 9(8), 1735-1780.
+7. **Hochreiter, S., & Schmidhuber, J.** (1997). Long Short-Term Memory. _Neural Computation_, 9(8), 1735-1780.
 
-8. **Lo, A. W.** (2004). The Adaptive Markets Hypothesis. *The Journal of Portfolio Management*, 30(5), 15-29.
+8. **Lo, A. W.** (2004). The Adaptive Markets Hypothesis. _The Journal of Portfolio Management_, 30(5), 15-29.
 
-9. **Markowitz, H.** (1952). Portfolio Selection. *The Journal of Finance*, 7(1), 77-91.
+9. **Markowitz, H.** (1952). Portfolio Selection. _The Journal of Finance_, 7(1), 77-91.
 
-10. **Sharpe, W. F.** (1966). Mutual Fund Performance. *Journal of Business*, 39(1), 119-138.
+10. **Sharpe, W. F.** (1966). Mutual Fund Performance. _Journal of Business_, 39(1), 119-138.
 
-11. **Vaswani, A., et al.** (2017). Attention Is All You Need. *Advances in Neural Information Processing Systems*, 30.
+11. **Vaswani, A., et al.** (2017). Attention Is All You Need. _Advances in Neural Information Processing Systems_, 30.
 
 ### Technical Documentation
 
-- PyTorch Documentation: https://pytorch.org/docs/
-- Statsmodels Documentation: https://www.statsmodels.org/
-- Scikit-learn Documentation: https://scikit-learn.org/
-- Polars Documentation: https://pola.rs/
+- PyTorch Documentation: <https://pytorch.org/docs/>
+- Statsmodels Documentation: <https://www.statsmodels.org/>
+- Scikit-learn Documentation: <https://scikit-learn.org/>
+- Polars Documentation: <https://pola.rs/>
 
 ---
 

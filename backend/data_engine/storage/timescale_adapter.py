@@ -50,14 +50,16 @@ class TimescaleAdapter:
         """
         try:
             async with self.session_factory() as session:
-                query = text(f"""
+                query = text(
+                    f"""
                     SELECT create_hypertable(
                         '{table_name}',
                         '{time_column}',
                         chunk_time_interval => INTERVAL '{chunk_interval}',
                         if_not_exists => TRUE
                     );
-                """)
+                """
+                )
 
                 await session.execute(query)
                 await session.commit()
@@ -89,16 +91,26 @@ class TimescaleAdapter:
         try:
             async with self.session_factory() as session:
                 # Build compression settings
-                segment_by = ", ".join(segment_by_columns) if segment_by_columns else "ticker"
-                order_by = ", ".join(order_by_columns) if order_by_columns else "time DESC"
+                segment_by = (
+                    ", ".join(segment_by_columns)
+                    if segment_by_columns
+                    else "ticker"
+                )
+                order_by = (
+                    ", ".join(order_by_columns)
+                    if order_by_columns
+                    else "time DESC"
+                )
 
-                query = text(f"""
+                query = text(
+                    f"""
                     ALTER TABLE {table_name} SET (
                         timescaledb.compress,
                         timescaledb.compress_segmentby = '{segment_by}',
                         timescaledb.compress_orderby = '{order_by}'
                     );
-                """)
+                """
+                )
 
                 await session.execute(query)
                 await session.commit()
@@ -127,12 +139,14 @@ class TimescaleAdapter:
         """
         try:
             async with self.session_factory() as session:
-                query = text(f"""
+                query = text(
+                    f"""
                     SELECT add_compression_policy(
                         '{table_name}',
                         INTERVAL '{compress_after}'
                     );
-                """)
+                """
+                )
 
                 await session.execute(query)
                 await session.commit()
@@ -156,7 +170,8 @@ class TimescaleAdapter:
         """
         try:
             async with self.session_factory() as session:
-                query = text(f"""
+                query = text(
+                    f"""
                     SELECT
                         chunk_name,
                         range_start,
@@ -167,7 +182,8 @@ class TimescaleAdapter:
                     WHERE hypertable_name = '{table_name}'
                     ORDER BY range_start DESC
                     LIMIT 50;
-                """)
+                """
+                )
 
                 result = await session.execute(query)
                 rows = result.fetchall()

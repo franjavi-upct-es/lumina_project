@@ -90,3 +90,6 @@ migrations/versions/*.pyc
 backend/celerybeat-schedule
 uv.lock
 .coverage
+node_modules
+.ipynb_checkpoints
+logs/

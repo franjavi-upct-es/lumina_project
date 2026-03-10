@@ -1,0 +1,49 @@
+/* frontend/react-app/src/styles.css */
+/* Global stykes for the Lumina V3 dashboard
+   Import Tailwind's base, components, and utilities layers.
+   Adds custom scrollbar styling and font smoothing for the dark trading theme. */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-smoothing: grayscale;
+  }
+
+  /* Custom scrollbar for dark trading dashboard */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #141418;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2a2a35;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #383845;
+  }
+
+  /* Remove default number input spinners */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+  }
+}
+
+@layer components {
+  /* Reusable focus ring consistent with brand colors */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-surface-900;
+  }
+}

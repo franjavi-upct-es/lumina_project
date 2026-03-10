@@ -120,7 +120,9 @@ class SimpleConcatenation:
                     if embedding.shape[0] < expected_dim:
                         # Pad with zeros
                         embedding = np.pad(
-                            embedding, (0, expected_dim - embedding.shape[0]), mode="constant"
+                            embedding,
+                            (0, expected_dim - embedding.shape[0]),
+                            mode="constant",
                         )
                     else:
                         # Truncate
@@ -130,7 +132,9 @@ class SimpleConcatenation:
             else:
                 # Missing modality - already filled with zeros
                 if not fill_missing:
-                    logger.warning(f"Modality '{modality}' missing, filling with zeros")
+                    logger.warning(
+                        f"Modality '{modality}' missing, filling with zeros"
+                    )
 
         return fused
 
@@ -147,7 +151,9 @@ class SimpleConcatenation:
             Dictionary of individual modality embeddings
         """
         if fused_embedding.shape[0] != self.total_dim:
-            raise ValueError(f"Expected dimension {self.total_dim}, got {fused_embedding.shape[0]}")
+            raise ValueError(
+                f"Expected dimension {self.total_dim}, got {fused_embedding.shape[0]}"
+            )
 
         embeddings = {}
         for modality in self.modality_order:
@@ -252,7 +258,8 @@ class ModalityGate(nn.Module):
             gates, _ = self.forward(x)
 
             stats = {
-                f"gate_{i}_mean": gates[:, i].mean().item() for i in range(self.num_modalities)
+                f"gate_{i}_mean": gates[:, i].mean().item()
+                for i in range(self.num_modalities)
             }
 
             stats["gate_variance"] = gates.var().item()

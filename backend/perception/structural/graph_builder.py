@@ -139,7 +139,9 @@ class MarketGraph:
         sub_nodes = [self.nodes[i] for i in indices]
 
         # Create index mapping
-        old_to_new = {old_idx: new_idx for new_idx, old_idx in enumerate(indices)}
+        old_to_new = {
+            old_idx: new_idx for new_idx, old_idx in enumerate(indices)
+        }
 
         # Filter edges
         sub_edges = []
@@ -254,7 +256,13 @@ class GraphBuilder:
 
         return node_idx
 
-    def add_static_edge(self, source: str, target: str, edge_type: EdgeType, weight: float = 1.0):
+    def add_static_edge(
+        self,
+        source: str,
+        target: str,
+        edge_type: EdgeType,
+        weight: float = 1.0,
+    ):
         """
         Add static edge between assets.
 
@@ -333,7 +341,9 @@ class GraphBuilder:
 
         # Compute correlation edges
         computer = DynamicEdgeComputer(self.correlation_config)
-        edge_index, edge_weights = computer.compute_edges(filtered_prices, timestamp)
+        edge_index, edge_weights = computer.compute_edges(
+            filtered_prices, timestamp
+        )
 
         # Map to graph indices
         symbol_list = list(common_symbols)
@@ -350,7 +360,9 @@ class GraphBuilder:
 
             weight = edge_weights[i] * weight_multiplier
 
-            self.edges.append((source_idx, target_idx, weight, EdgeType.CORRELATION))
+            self.edges.append(
+                (source_idx, target_idx, weight, EdgeType.CORRELATION)
+            )
 
         logger.info(f"Added {edge_index.shape[1]} correlation edges")
 
@@ -372,7 +384,9 @@ class GraphBuilder:
         else:
             edge_list = [(e[0], e[1]) for e in self.edges]
             edge_index = np.array(edge_list, dtype=np.int64).T
-            edge_weights = np.array([e[2] for e in self.edges], dtype=np.float32)
+            edge_weights = np.array(
+                [e[2] for e in self.edges], dtype=np.float32
+            )
             edge_types = [e[3] for e in self.edges]
 
         # Build adjacency matrix
@@ -391,7 +405,9 @@ class GraphBuilder:
             adjacency_matrix=adj_matrix,
         )
 
-        logger.success(f"Built market graph: {len(self.nodes)} nodes, {edge_index.shape[1]} edges")
+        logger.success(
+            f"Built market graph: {len(self.nodes)} nodes, {edge_index.shape[1]} edges"
+        )
 
         return graph
 

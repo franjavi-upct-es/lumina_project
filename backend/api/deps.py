@@ -1,8 +1,8 @@
 # backend/api/deps.py
 """
 FastAPI Dependencies for Dependency Injection
-Provides common dependencies like database sessions, authentication, rate limiting,
-and data collectors for the Lumina V3 API.
+Provides common dependencies like database sessions, authentication,
+rate limiting, and data collectors for the Lumina V3 API.
 
 This module implements the dependency injection pattern for:
 - Database sessions (PostgreSQL/TimescaleDB)
@@ -28,7 +28,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config.settings import get_settings
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
-from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+from backend.data_engine.transformers.feature_engineering import (
+    FeatureEngineer,
+)
 from backend.db.models import get_async_session
 
 settings = get_settings()
@@ -156,7 +158,9 @@ def get_feature_engineer() -> FeatureEngineer:
 # ============================================================================
 
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+def create_access_token(
+    data: dict, expires_delta: timedelta | None = None
+) -> str:
     """
     Create JWT access token.
 
@@ -172,10 +176,14 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.utcnow() + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
 
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    encoded_jwt = jwt.encode(
+        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
     return encoded_jwt
 
 
@@ -193,7 +201,9 @@ def decode_access_token(token: str) -> dict:
         HTTPException: If token is invalid or expired
     """
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -243,7 +253,9 @@ async def get_current_user(
     return {"user_id": user_id, "payload": payload}
 
 
-async def get_current_user_optional(authorization: str | None = Header(None)) -> dict | None:
+async def get_current_user_optional(
+    authorization: str | None = Header(None),
+) -> dict | None:
     """
     Get current user if authenticated, None otherwise.
 
@@ -251,7 +263,9 @@ async def get_current_user_optional(authorization: str | None = Header(None)) ->
 
     Usage:
         @router.get("/public-or-private")
-        async def route(user: dict | None = Depends(get_current_user_optional)):
+        async def route(
+            user: dict | None = Depends(get_current_user_optional)
+        ):
             if user:
                 # Authenticated user logic
                 pass
@@ -404,7 +418,9 @@ class RateLimiter:
         return True
 
 
-async def check_rate_limit(request: Request, redis: Redis = Depends(get_redis)) -> None:
+async def check_rate_limit(
+    request: Request, redis: Redis = Depends(get_redis)
+) -> None:
     """
     Check rate limit for incoming request.
 
@@ -451,7 +467,10 @@ def check_production_environment() -> None:
     Use for dangerous operations that should only run in development.
 
     Usage:
-        @router.delete("/dangerous", dependencies=[Depends(check_production_environment)])
+        @router.delete(
+            "/dangerous",
+            dependencies=[Depends(check_production_environment)]
+        )
         async def dangerous_operation():
             # Only allowed in development
             return {"deleted": True}
@@ -483,7 +502,9 @@ def require_development_environment() -> None:
 # ============================================================================
 
 
-async def check_database_health(db: AsyncGenerator = Depends(get_async_db)) -> bool:
+async def check_database_health(
+    db: AsyncGenerator = Depends(get_async_db),
+) -> bool:
     """
     Check database connection health.
 

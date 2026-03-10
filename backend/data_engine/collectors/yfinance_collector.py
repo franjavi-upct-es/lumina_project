@@ -53,7 +53,12 @@ class YFinanceCollector(BaseDataCollector):
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
             data = await loop.run_in_executor(
-                None, self._fetch_yfinance_data, ticker, start_date, end_date, interval
+                None,
+                self._fetch_yfinance_data,
+                ticker,
+                start_date,
+                end_date,
+                interval,
             )
 
             if data is None:
@@ -70,14 +75,20 @@ class YFinanceCollector(BaseDataCollector):
 
             # Ensure datetime column (columns are standardized to lowercase)
             date_col = next(
-                (candidate for candidate in ["date", "datetime"] if candidate in df.columns),
+                (
+                    candidate
+                    for candidate in ["date", "datetime"]
+                    if candidate in df.columns
+                ),
                 None,
             )
             if not date_col:
                 logger.error("No date column found in yfinance data")
                 return None
 
-            df = df.with_columns(pl.col(date_col).cast(pl.Datetime).alias("time")).drop(date_col)
+            df = df.with_columns(
+                pl.col(date_col).cast(pl.Datetime).alias("time")
+            ).drop(date_col)
 
             return df
 
@@ -86,7 +97,11 @@ class YFinanceCollector(BaseDataCollector):
             return None
 
     def _fetch_yfinance_data(
-        self, ticker: str, start_date: datetime, end_date: datetime, interval: str
+        self,
+        ticker: str,
+        start_date: datetime,
+        end_date: datetime,
+        interval: str,
     ):
         """
         Synchronous fetch from yfinance
@@ -114,7 +129,9 @@ class YFinanceCollector(BaseDataCollector):
             return False
 
         required_columns = ["time", "open", "high", "low", "close", "volume"]
-        missing_columns = [col for col in required_columns if col not in data.columns]
+        missing_columns = [
+            col for col in required_columns if col not in data.columns
+        ]
 
         if missing_columns:
             logger.error(f"Missing required columns: {missing_columns}")
@@ -122,7 +139,10 @@ class YFinanceCollector(BaseDataCollector):
 
         # Check for null values in critical columns
         null_counts = data.select(
-            [pl.col(col).is_null().sum().alias(col) for col in ["close", "volume"]]
+            [
+                pl.col(col).is_null().sum().alias(col)
+                for col in ["close", "volume"]
+            ]
         )
 
         if any(null_counts.row(0)):
@@ -130,11 +150,15 @@ class YFinanceCollector(BaseDataCollector):
 
         # Validate price consistency (high >= low, etc.)
         invalid_prices = data.filter(
-            (pl.col("high") < pl.col("low")) | (pl.col("close") < 0) | (pl.col("volume") < 0)
+            (pl.col("high") < pl.col("low"))
+            | (pl.col("close") < 0)
+            | (pl.col("volume") < 0)
         )
 
         if invalid_prices.height > 0:
-            logger.error(f"Found {invalid_prices.height} rows with invalid prices")
+            logger.error(
+                f"Found {invalid_prices.height} rows with invalid prices"
+            )
             return False
 
         return True
@@ -151,7 +175,9 @@ class YFinanceCollector(BaseDataCollector):
         """
         try:
             loop = asyncio.get_event_loop()
-            info = await loop.run_in_executor(None, self._fetch_company_info, ticker)
+            info = await loop.run_in_executor(
+                None, self._fetch_company_info, ticker
+            )
             return info
         except Exception as e:
             logger.error(f"Error fetching company info for {ticker}: {e}")
@@ -249,16 +275,22 @@ class YFinanceCollector(BaseDataCollector):
 
         return {"calls": calls, "puts": puts, "expiration": expiration_date}
 
-    async def get_institutional_holders(self, ticker: str) -> pl.DataFrame | None:
+    async def get_institutional_holders(
+        self, ticker: str
+    ) -> pl.DataFrame | None:
         """
         Get institutional holders information
         """
         try:
             loop = asyncio.get_event_loop()
-            data = await loop.run_in_executor(None, self._fetch_institutional_holders, ticker)
+            data = await loop.run_in_executor(
+                None, self._fetch_institutional_holders, ticker
+            )
             return data
         except Exception as e:
-            logger.error(f"Error fetching institutional holders for {ticker}: {e}")
+            logger.error(
+                f"Error fetching institutional holders for {ticker}: {e}"
+            )
             return None
 
     def _fetch_institutional_holders(self, ticker: str) -> pl.DataFrame | None:
@@ -279,7 +311,9 @@ class YFinanceCollector(BaseDataCollector):
         """
         try:
             loop = asyncio.get_event_loop()
-            data = await loop.run_in_executor(None, self._fetch_earnings, ticker)
+            data = await loop.run_in_executor(
+                None, self._fetch_earnings, ticker
+            )
             return data
         except Exception as e:
             logger.error(f"Error fetching earnings for {ticker}: {e}")

@@ -58,12 +58,17 @@ def check_system_health() -> dict[str, any]:
                 "available": True,
                 "device_count": torch.cuda.device_count(),
                 "device_name": torch.cuda.get_device_name(0),
-                "memory_allocated_gb": torch.cuda.memory_allocated(0) / (1024**3),
-                "memory_reserved_gb": torch.cuda.memory_reserved(0) / (1024**3),
+                "memory_allocated_gb": torch.cuda.memory_allocated(0)
+                / (1024**3),
+                "memory_reserved_gb": torch.cuda.memory_reserved(0)
+                / (1024**3),
                 "status": "ok",
             }
         else:
-            health["components"]["gpu"] = {"available": False, "status": "not_available"}
+            health["components"]["gpu"] = {
+                "available": False,
+                "status": "not_available",
+            }
 
     except Exception as e:
         logger.error(f"Health check failed: {e}")

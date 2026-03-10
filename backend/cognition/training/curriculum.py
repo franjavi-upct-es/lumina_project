@@ -144,7 +144,10 @@ class CurriculumScheduler:
         self.episodes_in_phase = 0
         self.phase_metrics_history: list[dict] = []
 
-        logger.info(f"Curriculum scheduler initialized with {len(phase_configs)} phases")
+        logger.info(
+            f"Curriculum scheduler initialized with {len(phase_configs)} "
+            "phases"
+        )
         logger.info(f"Starting with: {self.current_phase.description}")
 
     @property
@@ -167,7 +170,10 @@ class CurriculumScheduler:
         phase_a = PhaseConfig(
             phase=TrainingPhase.PHASE_A_BEHAVIORAL_CLONING,
             num_episodes=1000,
-            description="Phase A: Behavioral Cloning - Learn from expert (V2) demonstrations",
+            description=(
+                "Phase A: Behavioral Cloning - Learn from "
+                "expert (V2) demonstrations"
+            ),
             # Imitation learning settings
             use_behavioral_cloning=True,
             bc_weight=0.5,  # Balance BC loss with RL loss
@@ -190,7 +196,9 @@ class CurriculumScheduler:
         phase_b = PhaseConfig(
             phase=TrainingPhase.PHASE_B_DOMAIN_RANDOMIZATION,
             num_episodes=5000,
-            description="Phase B: Domain Randomization - Train on adversarial scenarios",
+            description=(
+                "Phase B: Domain Randomization -Train on adversarial scenarios"
+            ),
             # No more BC (agent must adapt)
             use_behavioral_cloning=False,
             bc_weight=0.0,
@@ -220,7 +228,9 @@ class CurriculumScheduler:
         phase_c = PhaseConfig(
             phase=TrainingPhase.PHASE_C_PURE_RL,
             num_episodes=10000,
-            description="Phase C: Pure RL - Maximize Sharpe ratio on real data",
+            description=(
+                "Phase C: Pure RL - Maximize Sharpe ratio on real data"
+            ),
             # Pure RL (no imitation)
             use_behavioral_cloning=False,
             bc_weight=0.0,
@@ -234,7 +244,10 @@ class CurriculumScheduler:
             # Mild randomization (still robust)
             use_domain_randomization=True,
             randomization_params={
-                "volatility_multiplier": (0.8, 1.5),  # Moderate volatility range
+                "volatility_multiplier": (
+                    0.8,
+                    1.5,
+                ),  # Moderate volatility range
                 "spread_multiplier": (1.0, 1.2),  # Slight spread variation
             },
             # Progression (final phase - no advancement)
@@ -285,7 +298,9 @@ class CurriculumScheduler:
             return False
 
         # Calculate recent success rate (last 100 episodes or 20% of phase)
-        window_size = min(100, max(20, int(self.current_phase.min_episodes * 0.2)))
+        window_size = min(
+            100, max(20, int(self.current_phase.min_episodes * 0.2))
+        )
 
         recent_metrics = self.phase_metrics_history[-window_size:]
 
@@ -293,7 +308,9 @@ class CurriculumScheduler:
             return False
 
         # Calculate success rate (episodes with positive return)
-        successes = sum(1 for m in recent_metrics if m.get("total_return", 0) > 0)
+        successes = sum(
+            1 for m in recent_metrics if m.get("total_return", 0) > 0
+        )
         success_rate = successes / len(recent_metrics)
 
         # Check if threshold met
@@ -318,7 +335,9 @@ class CurriculumScheduler:
         self.current_phase_idx += 1
         self.episodes_in_phase = 0
 
-        logger.success(f"Advanced from {old_phase} to {self.current_phase.phase.value}")
+        logger.success(
+            f"Advanced from {old_phase} to {self.current_phase.phase.value}"
+        )
         logger.info(f"New phase: {self.current_phase.description}")
 
     def get_current_phase_config(self) -> PhaseConfig:
@@ -342,7 +361,9 @@ class CurriculumScheduler:
 
         # Filter metrics for current phase
         phase_metrics = [
-            m for m in self.phase_metrics_history if m["phase"] == self.current_phase.phase.value
+            m
+            for m in self.phase_metrics_history
+            if m["phase"] == self.current_phase.phase.value
         ]
 
         if not phase_metrics:
@@ -362,8 +383,12 @@ class CurriculumScheduler:
             "episodes": len(phase_metrics),
             "avg_return": np.mean(returns),
             "success_rate": successes / len(phase_metrics),
-            "avg_sharpe": np.mean([m.get("sharpe_ratio", 0) for m in phase_metrics]),
-            "avg_drawdown": np.mean([m.get("max_drawdown", 0) for m in phase_metrics]),
+            "avg_sharpe": np.mean(
+                [m.get("sharpe_ratio", 0) for m in phase_metrics]
+            ),
+            "avg_drawdown": np.mean(
+                [m.get("max_drawdown", 0) for m in phase_metrics]
+            ),
         }
 
         return stats
@@ -375,7 +400,9 @@ class CurriculumScheduler:
 
         # Clear metrics for current phase
         self.phase_metrics_history = [
-            m for m in self.phase_metrics_history if m["phase"] != self.current_phase.phase.value
+            m
+            for m in self.phase_metrics_history
+            if m["phase"] != self.current_phase.phase.value
         ]
 
     def save_curriculum_state(self, path: str):

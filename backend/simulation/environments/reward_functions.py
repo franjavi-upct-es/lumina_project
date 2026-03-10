@@ -31,7 +31,9 @@ class RewardFunction(ABC):
     """
 
     @abstractmethod
-    def calculate(self, returns: np.ndarray, portfolio_values: np.ndarray, **kwargs) -> float:
+    def calculate(
+        self, returns: np.ndarray, portfolio_values: np.ndarray, **kwargs
+    ) -> float:
         """
         Calculate reward from episode data.
 
@@ -86,7 +88,9 @@ class SharpeReward(RewardFunction):
 
         logger.debug(f"SharpeReward: rf={risk_free_rate:.2%}")
 
-    def calculate(self, returns: np.ndarray, portfolio_values: np.ndarray, **kwargs) -> float:
+    def calculate(
+        self, returns: np.ndarray, portfolio_values: np.ndarray, **kwargs
+    ) -> float:
         """Calculate annualized Sharpe ratio."""
         if len(returns) < 2:
             return 0.0
@@ -154,7 +158,9 @@ class SortinoReward(RewardFunction):
 
         logger.debug(f"SortinoReward: target={target_return:.2%}")
 
-    def calculate(self, returns: np.ndarray, portfolio_values: np.ndarray, **kwargs) -> float:
+    def calculate(
+        self, returns: np.ndarray, portfolio_values: np.ndarray, **kwargs
+    ) -> float:
         """Calculate annualized Sortino ratio."""
         if len(returns) < 2:
             return 0.0
@@ -224,7 +230,9 @@ class CalmarReward(RewardFunction):
 
         logger.debug("CalmarReward initialized")
 
-    def calculate(self, returns: np.ndarray, portfolio_values: np.ndarray, **kwargs) -> float:
+    def calculate(
+        self, returns: np.ndarray, portfolio_values: np.ndarray, **kwargs
+    ) -> float:
         """Calculate Calmar ratio."""
         if len(returns) < 2 or len(portfolio_values) < 2:
             return 0.0
@@ -232,7 +240,9 @@ class CalmarReward(RewardFunction):
         # Annualized return
         total_return = (portfolio_values[-1] / portfolio_values[0]) - 1
         n_periods = len(returns)
-        annualized_return = (1 + total_return) ** (self.annualization_factor / n_periods) - 1
+        annualized_return = (1 + total_return) ** (
+            self.annualization_factor / n_periods
+        ) - 1
 
         # Maximum drawdown
         running_max = np.maximum.accumulate(portfolio_values)
@@ -263,7 +273,9 @@ class CompositeReward(RewardFunction):
     multiple metrics simultaneously.
     """
 
-    def __init__(self, reward_functions: list[RewardFunction], weights: list[float]):
+    def __init__(
+        self, reward_functions: list[RewardFunction], weights: list[float]
+    ):
         """
         Initialize composite reward.
 
@@ -275,15 +287,21 @@ class CompositeReward(RewardFunction):
             raise ValueError("Number of functions and weights must match")
 
         if not np.isclose(sum(weights), 1.0):
-            logger.warning(f"Weights sum to {sum(weights)}, not 1.0. Normalizing.")
+            logger.warning(
+                f"Weights sum to {sum(weights)}, not 1.0. Normalizing."
+            )
             weights = [w / sum(weights) for w in weights]
 
         self.reward_functions = reward_functions
         self.weights = weights
 
-        logger.info(f"CompositeReward: {len(reward_functions)} functions, weights={weights}")
+        logger.info(
+            f"CompositeReward: {len(reward_functions)} functions, weights={weights}"
+        )
 
-    def calculate(self, returns: np.ndarray, portfolio_values: np.ndarray, **kwargs) -> float:
+    def calculate(
+        self, returns: np.ndarray, portfolio_values: np.ndarray, **kwargs
+    ) -> float:
         """Calculate weighted combination of rewards."""
         total_reward = 0.0
 
@@ -315,7 +333,9 @@ class CompositeReward(RewardFunction):
             components[func.get_name()] = reward
             components[f"{func.get_name()}_weighted"] = reward * weight
 
-        components["total"] = self.calculate(returns, portfolio_values, **kwargs)
+        components["total"] = self.calculate(
+            returns, portfolio_values, **kwargs
+        )
 
         return components
 
@@ -338,7 +358,9 @@ class SimpleReturnReward(RewardFunction):
         """
         self.scale = scale
 
-    def calculate(self, returns: np.ndarray, portfolio_values: np.ndarray, **kwargs) -> float:
+    def calculate(
+        self, returns: np.ndarray, portfolio_values: np.ndarray, **kwargs
+    ) -> float:
         """Calculate total return."""
         if len(portfolio_values) < 2:
             return 0.0
@@ -368,7 +390,8 @@ def create_phase_reward(phase: str) -> RewardFunction:
     elif phase == "B":
         # Phase B: Survival focus (Calmar with Sortino)
         return CompositeReward(
-            reward_functions=[CalmarReward(), SortinoReward()], weights=[0.6, 0.4]
+            reward_functions=[CalmarReward(), SortinoReward()],
+            weights=[0.6, 0.4],
         )
 
     elif phase == "C":

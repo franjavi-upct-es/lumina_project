@@ -29,7 +29,10 @@ import pandas as pd
 from gymnasium import spaces
 from loguru import logger
 
-from backend.simulation.environments.reward_functions import RewardFunction, SharpeReward
+from backend.simulation.environments.reward_functions import (
+    RewardFunction,
+    SharpeReward,
+)
 from backend.utils.calculations import calculate_max_drawdown
 
 
@@ -81,7 +84,10 @@ class TradingEnv(gym.Env):
         )
 
         self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(self.config.state_dim,), dtype=np.float32
+            low=-np.inf,
+            high=np.inf,
+            shape=(self.config.state_dim,),
+            dtype=np.float32,
         )
 
         # State variables
@@ -95,7 +101,9 @@ class TradingEnv(gym.Env):
         self.returns_history = []
         self.actions_history = []
 
-        logger.info(f"TradingEnv initialized: {len(df)} steps, reward={self.reward_fn.get_name()}")
+        logger.info(
+            f"TradingEnv initialized: {len(df)} steps, reward={self.reward_fn.get_name()}"
+        )
 
     def reset(
         self, seed: int | None = None, options: dict | None = None
@@ -117,7 +125,9 @@ class TradingEnv(gym.Env):
 
         return obs, info
 
-    def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
+    def step(
+        self, action: np.ndarray
+    ) -> tuple[np.ndarray, float, bool, bool, dict]:
         """Execute one time step."""
         # Interpret action
         direction = action[0]  # [-1, 1]
@@ -144,7 +154,9 @@ class TradingEnv(gym.Env):
 
         return obs, reward, terminated, truncated, info
 
-    def _execute_trade(self, direction: float, urgency: float, sizing: float, stop_dist: float):
+    def _execute_trade(
+        self, direction: float, urgency: float, sizing: float, stop_dist: float
+    ):
         """Execute trade based on action."""
         if self.current_step >= len(self.df):
             return
@@ -161,8 +173,15 @@ class TradingEnv(gym.Env):
             return
 
         # Calculate costs
-        transaction_cost = abs(position_change) * self.capital * self.config.transaction_cost
-        slippage_cost = abs(position_change) * self.capital * self.config.slippage * urgency
+        transaction_cost = (
+            abs(position_change) * self.capital * self.config.transaction_cost
+        )
+        slippage_cost = (
+            abs(position_change)
+            * self.capital
+            * self.config.slippage
+            * urgency
+        )
 
         total_cost = transaction_cost + slippage_cost
 
@@ -177,7 +196,9 @@ class TradingEnv(gym.Env):
         # Track
         self.portfolio_history.append(self.portfolio_value)
         if len(self.portfolio_history) > 1:
-            ret = (self.portfolio_value - self.portfolio_history[-2]) / self.portfolio_history[-2]
+            ret = (
+                self.portfolio_value - self.portfolio_history[-2]
+            ) / self.portfolio_history[-2]
             self.returns_history.append(ret)
 
         self.actions_history.append([direction, urgency, sizing, stop_dist])
@@ -245,4 +266,6 @@ class TradingEnv(gym.Env):
     def render(self):
         """Render environment (optional)."""
         if len(self.portfolio_history) > 0:
-            print(f"Step: {self.current_step}, Portfolio: ${self.portfolio_value:.2f}")
+            print(
+                f"Step: {self.current_step}, Portfolio: ${self.portfolio_value:.2f}"
+            )

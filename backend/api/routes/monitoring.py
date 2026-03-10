@@ -132,7 +132,10 @@ class MonitoringDashboard(BaseModel):
     """Comprehensive monitoring dashboard"""
 
     timestamp: datetime
-    status: str = Field(..., description="Overall system status: 'healthy', 'degraded', 'critical'")
+    status: str = Field(
+        ...,
+        description="Overall system status: 'healthy', 'degraded', 'critical'",
+    )
     system_metrics: SystemMetrics
     database_metrics: DatabaseMetrics
     redis_metrics: RedisMetrics
@@ -170,7 +173,7 @@ async def prometheus_metrics(
     metrics = []
 
     # Add timestamp
-    current_time = datetime.utcnow()
+    # current_time = datetime.utcnow()
 
     # ============================================================================
     # System Metrics
@@ -187,7 +190,9 @@ async def prometheus_metrics(
 
         # Memory
         memory = psutil.virtual_memory()
-        metrics.append("# HELP lumina_memory_usage_percent Memory usage percentage")
+        metrics.append(
+            "# HELP lumina_memory_usage_percent Memory usage percentage"
+        )
         metrics.append("# TYPE lumina_memory_usage_percent gauge")
         metrics.append(f"lumina_memory_usage_percent {memory.percent}")
         metrics.append(f"lumina_memory_used_bytes {memory.used}")
@@ -195,7 +200,9 @@ async def prometheus_metrics(
 
         # Disk
         disk = psutil.disk_usage("/")
-        metrics.append("# HELP lumina_disk_usage_percent Disk usage percentage")
+        metrics.append(
+            "# HELP lumina_disk_usage_percent Disk usage percentage"
+        )
         metrics.append("# TYPE lumina_disk_usage_percent gauge")
         metrics.append(f"lumina_disk_usage_percent {disk.percent}")
         metrics.append(f"lumina_disk_used_bytes {disk.used}")
@@ -217,13 +224,27 @@ async def prometheus_metrics(
                 mem_allocated = torch.cuda.memory_allocated(i)
                 mem_reserved = torch.cuda.memory_reserved(i)
 
-                metrics.append("# HELP lumina_gpu_memory_allocated_bytes GPU memory allocated")
-                metrics.append("# TYPE lumina_gpu_memory_allocated_bytes gauge")
-                metrics.append(f"lumina_gpu_memory_allocated_bytes{{device='{i}'}} {mem_allocated}")
+                metrics.append(
+                    "# HELP lumina_gpu_memory_allocated_bytes "
+                    "GPU memory allocated"
+                )
+                metrics.append(
+                    "# TYPE lumina_gpu_memory_allocated_bytes gauge"
+                )
+                metrics.append(
+                    f"lumina_gpu_memory_allocated_bytes{{device='{i}'}} "
+                    f"{mem_allocated}"
+                )
 
-                metrics.append("# HELP lumina_gpu_memory_reserved_bytes GPU memory reserved")
+                metrics.append(
+                    "# HELP lumina_gpu_memory_reserved_bytes "
+                    "GPU memory reserved"
+                )
                 metrics.append("# TYPE lumina_gpu_memory_reserved_bytes gauge")
-                metrics.append(f"lumina_gpu_memory_reserved_bytes{{device='{i}'}} {mem_reserved}")
+                metrics.append(
+                    f"lumina_gpu_memory_reserved_bytes{{device='{i}'}} "
+                    f"{mem_reserved}"
+                )
     except Exception as e:
         logger.error(f"Error collecting GPU metrics: {e}")
 
@@ -239,16 +260,22 @@ async def prometheus_metrics(
 
         # Pool size
         pool_size = engine.pool.size()
-        metrics.append("# HELP lumina_db_pool_size Database connection pool size")
+        metrics.append(
+            "# HELP lumina_db_pool_size Database connection pool size"
+        )
         metrics.append("# TYPE lumina_db_pool_size gauge")
         metrics.append(f"lumina_db_pool_size {pool_size}")
 
         # Get database size
         async with engine.connect() as conn:
-            result = await conn.execute(text("SELECT pg_database_size(current_database()) as size"))
+            result = await conn.execute(
+                text("SELECT pg_database_size(current_database()) as size")
+            )
             db_size = result.scalar()
 
-            metrics.append("# HELP lumina_db_size_bytes Database size in bytes")
+            metrics.append(
+                "# HELP lumina_db_size_bytes Database size in bytes"
+            )
             metrics.append("# TYPE lumina_db_size_bytes gauge")
             metrics.append(f"lumina_db_size_bytes {db_size}")
     except Exception as e:
@@ -264,13 +291,17 @@ async def prometheus_metrics(
 
         # Memory
         used_memory = info.get("used_memory", 0)
-        metrics.append("# HELP lumina_redis_memory_used_bytes Redis memory used")
+        metrics.append(
+            "# HELP lumina_redis_memory_used_bytes Redis memory used"
+        )
         metrics.append("# TYPE lumina_redis_memory_used_bytes gauge")
         metrics.append(f"lumina_redis_memory_used_bytes {used_memory}")
 
         # Connections
         connected_clients = info.get("connected_clients", 0)
-        metrics.append("# HELP lumina_redis_connected_clients Redis connected clients")
+        metrics.append(
+            "# HELP lumina_redis_connected_clients Redis connected clients"
+        )
         metrics.append("# TYPE lumina_redis_connected_clients gauge")
         metrics.append(f"lumina_redis_connected_clients {connected_clients}")
 
@@ -284,9 +315,13 @@ async def prometheus_metrics(
         keyspace_hits = info.get("keyspace_hits", 0)
         keyspace_misses = info.get("keyspace_misses", 0)
         total_requests = keyspace_hits + keyspace_misses
-        hit_rate = (keyspace_hits / total_requests * 100) if total_requests > 0 else 0
+        hit_rate = (
+            (keyspace_hits / total_requests * 100) if total_requests > 0 else 0
+        )
 
-        metrics.append("# HELP lumina_redis_hit_rate_percent Redis cache hit rate")
+        metrics.append(
+            "# HELP lumina_redis_hit_rate_percent Redis cache hit rate"
+        )
         metrics.append("# TYPE lumina_redis_hit_rate_percent gauge")
         metrics.append(f"lumina_redis_hit_rate_percent {hit_rate}")
     except Exception as e:
@@ -305,7 +340,9 @@ async def prometheus_metrics(
     metrics.append("# TYPE lumina_agent_sharpe_ratio gauge")
     metrics.append("lumina_agent_sharpe_ratio 0.0")
 
-    metrics.append("# HELP lumina_agent_max_drawdown_percent Maximum drawdown percentage")
+    metrics.append(
+        "# HELP lumina_agent_max_drawdown_percent Maximum drawdown percentage"
+    )
     metrics.append("# TYPE lumina_agent_max_drawdown_percent gauge")
     metrics.append("lumina_agent_max_drawdown_percent 0.0")
 
@@ -314,11 +351,17 @@ async def prometheus_metrics(
     # ========================================================================
 
     # TODO: Implement actual safety metrics retrieval
-    metrics.append("# HELP lumina_safety_circuit_breaker_triggers Circuit breaker triggers (24h)")
+    metrics.append(
+        "# HELP lumina_safety_circuit_breaker_triggers "
+        "Circuit breaker triggers (24h)"
+    )
     metrics.append("# TYPE lumina_safety_circuit_breaker_triggers counter")
     metrics.append("lumina_safety_circuit_breaker_triggers 0")
 
-    metrics.append("# HELP lumina_safety_kill_switch_activations Kill switch activations (24h)")
+    metrics.append(
+        "# HELP lumina_safety_kill_switch_activations "
+        "Kill switch activations (24h)"
+    )
     metrics.append("# TYPE lumina_safety_kill_switch_activations counter")
     metrics.append("lumina_safety_kill_switch_activations 0")
 
@@ -327,7 +370,10 @@ async def prometheus_metrics(
     # ========================================================================
 
     # TODO: Implement actual feature store metrics
-    metrics.append("# HELP lumina_feature_store_cache_hit_rate Feature store cache hit rate")
+    metrics.append(
+        "# HELP lumina_feature_store_cache_hit_rate "
+        "Feature store cache hit rate"
+    )
     metrics.append("# TYPE lumina_feature_store_cache_hit_rate gauge")
     metrics.append("lumina_feature_store_cache_hit_rate 0.0")
 
@@ -377,7 +423,11 @@ async def get_system_metrics():
             gpu_available = True
             # Get GPU memory for first device
             gpu_memory_used = torch.cuda.memory_allocated(0) / (1024**2)  # MB
-            gpu_memory_total = torch.cuda.get_device_properties(0).total_memory / (1024**2)  # MB
+            gpu_memory_total = torch.cuda.get_device_properties(
+                0
+            ).total_memory / (
+                1024**2
+            )  # MB
     except Exception as e:
         logger.debug(f"GPU metrics not available: {e}")
 
@@ -419,13 +469,18 @@ async def get_database_metrics(
     # Get database size
     async with engine.connect() as conn:
         result = await conn.execute(
-            text("SELECT pg_database_size(current_database()) / (1024*1024) as size_mb")
+            text(
+                "SELECT pg_database_size(current_database()) / (1024*1024) "
+                "AS size_mb"
+            )
         )
         db_size_mb = result.scalar()
 
         # Get number of TimescaleDB chunks
         try:
-            result = await conn.execute(text("SELECT COUNT(*) FROM timescaledb_information.chunks"))
+            result = await conn.execute(
+                text("SELECT COUNT(*) FROM timescaledb_information.chunks")
+            )
             chunk_count = result.scalar()
         except Exception:
             chunk_count = 0
@@ -469,7 +524,9 @@ async def get_redis_metrics(
     keyspace_hits = info.get("keyspace_hits", 0)
     keyspace_misses = info.get("keyspace_misses", 0)
     total_requests = keyspace_hits + keyspace_misses
-    hit_rate = (keyspace_hits / total_requests * 100) if total_requests > 0 else 0
+    hit_rate = (
+        (keyspace_hits / total_requests * 100) if total_requests > 0 else 0
+    )
 
     # Evicted/expired
     evicted_keys = info.get("evicted_keys", 0)
@@ -574,7 +631,9 @@ async def get_feature_store_metrics(
         timestamp=datetime.utcnow(),
         cache_hit_rate_percent=0.0,
         cache_miss_rate_percent=0.0,
-        total_embeddings=len(temporal_keys) + len(semantic_keys) + len(structural_keys),
+        total_embeddings=len(temporal_keys)
+        + len(semantic_keys)
+        + len(structural_keys),
         temporal_embeddings=len(temporal_keys),
         semantic_embeddings=len(semantic_keys),
         structural_embeddings=len(structural_keys),

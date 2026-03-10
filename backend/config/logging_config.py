@@ -84,7 +84,11 @@ def setup_logging(
                             "function": record["function"],
                             "line": record["line"],
                             "message": record["message"],
-                            "exception": str(record["exception"]) if record["exception"] else None,
+                            "exception": (
+                                str(record["exception"])
+                                if record["exception"]
+                                else None
+                            ),
                         }
                     )
                     + "\n"
@@ -93,7 +97,8 @@ def setup_logging(
             serialize = json_formatter
         else:
             file_format = (
-                "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}"
+                "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} |"
+                "{name}:{function}:{line} | {message}"
             )
             serialize = False
 
@@ -157,12 +162,15 @@ def setup_logging(
             compression=compression,
             enqueue=True,
             filter=lambda record: (
-                "ml_engine" in record["name"].lower() or "train" in record["name"].lower()
+                "ml_engine" in record["name"].lower()
+                or "train" in record["name"].lower()
             ),
             serialize=serialize,
         )
 
-    logger.info(f"Logging configured: level={log_level}, file_logging={log_to_file}")
+    logger.info(
+        f"Logging configured: level={log_level}, file_logging={log_to_file}"
+    )
 
 
 def setup_production_logging():
@@ -175,7 +183,11 @@ def setup_production_logging():
     setup_logging(
         log_level="INFO",
         log_to_file=True,
-        log_dir=Path("/var/log/lumina") if Path("/var/log").exists() else Path("logs"),
+        log_dir=(
+            Path("/var/log/lumina")
+            if Path("/var/log").exists()
+            else Path("logs")
+        ),
         rotation="50 MB",
         retention="14 days",
         compression="zip",
@@ -266,9 +278,15 @@ class timed_operation:
         duration = (datetime.now() - self.start_time).total_seconds()
 
         if exc_type is None:
-            logger.log(self.log_level, f"Completed: {self.operation_name} (took {duration:.2f}s)")
+            logger.log(
+                self.log_level,
+                f"Completed: {self.operation_name} (took {duration:.2f}s)",
+            )
         else:
-            logger.error(f"Failed: {self.operation_name} after {duration:.2f}s - {exc_val}")
+            logger.error(
+                f"Failed: {self.operation_name} after {duration:.2f}s - "
+                f"{exc_val}"
+            )
 
 
 # Decorators for logging
@@ -286,7 +304,10 @@ def log_function_call(level: str = "DEBUG"):
 
     def decorator(func):
         def wrapper(*args, **kwargs):
-            logger.log(level, f"Calling {func.__name__} with args={args}, kwargs={kwargs}")
+            logger.log(
+                level,
+                f"Calling {func.__name__} with args={args}, kwargs={kwargs}",
+            )
             try:
                 result = func(*args, **kwargs)
                 logger.log(level, f"{func.__name__} completed successfully")
@@ -328,7 +349,11 @@ def log_exceptions(reraise: bool = True):
 
 
 def log_api_request(
-    method: str, path: str, status_code: int, duration_ms: float, user_id: str | None = None
+    method: str,
+    path: str,
+    status_code: int,
+    duration_ms: float,
+    user_id: str | None = None,
 ):
     """
     Log API request in structured format
@@ -351,7 +376,11 @@ def log_api_request(
 
 
 def log_backtest_run(
-    strategy_name: str, tickers: list, start_date: str, end_date: str, metrics: dict
+    strategy_name: str,
+    tickers: list,
+    start_date: str,
+    end_date: str,
+    metrics: dict,
 ):
     """
     Log backtest run with metrics

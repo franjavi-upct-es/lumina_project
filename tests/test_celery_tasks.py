@@ -52,7 +52,9 @@ class TestCeleryConfiguration:
         registered_tasks = list(celery_app.tasks.keys())
 
         for module in expected_tasks:
-            module_tasks = [t for t in registered_tasks if t.startswith(module)]
+            module_tasks = [
+                t for t in registered_tasks if t.startswith(module)
+            ]
             print(f"✓ {module}: {len(module_tasks)} tasks")
 
     def test_celery_queues_configured(self, celery_app):
@@ -64,7 +66,9 @@ class TestCeleryConfiguration:
 
         expected_queues = ["default", "data", "ml", "backtest"]
         for expected in expected_queues:
-            assert expected in queue_names, f"Queue '{expected}' not configured"
+            assert (
+                expected in queue_names
+            ), f"Queue '{expected}' not configured"
             print(f"✓ Queue '{expected}' configured")
 
     def test_celery_broker_connection(self, celery_app):
@@ -178,7 +182,10 @@ class TestMLTasks:
 
         # Submit task (don't wait - training takes time)
         task = train_model_task.delay(
-            job_id=job_id, ticker=ticker, model_type=model_type, hyperparams=hyperparams
+            job_id=job_id,
+            ticker=ticker,
+            model_type=model_type,
+            hyperparams=hyperparams,
         )
 
         assert task.id is not None
@@ -201,7 +208,9 @@ class TestMLTasks:
         days_ahead = 5
 
         try:
-            task = predict_task.delay(ticker=ticker, model_id=model_id, days_ahead=days_ahead)
+            task = predict_task.delay(
+                ticker=ticker, model_id=model_id, days_ahead=days_ahead
+            )
 
             assert task.id is not None
             print(f"✓ Prediction task submitted: {task.id}")
@@ -211,7 +220,9 @@ class TestMLTasks:
                 result = task.get(timeout=60)
                 print(f"✓ Prediction completed: {result}")
             except Exception as e:
-                print(f"⚠ Prediction task (expected to fail without model): {e}")
+                print(
+                    f"⚠ Prediction task (expected to fail without model): {e}"
+                )
         except Exception as e:
             print(f"⚠ Prediction task submission: {e}")
 
@@ -234,7 +245,10 @@ class TestMLTasks:
 
         try:
             task = hyperparameter_tuning_task.delay(
-                job_id=job_id, ticker=ticker, search_space=search_space, n_trials=5
+                job_id=job_id,
+                ticker=ticker,
+                search_space=search_space,
+                n_trials=5,
             )
 
             assert task.id is not None
@@ -263,11 +277,16 @@ class TestBacktestTasks:
             "initial_capital": 100000,
             "commission": 0.001,
             "slippage": 0.0005,
-            "strategy_params": {"lookback_period": 20, "rebalance_frequency": "weekly"},
+            "strategy_params": {
+                "lookback_period": 20,
+                "rebalance_frequency": "weekly",
+            },
         }
 
         try:
-            task = run_backtest_task.delay(backtest_id=backtest_id, config=config)
+            task = run_backtest_task.delay(
+                backtest_id=backtest_id, config=config
+            )
 
             assert task.id is not None
             print(f"✓ Backtest task submitted: {task.id}")
@@ -291,7 +310,9 @@ class TestBacktestTasks:
         }
 
         try:
-            task = monte_carlo_task.delay(simulation_id=simulation_id, config=config)
+            task = monte_carlo_task.delay(
+                simulation_id=simulation_id, config=config
+            )
 
             assert task.id is not None
             print(f"✓ Monte Carlo task submitted: {task.id}")
@@ -378,7 +399,9 @@ class TestTaskMonitoring:
             ticker="AAPL",
             model_type="lstm",
             hyperparams={
-                "start_date": (datetime.now() - timedelta(days=365)).isoformat(),
+                "start_date": (
+                    datetime.now() - timedelta(days=365)
+                ).isoformat(),
                 "end_date": datetime.now().isoformat(),
                 "num_epochs": 100,  # Many epochs
             },
@@ -407,10 +430,14 @@ class TestTaskRetry:
         conf = celery_app.conf
 
         # Check retry-related configuration
-        assert conf.task_acks_late is True, "task_acks_late should be True for reliable retries"
+        assert (
+            conf.task_acks_late is True
+        ), "task_acks_late should be True for reliable retries"
         print("✓ Task retry configuration verified")
         print(f"  task_acks_late: {conf.task_acks_late}")
-        print(f"  task_reject_on_worker_lost: {conf.task_reject_on_worker_lost}")
+        print(
+            f"  task_reject_on_worker_lost: {conf.task_reject_on_worker_lost}"
+        )
 
 
 class TestWorkerHealth:
@@ -444,8 +471,12 @@ class TestWorkerHealth:
 
         for worker, info in stats.items():
             print(f"✓ Worker {worker}:")
-            print(f"    Pool: {info.get('pool', {}).get('implementation', 'unknown')}")
-            print(f"    Concurrency: {info.get('pool', {}).get('max-concurrency', 'unknown')}")
+            print(
+                f"    Pool: {info.get('pool', {}).get('implementation', 'unknown')}"
+            )
+            print(
+                f"    Concurrency: {info.get('pool', {}).get('max-concurrency', 'unknown')}"
+            )
             print(f"    Tasks processed: {info.get('total', {})}")
 
     def test_active_tasks(self, celery_app):

@@ -122,7 +122,9 @@ class RedditCollector(BaseDataCollector):
             # Search query - Reddit doesn't support cashtags directly
             query = f"${ticker} OR {ticker}"
 
-            logger.info(f"Searching Reddit for {ticker} in {len(subreddits)} subreddits")
+            logger.info(
+                f"Searching Reddit for {ticker} in {len(subreddits)} subreddits"
+            )
 
             # Collect posts from all subreddits
             all_posts = []
@@ -133,8 +135,10 @@ class RedditCollector(BaseDataCollector):
                 try:
                     posts = await loop.run_in_executor(
                         None,
-                        lambda subreddit=subreddit_name: self._search_subreddit(
-                            subreddit, query, limit, sort, time_filter
+                        lambda subreddit=subreddit_name: (
+                            self._search_subreddit(
+                                subreddit, query, limit, sort, time_filter
+                            )
                         ),
                     )
                     all_posts.extend(posts)
@@ -186,7 +190,9 @@ class RedditCollector(BaseDataCollector):
 
             # Get posts based on sort method
             if sort == "top":
-                submissions = subreddit.top(time_filter=time_filter, limit=limit)
+                submissions = subreddit.top(
+                    time_filter=time_filter, limit=limit
+                )
             elif sort == "new":
                 submissions = subreddit.new(limit=limit)
             elif sort == "rising":
@@ -203,12 +209,18 @@ class RedditCollector(BaseDataCollector):
                 ):
                     posts.append(
                         {
-                            "time": datetime.fromtimestamp(submission.created_utc),
+                            "time": datetime.fromtimestamp(
+                                submission.created_utc
+                            ),
                             "subreddit": subreddit_name,
                             "post_id": submission.id,
                             "title": submission.title,
                             "text": submission.selftext,
-                            "author": str(submission.author) if submission.author else "[deleted]",
+                            "author": (
+                                str(submission.author)
+                                if submission.author
+                                else "[deleted]"
+                            ),
                             "score": submission.score,
                             "upvote_ratio": submission.upvote_ratio,
                             "num_comments": submission.num_comments,
@@ -265,7 +277,8 @@ class RedditCollector(BaseDataCollector):
 
             loop = asyncio.get_event_loop()
             posts = await loop.run_in_executor(
-                None, lambda: self._get_top_posts(subreddit, limit, time_filter)
+                None,
+                lambda: self._get_top_posts(subreddit, limit, time_filter),
             )
 
             if not posts:
@@ -282,7 +295,9 @@ class RedditCollector(BaseDataCollector):
                     ticker_counts[ticker] = ticker_counts.get(ticker, 0) + 1
 
             # Sort by count
-            sorted_tickers = dict(sorted(ticker_counts.items(), key=lambda x: x[1], reverse=True))
+            sorted_tickers = dict(
+                sorted(ticker_counts.items(), key=lambda x: x[1], reverse=True)
+            )
 
             logger.success(f"Found {len(sorted_tickers)} trending tickers")
             return sorted_tickers
@@ -442,7 +457,10 @@ class RedditCollector(BaseDataCollector):
         try:
             loop = asyncio.get_event_loop()
             posts = await loop.run_in_executor(
-                None, lambda: self._get_subreddit_posts(subreddit, limit, time_filter)
+                None,
+                lambda: self._get_subreddit_posts(
+                    subreddit, limit, time_filter
+                ),
             )
 
             if not posts:
@@ -480,7 +498,11 @@ class RedditCollector(BaseDataCollector):
                         "score": submission.score,
                         "upvote_ratio": submission.upvote_ratio,
                         "num_comments": submission.num_comments,
-                        "author": str(submission.author) if submission.author else "[deleted]",
+                        "author": (
+                            str(submission.author)
+                            if submission.author
+                            else "[deleted]"
+                        ),
                     }
                 )
 
@@ -528,7 +550,9 @@ class RedditCollector(BaseDataCollector):
 
             # Count mentions per day
             mentions_per_day = (
-                data.group_by_dynamic("time", every="1d").agg(pl.count()).sort("time")
+                data.group_by_dynamic("time", every="1d")
+                .agg(pl.count())
+                .sort("time")
             )
 
             # Get top subreddits

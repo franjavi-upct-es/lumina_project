@@ -59,7 +59,9 @@ class CleaningPipeline:
         try:
             # Check data quality
             quality = self.check_quality(df)
-            logger.info(f"Data quality: {quality['missing_ratio']:.2%} missing")
+            logger.info(
+                f"Data quality: {quality['missing_ratio']:.2%} missing"
+            )
 
             # Remove duplicates
             df = df.unique(subset=["time"], keep="last")
@@ -88,8 +90,12 @@ class CleaningPipeline:
         """
         try:
             total_values = len(data) * len(data.columns)
-            missing_count = data.null_count().sum().item() if len(data) > 0 else 0
-            missing_ratio = missing_count / total_values if total_values > 0 else 0.0
+            missing_count = (
+                data.null_count().sum().item() if len(data) > 0 else 0
+            )
+            missing_ratio = (
+                missing_count / total_values if total_values > 0 else 0.0
+            )
 
             duplicates = len(data) - len(data.unique(subset=["time"]))
 
@@ -112,7 +118,8 @@ class CleaningPipeline:
             numeric_cols = [
                 col
                 for col in df.columns
-                if df[col].dtype in [pl.Float64, pl.Float32, pl.Int64, pl.Int32]
+                if df[col].dtype
+                in [pl.Float64, pl.Float32, pl.Int64, pl.Int32]
             ]
 
             for col in numeric_cols:
@@ -125,7 +132,10 @@ class CleaningPipeline:
                 if std > 0:
                     df = df.with_columns(
                         [
-                            pl.when((pl.col(col) - mean).abs() > (self.outlier_std * std))
+                            pl.when(
+                                (pl.col(col) - mean).abs()
+                                > (self.outlier_std * std)
+                            )
                             .then(None)
                             .otherwise(pl.col(col))
                             .alias(col)
@@ -145,7 +155,8 @@ class CleaningPipeline:
             numeric_cols = [
                 col
                 for col in df.columns
-                if df[col].dtype in [pl.Float64, pl.Float32, pl.Int64, pl.Int32]
+                if df[col].dtype
+                in [pl.Float64, pl.Float32, pl.Int64, pl.Int32]
             ]
 
             for col in numeric_cols:
@@ -153,7 +164,9 @@ class CleaningPipeline:
                     continue
 
                 # Forward fill then backward fill
-                df = df.with_columns([pl.col(col).forward_fill().backward_fill().alias(col)])
+                df = df.with_columns(
+                    [pl.col(col).forward_fill().backward_fill().alias(col)]
+                )
 
             logger.debug("Imputed missing values")
             return df

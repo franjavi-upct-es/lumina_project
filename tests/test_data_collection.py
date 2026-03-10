@@ -16,7 +16,9 @@ import pytest_asyncio
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
-from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+from backend.data_engine.transformers.feature_engineering import (
+    FeatureEngineer,
+)
 
 
 class TestYFinanceCollector:
@@ -62,7 +64,9 @@ class TestYFinanceCollector:
         start_date, end_date = date_range
 
         data = await collector.collect_with_retry(
-            ticker="INVALID_TICKER_12345", start_date=start_date, end_date=end_date
+            ticker="INVALID_TICKER_12345",
+            start_date=start_date,
+            end_date=end_date,
         )
 
         assert data is None or data.height == 0
@@ -163,7 +167,9 @@ class TestFeatureEngineer:
     @pytest.mark.asyncio
     async def test_create_all_features(self, engineer, sample_data):
         """Test creating all features"""
-        enriched = engineer.create_all_features(sample_data, add_lags=True, add_rolling=True)
+        enriched = engineer.create_all_features(
+            sample_data, add_lags=True, add_rolling=True
+        )
 
         assert enriched is not None
         assert enriched.height == sample_data.height
@@ -252,12 +258,14 @@ class TestFeatureEngineer:
         enriched_pd = enriched.to_pandas()
 
         # Check for inf values
-        numeric_cols = enriched_pd.select_dtypes(include=["float64", "float32"]).columns
+        numeric_cols = enriched_pd.select_dtypes(
+            include=["float64", "float32"]
+        ).columns
 
         for col in numeric_cols:
-            assert not enriched_pd[col].isin([float("inf"), float("-inf")]).any(), (
-                f"Column {col} contains inf values"
-            )
+            assert (
+                not enriched_pd[col].isin([float("inf"), float("-inf")]).any()
+            ), f"Column {col} contains inf values"
 
     @pytest.mark.asyncio
     async def test_feature_consistency(self, engineer, sample_data):
@@ -286,8 +294,12 @@ def event_loop():
 def test_import_modules():
     """Test that all modules can be imported"""
     try:
-        from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
-        from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+        from backend.data_engine.collectors.yfinance_collector import (
+            YFinanceCollector,
+        )
+        from backend.data_engine.transformers.feature_engineering import (
+            FeatureEngineer,
+        )
         from backend.db.models import bulk_insert_price_data, init_db
 
         assert True

@@ -74,10 +74,7 @@ from backend.data_engine.feature_store.definitions import (
 )
 
 # Pipelines
-from backend.data_engine.pipelines import (
-    CleaningPipeline,
-    IngestionPipeline,
-)
+from backend.data_engine.pipelines import CleaningPipeline, IngestionPipeline
 
 # Storage
 from backend.data_engine.storage import (

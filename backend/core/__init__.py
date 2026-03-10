@@ -88,10 +88,7 @@ from backend.data_engine.feature_store.definitions import (
 # ============================================================================
 # DATA ENGINE - Pipelines
 # ============================================================================
-from backend.data_engine.pipelines import (
-    CleaningPipeline,
-    IngestionPipeline,
-)
+from backend.data_engine.pipelines import CleaningPipeline, IngestionPipeline
 
 # ============================================================================
 # DATA ENGINE - Storage

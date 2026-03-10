@@ -127,7 +127,9 @@ class NewsCollector(BaseDataCollector):
 
             # Check status
             if data.get("status") != "ok":
-                logger.error(f"NewsAPI error: {data.get('message', 'Unknown error')}")
+                logger.error(
+                    f"NewsAPI error: {data.get('message', 'Unknown error')}"
+                )
                 return None
 
             articles = data.get("articles", [])
@@ -143,7 +145,9 @@ class NewsCollector(BaseDataCollector):
                 published_at = article.get("publishedAt")
                 if published_at:
                     try:
-                        published_dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+                        published_dt = datetime.fromisoformat(
+                            published_at.replace("Z", "+00:00")
+                        )
                     except (ValueError, TypeError):
                         published_dt = None
                 else:
@@ -254,7 +258,9 @@ class NewsCollector(BaseDataCollector):
                 published_at = article.get("publishedAt")
                 if published_at:
                     try:
-                        published_dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+                        published_dt = datetime.fromisoformat(
+                            published_at.replace("Z", "+00:00")
+                        )
                     except (ValueError, TypeError):
                         continue
                 else:
@@ -347,7 +353,9 @@ class NewsCollector(BaseDataCollector):
                 published_at = article.get("publishedAt")
                 if published_at:
                     try:
-                        published_dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+                        published_dt = datetime.fromisoformat(
+                            published_at.replace("Z", "+00:00")
+                        )
                     except (ValueError, TypeError):
                         continue
                 else:
@@ -488,7 +496,9 @@ class NewsCollector(BaseDataCollector):
 
         return list(tickers)
 
-    async def get_trending_tickers(self, days: int = 1) -> dict[str, int] | None:
+    async def get_trending_tickers(
+        self, days: int = 1
+    ) -> dict[str, int] | None:
         """
         Get trending tickers from recent news
 
@@ -522,7 +532,9 @@ class NewsCollector(BaseDataCollector):
                     ticker_counts[ticker] = ticker_counts.get(ticker, 0) + 1
 
             # Sort by count
-            sorted_tickers = dict(sorted(ticker_counts.items(), key=lambda x: x[1], reverse=True))
+            sorted_tickers = dict(
+                sorted(ticker_counts.items(), key=lambda x: x[1], reverse=True)
+            )
 
             logger.success(f"Found {len(sorted_tickers)} trending tickers")
             return sorted_tickers
@@ -532,7 +544,9 @@ class NewsCollector(BaseDataCollector):
             return None
 
     async def get_earnings_news(
-        self, start_date: datetime | None = None, end_date: datetime | None = None
+        self,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> pl.DataFrame | None:
         """
         Get earnings-related news

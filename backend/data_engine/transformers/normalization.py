@@ -59,7 +59,9 @@ class FeatureNormalizer:
                     std = df[feature].std()
                     self.stats[feature] = {"mean": mean, "std": std}
 
-                    df = df.with_columns([((pl.col(feature) - mean) / std).alias(feature)])
+                    df = df.with_columns(
+                        [((pl.col(feature) - mean) / std).alias(feature)]
+                    )
 
                 elif method == "minmax":
                     min_val = df[feature].min()
@@ -67,7 +69,12 @@ class FeatureNormalizer:
                     self.stats[feature] = {"min": min_val, "max": max_val}
 
                     df = df.with_columns(
-                        [((pl.col(feature) - min_val) / (max_val - min_val)).alias(feature)]
+                        [
+                            (
+                                (pl.col(feature) - min_val)
+                                / (max_val - min_val)
+                            ).alias(feature)
+                        ]
                     )
 
                 elif method == "robust":
@@ -77,11 +84,15 @@ class FeatureNormalizer:
                     median = df[feature].median()
                     self.stats[feature] = {"median": median, "iqr": iqr}
 
-                    df = df.with_columns([((pl.col(feature) - median) / iqr).alias(feature)])
+                    df = df.with_columns(
+                        [((pl.col(feature) - median) / iqr).alias(feature)]
+                    )
 
                 elif method == "log":
                     # Log transform (for skewed distributions)
-                    df = df.with_columns([pl.col(feature).log().alias(feature)])
+                    df = df.with_columns(
+                        [pl.col(feature).log().alias(feature)]
+                    )
 
             except Exception as e:
                 logger.error(f"Error normalizing {feature}: {e}")
@@ -116,7 +127,12 @@ class FeatureNormalizer:
                 if "mean" in stats and "std" in stats:
                     # Z-score
                     df = df.with_columns(
-                        [((pl.col(feature) - stats["mean"]) / stats["std"]).alias(feature)]
+                        [
+                            (
+                                (pl.col(feature) - stats["mean"])
+                                / stats["std"]
+                            ).alias(feature)
+                        ]
                     )
 
                 elif "min" in stats and "max" in stats:
@@ -124,7 +140,8 @@ class FeatureNormalizer:
                     df = df.with_columns(
                         [
                             (
-                                (pl.col(feature) - stats["min"]) / (stats["max"] - stats["min"])
+                                (pl.col(feature) - stats["min"])
+                                / (stats["max"] - stats["min"])
                             ).alias(feature)
                         ]
                     )
@@ -132,7 +149,12 @@ class FeatureNormalizer:
                 elif "median" in stats and "iqr" in stats:
                     # Robust
                     df = df.with_columns(
-                        [((pl.col(feature) - stats["median"]) / stats["iqr"]).alias(feature)]
+                        [
+                            (
+                                (pl.col(feature) - stats["median"])
+                                / stats["iqr"]
+                            ).alias(feature)
+                        ]
                     )
 
             except Exception as e:

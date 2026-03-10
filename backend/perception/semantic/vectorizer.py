@@ -93,14 +93,18 @@ class TextVectorizer:
 
         # Initialize tokenizer
         if tokenizer is None:
-            tokenizer_config = TokenizerConfig(max_length=self.config.max_length)
+            tokenizer_config = TokenizerConfig(
+                max_length=self.config.max_length
+            )
             self.tokenizer = FinancialTokenizer(tokenizer_config)
         else:
             self.tokenizer = tokenizer
 
         # Initialize encoder
         if encoder is None:
-            llm_config = LLMConfig(output_dim=self.config.output_dim, device=self.config.device)
+            llm_config = LLMConfig(
+                output_dim=self.config.output_dim, device=self.config.device
+            )
             self.encoder = DistilledLLMEncoder(llm_config)
         else:
             self.encoder = encoder
@@ -108,7 +112,9 @@ class TextVectorizer:
         # Cache
         self.cache = {} if self.config.cache_embeddings else None
 
-        logger.info(f"TextVectorizer initialized: output_dim={self.config.output_dim}")
+        logger.info(
+            f"TextVectorizer initialized: output_dim={self.config.output_dim}"
+        )
 
     def encode(self, text: str, use_cache: bool = True) -> np.ndarray:
         """
@@ -143,7 +149,9 @@ class TextVectorizer:
 
         return embedding_vec
 
-    def encode_batch(self, texts: list[str], use_cache: bool = True) -> np.ndarray:
+    def encode_batch(
+        self, texts: list[str], use_cache: bool = True
+    ) -> np.ndarray:
         """
         Encode batch of texts.
 
@@ -269,7 +277,9 @@ class SemanticEncoder:
         return self.encode_batch(texts)
 
 
-def create_semantic_encoder(output_dim: int = 64, device: str = "cpu") -> SemanticEncoder:
+def create_semantic_encoder(
+    output_dim: int = 64, device: str = "cpu"
+) -> SemanticEncoder:
     """
     Factory function to create semantic encoder.
 

@@ -14,7 +14,8 @@ Key Features:
 
 References:
 - Schulman et al. (2017): "Proximal Policy Optimization Algorithms"
-- Andrychowicz et al. (2020): "What Matters In On-Policy Reinforcement Learning? A Large-Scale Empirical Study"
+- Andrychowicz et al. (2020): "What Matters In On-Policy Reinforcement
+  Learning? A Large-Scale Empirical Study"
 
 Mathematical Formulation:
 The PPO objective maximizes:
@@ -118,7 +119,12 @@ class PPOContinuousAgent:
             state_dim=state_dim,
             action_dim=action_dim,
             hidden_dims=hidden_dims,
-            action_bounds=[direction_bounds, urgency_bounds, sizing_bounds, stop_bounds],
+            action_bounds=[
+                direction_bounds,
+                urgency_bounds,
+                sizing_bounds,
+                stop_bounds,
+            ],
         ).to(self.device)
 
         # Optimizer
@@ -140,8 +146,14 @@ class PPOContinuousAgent:
         self.training_step = 0
         self.episode_count = 0
 
-        logger.info(f"PPO Agent initialized with state_dim={state_dim}, action_dim={action_dim}")
-        logger.info(f"Network parameters: {sum(p.numel() for p in self.network.parameters()):,}")
+        logger.info(
+            f"PPO Agent initialized with state_dim={state_dim}, "
+            f"action_dim={action_dim}"
+        )
+        logger.info(
+            "Network parameters: "
+            f"{sum(p.numel() for p in self.network.parameters()):,}"
+        )
 
     def select_action(
         self,
@@ -240,7 +252,9 @@ class PPOContinuousAgent:
             delta = self.rewards[t] + self.gamma * next_value - values[t]
 
             # GAE: Â_t = δ_t + γλÂ_{t+1}
-            gae = delta + self.gamma * self.gae_lambda * gae * (1 - self.dones[t])
+            gae = delta + self.gamma * self.gae_lambda * gae * (
+                1 - self.dones[t]
+            )
             advantages.insert(0, gae)
 
         advantages = torch.stack(advantages)
@@ -266,7 +280,9 @@ class PPOContinuousAgent:
 
         # Get next value for GAE
         if next_state is not None:
-            next_state_tensor = torch.FloatTensor(next_state).unsqueeze(0).to(self.device)
+            next_state_tensor = (
+                torch.FloatTensor(next_state).unsqueeze(0).to(self.device)
+            )
             with torch.no_grad():
                 _, next_value = self.network(next_state_tensor)
         else:
@@ -276,7 +292,9 @@ class PPOContinuousAgent:
         advantages, returns = self.compute_gae(next_value)
 
         # Normalize advantages
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        advantages = (advantages - advantages.mean()) / (
+            advantages.std() + 1e-8
+        )
 
         # Convert to tensors
         states = torch.stack(self.states)
@@ -327,10 +345,16 @@ class PPOContinuousAgent:
                 policy_loss = -torch.min(surr1, surr2).mean()
 
                 # Value loss (MSE)
-                value_loss = nn.functional.mse_loss(values.squeeze(), batch_returns)
+                value_loss = nn.functional.mse_loss(
+                    values.squeeze(), batch_returns
+                )
 
                 # Total loss
-                loss = policy_loss + self.value_loss_coef * value_loss - self.entropy_coef * entropy
+                loss = (
+                    policy_loss
+                    + self.value_loss_coef * value_loss
+                    - self.entropy_coef * entropy
+                )
 
                 # Optimization step
                 self.optimizer.zero_grad()
@@ -355,7 +379,10 @@ class PPOContinuousAgent:
             # Early stopping based on KL divergence
             avg_kl = total_kl / update_count
             if avg_kl > self.target_kl:
-                logger.debug(f"Early stopping at epoch {epoch + 1} due to KL={avg_kl:.6f}")
+                logger.debug(
+                    f"Early stopping at epoch {epoch + 1} due "
+                    f"to KL={avg_kl:.6f}"
+                )
 
         self.training_step += 1
 
@@ -419,7 +446,8 @@ class PPOContinuousAgent:
         Interpret raw actions vector into human-readable format.
 
         Args:
-            action: Raw action vector [direction, urgency, sizing, stop_distance]
+            action: Raw action vector [direction, urgency,
+                    sizing, stop_distance]
 
         Returns:
             Interpreted action

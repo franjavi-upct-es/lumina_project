@@ -1,6 +1,16 @@
 # backend/workers/celery_app.py
 """
-Celery application configuration for distributed task execution
+Celery Application Configuration for V3
+=======================================
+
+Configures distributed task processing with:
+- Multiple task queues (data, ml, backtest)
+- Periodic tasks via Celery Beat
+- Task routing and priorities
+- Result backend for task tracking
+
+Author: Lumina Quant Lab
+Version: 3.0.0
 """
 
 from celery import Celery
@@ -12,7 +22,10 @@ from backend.config.settings import get_settings
 
 settings = get_settings()
 
-# Create Celery app
+# ============================================================================
+# CELERY APP INITIALIZATION
+# ============================================================================
+
 celery_app = Celery(
     "lumina_workers",
     broker=settings.CELERY_BROKER_URL,
@@ -24,7 +37,10 @@ celery_app = Celery(
     ],
 )
 
-# Configuration
+# ============================================================================
+# CELERY CONFIGURATION
+# ============================================================================
+
 celery_app.conf.update(
     # Serialization
     task_serialization="json",
@@ -45,15 +61,16 @@ celery_app.conf.update(
     # Worker settings
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=1000,
+    worker_disable_rate_limits=False,
     # Broker settings
     broker_connection_retry_on_startup=True,
     broker_connection_retry=True,
     broker_connection_max_retries=10,
-    # Task routing
+    # Task routing (route to specific queues)
     task_routes={
-        "workers.data_tasks.*": {"queue": "data"},
-        "workers.ml_tasks.*": {"queue": "ml"},
-        "workers.backtest_tasks.*": {"queue": "backtest"},
+        "backend.workers.data_tasks.*": {"queue": "data"},
+        "backend.workers.ml_tasks.*": {"queue": "ml"},
+        "backend.workers.backtest_tasks.*": {"queue": "backtest"},
     },
     # Task queues
     task_queues=(
@@ -61,44 +78,71 @@ celery_app.conf.update(
         Queue("data", Exchange("data"), routing_key="data"),
         Queue("ml", Exchange("ml"), routing_key="ml"),
         Queue("backtest", Exchange("backtest"), routing_key="backtest"),
-        Queue("priority", Exchange("priority"), routing_key="priority", priority=10),
+        Queue(
+            "priority",
+            Exchange("priority"),
+            routing_key="priority",
+            priority=10,
+        ),
     ),
-    # Beat schedule (periodic tasks)
+    # ========================================================================
+    # BEAT SCHEDULE - Periodic Tasks
+    # ========================================================================
     beat_schedule={
-        # Update market data daily after market close
-        "update-market-data": {
-            "task": "workers.data_tasks.update_all_tickers",
-            "schedule": crontab(hour=21, minute=30),  # 9:30 PM UTC (after US market close)
+        # Update market data daily after US market close
+        "update-market-data-daily": {
+            "task": "backend.workers.data_tasks.update_all_tickers",
+            "schedule": crontab(hour=21, minute=30),  # 9:30 PM UTC
         },
         # Update features daily
-        "update-feature": {
-            "task": "workers.data_tasks.update_all_features",
-            "schedule": crontab(hour=22, minute=0),
+        "update-features-daily": {
+            "task": "backend.workers.data_tasks.update_all_features",
+            "schedule": crontab(hour=22, minute=0),  # 10:00 PM UTC
         },
         # Health check every hour
-        "health-check": {
-            "task": "workers.data_tasks.health_check_task",
+        "health-check-hourly": {
+            "task": "backend.workers.data_tasks.health_check_task",
             "schedule": crontab(minute=0),
         },
-        # Cleanup old jobs weekly
-        "cleanup-old-jobs": {
-            "task": "workers.data_tasks.cleanup_old_results",
+        # Cleanup old results weekly
+        "cleanup-old-results-weekly": {
+            "task": "backend.workers.data_tasks.cleanup_old_results",
             "schedule": crontab(day_of_week="sunday", hour=2, minute=0),
+        },
+        # Update embeddings every 15 minutes (Phase 2+)
+        "update-embeddings-15min": {
+            "task": "backend.workers.ml_tasks.update_all_embeddings",
+            "schedule": crontab(minute="*/15"),
         },
     },
 )
 
-# Logging
 logger.info("Celery app configured successfully")
-logger.info(f"Broker: {settings.CELERY_BROKER_URL.split('@', 1)[-1]}")
-logger.info(f"Backend: {settings.CELERY_RESULT_BACKEND.split('@', 1)[-1]}")
+logger.info(f"Broker: {settings.CELERY_BROKER_URL.split('@')[-1]}")
+logger.info(f"Backend: {settings.CELERY_RESULT_BACKEND.split('@')[-1]}")
+
+
+# ============================================================================
+# DEBUG TASK
+# ============================================================================
 
 
 @celery_app.task(bind=True)
 def debug_task(self):
-    """Debug task for testing Celery setup"""
+    """
+    Debug task for testing Celery setup
+
+    Usage:
+        from backend.workers import debug_task
+        result = debug_task.delay()
+        print(result.get())
+    """
     logger.info(f"Request: {self.request!r}")
-    return {"status": "Celery is working!", "task_id": self.request.id}
+    return {
+        "status": "Celery is working!",
+        "task_id": self.request.id,
+        "queue": self.request.delivery_info.get("routing_key"),
+    }
 
 
 if __name__ == "__main__":

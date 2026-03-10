@@ -26,7 +26,10 @@ Components:
 - state_builder: Orchestrates fusion pipeline
 """
 
-from backend.fusion.attention import CrossModalAttention, MultiHeadCrossAttention
+from backend.fusion.attention import (
+    CrossModalAttention,
+    MultiHeadCrossAttention,
+)
 from backend.fusion.concatenation import ModalityGate, SimpleConcatenation
 from backend.fusion.state_builder import (
     FusionConfig,

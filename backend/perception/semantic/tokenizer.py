@@ -60,7 +60,9 @@ class FinancialTokenizer:
     """
 
     def __init__(
-        self, config: TokenizerConfig | None = None, model_name: str = "distilroberta-base"
+        self,
+        config: TokenizerConfig | None = None,
+        model_name: str = "distilroberta-base",
     ):
         """
         Initialize financial tokenizer.
@@ -148,7 +150,11 @@ class FinancialTokenizer:
             # Lowercase everything
             text = text.lower()
             # Restore ticker case
-            text = re.sub(r"<ticker>([a-z]+)</ticker>", lambda m: m.group(1).upper(), text)
+            text = re.sub(
+                r"<ticker>([a-z]+)</ticker>",
+                lambda m: m.group(1).upper(),
+                text,
+            )
 
         # Clean up ticker markers
         text = text.replace("<TICKER>", "").replace("</TICKER>", "")
@@ -231,7 +237,12 @@ class FinancialTokenizer:
         Returns:
             Dictionary of entity types to values
         """
-        entities = {"tickers": [], "percentages": [], "currencies": [], "financial_terms": []}
+        entities = {
+            "tickers": [],
+            "percentages": [],
+            "currencies": [],
+            "financial_terms": [],
+        }
 
         # Extract tickers
         entities["tickers"] = self.ticker_pattern.findall(text)
@@ -244,7 +255,9 @@ class FinancialTokenizer:
 
         # Extract financial terms
         words = text.lower().split()
-        entities["financial_terms"] = [w for w in words if w in self.financial_terms]
+        entities["financial_terms"] = [
+            w for w in words if w in self.financial_terms
+        ]
 
         return entities
 

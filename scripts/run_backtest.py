@@ -20,15 +20,15 @@ Features:
 Usage:
     # Basic backtest
     python scripts/run_backtest.py --strategy mean_reversion --ticker AAPL
-    
+
     # Backtest with custom parameters
     python scripts/run_backtest.py --strategy momentum --ticker AAPL \\
         --start-date 2020-01-01 --end-date 2023-12-31 --initial-capital 100000
-    
+
     # Run optimization
     python scripts/run_backtest.py --strategy ma_crossover --ticker SPY \\
         --optimize --optimization-metric sharpe_ratio
-    
+
     # Monte Carlo simulation
     python scripts/run_backtest.py --strategy trend_following --ticker QQQ \\
         --monte-carlo --num-simulations 1000
@@ -40,16 +40,17 @@ References:
 """
 
 import argparse
-import sys
 import json
 import logging
-from pathlib import Path
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-import pandas as pd
-import numpy as np
-from dataclasses import dataclass, asdict
+import sys
 import uuid
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pandas as pd
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -57,25 +58,32 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Import backend modules (these would be actual imports in production)
 try:
     from backend.backtesting.engine import BacktestEngine
-    from backend.backtesting.vectorized import VectorizedBacktester
     from backend.backtesting.event_driven import EventDrivenBacktester
-    from backend.backtesting.transaction_costs import TransactionCostModel
     from backend.backtesting.monte_carlo import MonteCarloSimulator
-    from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
-    from backend.quant_engine.risk.var_calculator import VaRCalculator
+    from backend.backtesting.transaction_costs import TransactionCostModel
+    from backend.backtesting.vectorized import VectorizedBacktester
+    from backend.data_engine.collectors.yfinance_collector import (
+        YFinanceCollector,
+    )
     from backend.db.models import BacktestResult
+    from backend.quant_engine.risk.var_calculator import VaRCalculator
 
     IMPORTS_AVAILABLE = True
 except ImportError:
     IMPORTS_AVAILABLE = False
-    logging.warning("Backend modules not available. Running in standalone mode with sample data.")
+    logging.warning(
+        "Backend modules not available. Running in standalone mode with sample data."
+    )
 
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("backtest.log"), logging.StreamHandler(sys.stdout)],
+    handlers=[
+        logging.FileHandler("backtest.log"),
+        logging.StreamHandler(sys.stdout),
+    ],
 )
 logger = logging.getLogger(__name__)
 
@@ -99,7 +107,7 @@ class BacktestConfig:
         stop_loss: Stop loss percentage (optional)
         take_profit: Take profit percentage (optional)
         benchmark: Benchmark ticker for comparison
-        strategy_params: Dictionary of strategy-specific parameters
+        strategy_params: dictionary of strategy-specific parameters
     """
 
     strategy_name: str
@@ -112,10 +120,10 @@ class BacktestConfig:
     engine_type: str = "vectorized"
     position_size: str = "percent"
     max_position_size: float = 0.1  # 10% of capital
-    stop_loss: Optional[float] = None
-    take_profit: Optional[float] = None
+    stop_loss: float | None = None
+    take_profit: float | None = None
     benchmark: str = "SPY"
-    strategy_params: Dict[str, Any] = None
+    strategy_params: dict[str, Any] = None
 
     def __post_init__(self):
         if self.strategy_params is None:
@@ -132,12 +140,12 @@ class StrategyLibrary:
     """
 
     @staticmethod
-    def get_available_strategies() -> List[str]:
+    def get_available_strategies() -> list[str]:
         """
         Get list of available strategies.
 
         Returns:
-            List of strategy names
+            list of strategy names
         """
         return [
             "mean_reversion",
@@ -151,7 +159,9 @@ class StrategyLibrary:
         ]
 
     @staticmethod
-    def mean_reversion(data: pd.DataFrame, window: int = 20, std_dev: float = 2.0) -> pd.Series:
+    def mean_reversion(
+        data: pd.DataFrame, window: int = 20, std_dev: float = 2.0
+    ) -> pd.Series:
         """
         Mean reversion strategy based on Z-score.
 
@@ -176,7 +186,9 @@ class StrategyLibrary:
         return signals
 
     @staticmethod
-    def momentum(data: pd.DataFrame, lookback: int = 20, threshold: float = 0.02) -> pd.Series:
+    def momentum(
+        data: pd.DataFrame, lookback: int = 20, threshold: float = 0.02
+    ) -> pd.Series:
         """
         Momentum strategy based on recent returns.
 
@@ -224,7 +236,10 @@ class StrategyLibrary:
 
     @staticmethod
     def rsi_strategy(
-        data: pd.DataFrame, period: int = 14, oversold: float = 30, overbought: float = 70
+        data: pd.DataFrame,
+        period: int = 14,
+        oversold: float = 30,
+        overbought: float = 70,
     ) -> pd.Series:
         """
         RSI-based trading strategy.
@@ -254,7 +269,9 @@ class StrategyLibrary:
         return signals
 
     @staticmethod
-    def bollinger_bands(data: pd.DataFrame, period: int = 20, std_dev: float = 2.0) -> pd.Series:
+    def bollinger_bands(
+        data: pd.DataFrame, period: int = 20, std_dev: float = 2.0
+    ) -> pd.Series:
         """
         Bollinger Bands strategy.
 
@@ -302,7 +319,9 @@ class StrategyLibrary:
         }
 
         if name not in strategies:
-            raise ValueError(f"Unknown strategy: {name}. Available: {list(strategies.keys())}")
+            raise ValueError(
+                f"Unknown strategy: {name}. Available: {list(strategies.keys())}"
+            )
 
         return strategies[name]
 
@@ -356,11 +375,16 @@ class BacktestRunner:
         data = pd.DataFrame(
             {
                 "date": date_range,
-                "open": prices * (1 + np.random.randn(len(date_range)) * 0.005),
-                "high": prices * (1 + np.abs(np.random.randn(len(date_range))) * 0.01),
-                "low": prices * (1 - np.abs(np.random.randn(len(date_range))) * 0.01),
+                "open": prices
+                * (1 + np.random.randn(len(date_range)) * 0.005),
+                "high": prices
+                * (1 + np.abs(np.random.randn(len(date_range))) * 0.01),
+                "low": prices
+                * (1 - np.abs(np.random.randn(len(date_range))) * 0.01),
                 "close": prices,
-                "volume": np.random.randint(1000000, 10000000, len(date_range)),
+                "volume": np.random.randint(
+                    1000000, 10000000, len(date_range)
+                ),
             }
         )
 
@@ -379,14 +403,18 @@ class BacktestRunner:
         Returns:
             Series with trading signals
         """
-        logger.info(f"Generating signals using {self.config.strategy_name} strategy...")
+        logger.info(
+            f"Generating signals using {self.config.strategy_name} strategy..."
+        )
 
         strategy_func = StrategyLibrary.get_strategy(self.config.strategy_name)
         signals = strategy_func(data, **self.config.strategy_params)
 
         return signals
 
-    def calculate_positions(self, signals: pd.Series, data: pd.DataFrame) -> pd.DataFrame:
+    def calculate_positions(
+        self, signals: pd.Series, data: pd.DataFrame
+    ) -> pd.DataFrame:
         """
         Calculate positions from signals.
 
@@ -430,9 +458,13 @@ class BacktestRunner:
 
                     # Open new position
                     if signal != 0:
-                        position_value = cash * self.config.max_position_size * signal
+                        position_value = (
+                            cash * self.config.max_position_size * signal
+                        )
                         shares = position_value / price
-                        commission = abs(position_value) * self.config.commission
+                        commission = (
+                            abs(position_value) * self.config.commission
+                        )
                         slippage = abs(position_value) * self.config.slippage
 
                         if cash >= abs(position_value) + commission + slippage:
@@ -450,7 +482,9 @@ class BacktestRunner:
 
         return results
 
-    def calculate_metrics(self, results: pd.DataFrame, data: pd.DataFrame) -> Dict[str, float]:
+    def calculate_metrics(
+        self, results: pd.DataFrame, data: pd.DataFrame
+    ) -> dict[str, float]:
         """
         Calculate performance metrics.
 
@@ -459,7 +493,7 @@ class BacktestRunner:
             data: Original price data
 
         Returns:
-            Dictionary with performance metrics
+            dictionary with performance metrics
         """
         logger.info("Calculating performance metrics...")
 
@@ -471,18 +505,24 @@ class BacktestRunner:
         benchmark_returns = data["close"].pct_change().dropna()
 
         # Calculate metrics
-        total_return = (portfolio_values.iloc[-1] / self.config.initial_capital) - 1
+        total_return = (
+            portfolio_values.iloc[-1] / self.config.initial_capital
+        ) - 1
 
         # Annualized return
         days = (results.index[-1] - results.index[0]).days
         years = days / 365.25
-        annualized_return = (1 + total_return) ** (1 / years) - 1 if years > 0 else 0
+        annualized_return = (
+            (1 + total_return) ** (1 / years) - 1 if years > 0 else 0
+        )
 
         # Volatility (annualized)
         volatility = portfolio_returns.std() * np.sqrt(252)
 
         # Sharpe ratio (assuming 0% risk-free rate)
-        sharpe_ratio = (annualized_return / volatility) if volatility > 0 else 0
+        sharpe_ratio = (
+            (annualized_return / volatility) if volatility > 0 else 0
+        )
 
         # Maximum drawdown
         cumulative = (1 + portfolio_returns).cumprod()
@@ -493,15 +533,21 @@ class BacktestRunner:
         # Win rate
         winning_days = (portfolio_returns > 0).sum()
         total_trading_days = len(portfolio_returns[portfolio_returns != 0])
-        win_rate = winning_days / total_trading_days if total_trading_days > 0 else 0
+        win_rate = (
+            winning_days / total_trading_days if total_trading_days > 0 else 0
+        )
 
         # Sortino ratio
         downside_returns = portfolio_returns[portfolio_returns < 0]
         downside_std = downside_returns.std() * np.sqrt(252)
-        sortino_ratio = (annualized_return / downside_std) if downside_std > 0 else 0
+        sortino_ratio = (
+            (annualized_return / downside_std) if downside_std > 0 else 0
+        )
 
         # Calmar ratio
-        calmar_ratio = (annualized_return / abs(max_drawdown)) if max_drawdown != 0 else 0
+        calmar_ratio = (
+            (annualized_return / abs(max_drawdown)) if max_drawdown != 0 else 0
+        )
 
         # Number of trades
         position_changes = results["position"].diff()
@@ -523,16 +569,18 @@ class BacktestRunner:
 
         return metrics
 
-    def run(self) -> Dict[str, Any]:
+    def run(self) -> dict[str, Any]:
         """
         Execute the backtest.
 
         Returns:
-            Dictionary with backtest results
+            dictionary with backtest results
         """
         logger.info(f"Starting backtest for {self.config.ticker}...")
         logger.info(f"Strategy: {self.config.strategy_name}")
-        logger.info(f"Period: {self.config.start_date} to {self.config.end_date}")
+        logger.info(
+            f"Period: {self.config.start_date} to {self.config.end_date}"
+        )
         logger.info(f"Initial Capital: ${self.config.initial_capital:,.2f}")
 
         # Fetch data
@@ -561,7 +609,7 @@ class BacktestRunner:
             "backtest_id": str(uuid.uuid4()),
         }
 
-    def _print_summary(self, metrics: Dict[str, float]):
+    def _print_summary(self, metrics: dict[str, float]):
         """
         Print backtest summary to console.
 
@@ -573,7 +621,9 @@ class BacktestRunner:
         logger.info("=" * 70)
         logger.info(f"Strategy: {self.config.strategy_name}")
         logger.info(f"Ticker: {self.config.ticker}")
-        logger.info(f"Period: {self.config.start_date} to {self.config.end_date}")
+        logger.info(
+            f"Period: {self.config.start_date} to {self.config.end_date}"
+        )
         logger.info(f"Initial Capital: ${self.config.initial_capital:,.2f}")
         logger.info(f"Final Capital: ${metrics['final_capital']:,.2f}")
         logger.info("-" * 70)
@@ -599,7 +649,9 @@ class BacktestRunner:
         output_path.mkdir(exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        base_filename = f"{self.config.strategy_name}_{self.config.ticker}_{timestamp}"
+        base_filename = (
+            f"{self.config.strategy_name}_{self.config.ticker}_{timestamp}"
+        )
 
         # Save results DataFrame
         results_file = output_path / f"{base_filename}_results.csv"
@@ -628,18 +680,18 @@ class ParameterOptimizer:
     avoid overfitting.
     """
 
-    def __init__(self, config: BacktestConfig, param_grid: Dict[str, List]):
+    def __init__(self, config: BacktestConfig, param_grid: dict[str, list]):
         """
         Initialize the optimizer.
 
         Args:
             config: Base backtest configuration
-            param_grid: Dictionary mapping parameter names to lists of values to test
+            param_grid: dictionary mapping parameter names to lists of values to test
         """
         self.config = config
         self.param_grid = param_grid
 
-    def optimize(self, metric: str = "sharpe_ratio") -> Dict[str, Any]:
+    def optimize(self, metric: str = "sharpe_ratio") -> dict[str, Any]:
         """
         Run parameter optimization.
 
@@ -647,9 +699,11 @@ class ParameterOptimizer:
             metric: Metric to optimize ('sharpe_ratio', 'total_return', etc.)
 
         Returns:
-            Dictionary with best parameters and results
+            dictionary with best parameters and results
         """
-        logger.info(f"Starting parameter optimization for {self.config.strategy_name}...")
+        logger.info(
+            f"Starting parameter optimization for {self.config.strategy_name}..."
+        )
         logger.info(f"Optimization metric: {metric}")
         logger.info(f"Parameter grid: {self.param_grid}")
 
@@ -665,12 +719,16 @@ class ParameterOptimizer:
 
         param_combinations = list(product(*param_values))
 
-        logger.info(f"Testing {len(param_combinations)} parameter combinations...")
+        logger.info(
+            f"Testing {len(param_combinations)} parameter combinations..."
+        )
 
         for i, param_combo in enumerate(param_combinations):
             params = dict(zip(param_names, param_combo))
 
-            logger.info(f"Testing combination {i + 1}/{len(param_combinations)}: {params}")
+            logger.info(
+                f"Testing combination {i + 1}/{len(param_combinations)}: {params}"
+            )
 
             # Update config with current parameters
             test_config = BacktestConfig(
@@ -722,11 +780,11 @@ def parse_arguments():
 Examples:
   # Basic backtest
   python scripts/run_backtest.py --strategy mean_reversion --ticker AAPL
-  
+
   # Backtest with custom dates
   python scripts/run_backtest.py --strategy momentum --ticker MSFT \\
       --start-date 2020-01-01 --end-date 2023-12-31
-  
+
   # Run optimization
   python scripts/run_backtest.py --strategy ma_crossover --ticker SPY \\
       --optimize --param-grid '{"fast_period": [20, 50], "slow_period": [100, 200]}'
@@ -742,7 +800,9 @@ Examples:
         help="Trading strategy to backtest",
     )
 
-    parser.add_argument("--ticker", type=str, required=True, help="Stock ticker symbol")
+    parser.add_argument(
+        "--ticker", type=str, required=True, help="Stock ticker symbol"
+    )
 
     # Optional arguments
     parser.add_argument(
@@ -760,7 +820,10 @@ Examples:
     )
 
     parser.add_argument(
-        "--initial-capital", type=float, default=100000.0, help="Initial capital in USD"
+        "--initial-capital",
+        type=float,
+        default=100000.0,
+        help="Initial capital in USD",
     )
 
     parser.add_argument(
@@ -771,7 +834,10 @@ Examples:
     )
 
     parser.add_argument(
-        "--slippage", type=float, default=0.001, help="Slippage per trade (as decimal)"
+        "--slippage",
+        type=float,
+        default=0.001,
+        help="Slippage per trade (as decimal)",
     )
 
     parser.add_argument(
@@ -790,11 +856,16 @@ Examples:
     )
 
     parser.add_argument(
-        "--strategy-params", type=str, default="{}", help="Strategy parameters as JSON string"
+        "--strategy-params",
+        type=str,
+        default="{}",
+        help="Strategy parameters as JSON string",
     )
 
     # Optimization arguments
-    parser.add_argument("--optimize", action="store_true", help="Run parameter optimization")
+    parser.add_argument(
+        "--optimize", action="store_true", help="Run parameter optimization"
+    )
 
     parser.add_argument(
         "--param-grid",
@@ -807,20 +878,33 @@ Examples:
         "--optimization-metric",
         type=str,
         default="sharpe_ratio",
-        choices=["sharpe_ratio", "total_return", "sortino_ratio", "calmar_ratio"],
+        choices=[
+            "sharpe_ratio",
+            "total_return",
+            "sortino_ratio",
+            "calmar_ratio",
+        ],
         help="Metric to optimize",
     )
 
     # Output arguments
     parser.add_argument(
-        "--output-dir", type=str, default="backtest_results", help="Directory to save results"
+        "--output-dir",
+        type=str,
+        default="backtest_results",
+        help="Directory to save results",
     )
 
     parser.add_argument(
-        "--save-results", action="store_true", default=True, help="Save results to files"
+        "--save-results",
+        action="store_true",
+        default=True,
+        help="Save results to files",
     )
 
-    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
+    parser.add_argument(
+        "--verbose", action="store_true", help="Enable verbose logging"
+    )
 
     return parser.parse_args()
 
@@ -866,18 +950,24 @@ def main():
                 sys.exit(1)
 
             if not param_grid:
-                logger.error("Parameter grid is empty. Please provide parameters to optimize.")
+                logger.error(
+                    "Parameter grid is empty. Please provide parameters to optimize."
+                )
                 sys.exit(1)
 
             # Run optimization
             optimizer = ParameterOptimizer(config, param_grid)
-            optimization_results = optimizer.optimize(metric=args.optimization_metric)
+            optimization_results = optimizer.optimize(
+                metric=args.optimization_metric
+            )
 
             # Print results
             logger.info("\n" + "=" * 70)
             logger.info("OPTIMIZATION RESULTS")
             logger.info("=" * 70)
-            logger.info(f"Best Parameters: {optimization_results['best_params']}")
+            logger.info(
+                f"Best Parameters: {optimization_results['best_params']}"
+            )
             logger.info(
                 f"Best {args.optimization_metric}: {optimization_results['best_score']:.4f}"
             )
@@ -907,7 +997,9 @@ def main():
                 runner.save_results(output_dir=args.output_dir)
 
     except Exception as e:
-        logger.error(f"Error during backtest execution: {str(e)}", exc_info=True)
+        logger.error(
+            f"Error during backtest execution: {str(e)}", exc_info=True
+        )
         sys.exit(1)
 
     logger.info("Backtest execution completed successfully!")

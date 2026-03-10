@@ -90,11 +90,21 @@ class FeatureDefinition(BaseModel):
     normalization: str | None = Field(
         None, description="Normalization method (zscore, minmax, robust, etc.)"
     )
-    lookback_period: int | None = Field(None, description="Lookback window in minutes")
-    dependencies: list[str] = Field(default_factory=list, description="Required input features")
-    encoder_target: str | None = Field(None, description="Which encoder uses this (tft, llm, gnn)")
-    is_embedding: bool = Field(False, description="True if this is a pre-computed embedding vector")
-    embedding_dim: int | None = Field(None, description="Embedding vector dimension")
+    lookback_period: int | None = Field(
+        None, description="Lookback window in minutes"
+    )
+    dependencies: list[str] = Field(
+        default_factory=list, description="Required input features"
+    )
+    encoder_target: str | None = Field(
+        None, description="Which encoder uses this (tft, llm, gnn)"
+    )
+    is_embedding: bool = Field(
+        False, description="True if this is a pre-computed embedding vector"
+    )
+    embedding_dim: int | None = Field(
+        None, description="Embedding vector dimension"
+    )
     version: str = Field(default="1.0.0", description="Feature version")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -125,15 +135,22 @@ class FeatureMetadata(BaseModel):
     ticker: str = Field(..., description="Asset ticker")
     feature_count: int = Field(..., description="Number of features in batch")
     feature_names: list[str] = Field(..., description="List of feature names")
-    categories: dict[str, str] = Field(..., description="Mapping of feature name to category")
+    categories: dict[str, str] = Field(
+        ..., description="Mapping of feature name to category"
+    )
     time_range: tuple[datetime, datetime] = Field(
         ..., description="(start_time, end_time) of features"
     )
     data_points: int = Field(..., description="Number of time steps")
-    missing_ratio: float = Field(default=0.0, description="Ratio of missing values (0.0-1.0)")
-    storage_location: str | None = Field(None, description="Path to offline storage (parquet file)")
+    missing_ratio: float = Field(
+        default=0.0, description="Ratio of missing values (0.0-1.0)"
+    )
+    storage_location: str | None = Field(
+        None, description="Path to offline storage (parquet file)"
+    )
     embeddings_available: list[str] = Field(
-        default_factory=list, description="List of available embeddings (price, news, graph)"
+        default_factory=list,
+        description="List of available embeddings (price, news, graph)",
     )
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -144,7 +161,12 @@ class FeatureMetadata(BaseModel):
             "example": {
                 "ticker": "AAPL",
                 "feature_count": 156,
-                "feature_names": ["rsi_14", "macd", "bb_upper", "volume_sma_20"],
+                "feature_names": [
+                    "rsi_14",
+                    "macd",
+                    "bb_upper",
+                    "volume_sma_20",
+                ],
                 "categories": {
                     "rsi_14": "temporal_momentum",
                     "macd": "temporal_momentum",
@@ -170,8 +192,12 @@ class EmbeddingVector(BaseModel):
     vector: list[float] = Field(..., description="Embedding vector")
     dimension: int = Field(..., description="Vector dimension")
     timestamp: datetime = Field(..., description="When embedding was computed")
-    confidence: float | None = Field(None, description="Encoder confidence score (0.0-1.0)")
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    confidence: float | None = Field(
+        None, description="Encoder confidence score (0.0-1.0)"
+    )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional metadata"
+    )
 
     class Config:
         json_schema_extra = {
@@ -182,7 +208,10 @@ class EmbeddingVector(BaseModel):
                 "dimension": 128,
                 "timestamp": "2024-02-09T15:30:00",
                 "confidence": 0.95,
-                "metadata": {"model_version": "tft_v3.1", "train_date": "2024-01-15"},
+                "metadata": {
+                    "model_version": "tft_v3.1",
+                    "train_date": "2024-01-15",
+                },
             }
         }
 
@@ -299,10 +328,17 @@ EMBEDDING_FEATURES: list[FeatureDefinition] = [
 ]
 
 # Complete feature registry
-ALL_FEATURES = TEMPORAL_FEATURES + SEMANTIC_FEATURES + STRUCTURAL_FEATURES + EMBEDDING_FEATURES
+ALL_FEATURES = (
+    TEMPORAL_FEATURES
+    + SEMANTIC_FEATURES
+    + STRUCTURAL_FEATURES
+    + EMBEDDING_FEATURES
+)
 
 
-def get_features_by_category(category: FeatureCategory) -> list[FeatureDefinition]:
+def get_features_by_category(
+    category: FeatureCategory,
+) -> list[FeatureDefinition]:
     """Get all features in a specific category"""
     return [f for f in ALL_FEATURES if f.category == category]
 

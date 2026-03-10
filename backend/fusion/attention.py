@@ -152,7 +152,11 @@ class MultiHeadCrossAttention(nn.Module):
     """
 
     def __init__(
-        self, input_dim: int, num_heads: int = 4, head_dim: int = 64, dropout: float = 0.1
+        self,
+        input_dim: int,
+        num_heads: int = 4,
+        head_dim: int = 64,
+        dropout: float = 0.1,
     ):
         """
         Initialize multi-head cross attention.

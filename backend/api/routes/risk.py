@@ -32,7 +32,9 @@ from backend.api.deps import (
 )
 from backend.config.settings import get_settings
 
-router = APIRouter(dependencies=[Depends(check_rate_limit), Depends(verify_api_key)])
+router = APIRouter(
+    dependencies=[Depends(check_rate_limit), Depends(verify_api_key)]
+)
 settings = get_settings()
 
 
@@ -46,7 +48,9 @@ class VaRRequest(BaseModel):
 
     holdings: dict[str, float] = Field(..., description="Portfolio holdings")
     confidence_level: float = Field(0.95, ge=0.90, le=0.99)
-    method: str = Field("historical", pattern="^(historical|parametric|monte_carlo)$")
+    method: str = Field(
+        "historical", pattern="^(historical|parametric|monte_carlo)$"
+    )
     lookback_days: int = Field(252, ge=30, le=1260)
     num_simulations: int | None = Field(10000, ge=1000, le=100000)
 
@@ -55,7 +59,9 @@ class VaRResponse(BaseModel):
     """Value at Risk response"""
 
     var: float = Field(..., description="Value at Risk")
-    cvar: float = Field(..., description="Conditional Value at Risk (Expected Shortfall)")
+    cvar: float = Field(
+        ..., description="Conditional Value at Risk (Expected Shortfall)"
+    )
     confidence_level: float
     method: str
     portfolio_value: float
@@ -70,7 +76,10 @@ class StressTestRequest(BaseModel):
     holdings: dict[str, float]
     scenarios: list[str] = Field(
         ...,
-        description="Scenarios: '2008_crisis', '2020_crash', 'dot_com_bubble', 'flash_crash', 'custom'",
+        description=(
+            "Scenarios: '2008_crisis', '2020_crash', "
+            "'dot_com_bubble', 'flash_crash', 'custom'"
+        ),
     )
     custom_shocks: dict[str, float] | None = None
 
@@ -90,10 +99,14 @@ class SafetyStatus(BaseModel):
     timestamp: datetime
 
     # Overall status
-    system_status: str = Field(..., description="'normal', 'defensive', 'close_only', 'halted'")
+    system_status: str = Field(
+        ..., description="'normal', 'defensive', 'close_only', 'halted'"
+    )
 
     # Circuit breakers
-    circuit_breakers: dict[str, bool] = Field(..., description="Circuit breaker states")
+    circuit_breakers: dict[str, bool] = Field(
+        ..., description="Circuit breaker states"
+    )
 
     # Risk metrics
     current_drawdown: float
@@ -122,7 +135,9 @@ class KillSwitchRequest(BaseModel):
     close_all_positions: bool = Field(
         True, description="Whether to close all positions immediately"
     )
-    confirmation_code: str = Field(..., description="Confirmation code for safety")
+    confirmation_code: str = Field(
+        ..., description="Confirmation code for safety"
+    )
 
 
 class CircuitBreakerConfig(BaseModel):
@@ -162,7 +177,8 @@ async def calculate_var(
         VaRResponse: VaR and CVaR metrics
     """
     logger.info(
-        f"Calculating VaR using {request.method} method at {request.confidence_level} confidence"
+        f"Calculating VaR using {request.method} method "
+        f"at {request.confidence_level} confidence"
     )
 
     # TODO: Implement actual VaR calculation
@@ -355,7 +371,7 @@ async def configure_circuit_breakers(
     Returns:
         dict: Configuration confirmation
     """
-    logger.warning(f"Updating circuit breaker configuration")
+    logger.warning("Updating circuit breaker configuration")
 
     # TODO: Implement configuration update
     # Store in Redis for real-time access
@@ -408,17 +424,27 @@ async def activate_kill_switch(
 
     # Verify confirmation code
     expected_code = (
-        settings.KILL_SWITCH_CODE if hasattr(settings, "KILL_SWITCH_CODE") else "EMERGENCY"
+        settings.KILL_SWITCH_CODE
+        if hasattr(settings, "KILL_SWITCH_CODE")
+        else "EMERGENCY"
     )
 
     if request.confirmation_code != expected_code:
-        logger.error("Kill switch activation failed: Invalid confirmation code")
-        raise HTTPException(status_code=403, detail="Invalid confirmation code")
+        logger.error(
+            "Kill switch activation failed: Invalid confirmation code"
+        )
+        raise HTTPException(
+            status_code=403, detail="Invalid confirmation code"
+        )
 
     # Activate kill switch
     redis.set("safety:kill_switch:active", "1", ex=86400)  # 24h TTL
     redis.set("safety:kill_switch:reason", request.reason, ex=86400)
-    redis.set("safety:kill_switch:activated_at", datetime.utcnow().isoformat(), ex=86400)
+    redis.set(
+        "safety:kill_switch:activated_at",
+        datetime.utcnow().isoformat(),
+        ex=86400,
+    )
 
     logger.critical("KILL SWITCH ACTIVATED - ALL TRADING HALTED")
 
@@ -455,15 +481,21 @@ async def deactivate_kill_switch(
 
     # Verify confirmation code
     expected_code = (
-        settings.KILL_SWITCH_CODE if hasattr(settings, "KILL_SWITCH_CODE") else "EMERGENCY"
+        settings.KILL_SWITCH_CODE
+        if hasattr(settings, "KILL_SWITCH_CODE")
+        else "EMERGENCY"
     )
 
     if confirmation_code != expected_code:
-        raise HTTPException(status_code=403, detail="Invalid confirmation code")
+        raise HTTPException(
+            status_code=403, detail="Invalid confirmation code"
+        )
 
     # Check if kill switch is active
     if not redis.get("safety:kill_switch:active"):
-        raise HTTPException(status_code=400, detail="Kill switch is not currently active")
+        raise HTTPException(
+            status_code=400, detail="Kill switch is not currently active"
+        )
 
     # Deactivate
     redis.delete("safety:kill_switch:active")
@@ -513,7 +545,9 @@ async def get_recent_safety_overrides(
 @router.post("/safety/mode/set")
 async def set_safety_mode(
     mode: str = Query(
-        ..., pattern="^(normal|defensive|close_only)$", description="Safety mode to set"
+        ...,
+        pattern="^(normal|defensive|close_only)$",
+        description="Safety mode to set",
     ),
     redis: Redis = Depends(get_redis),
 ):
@@ -536,7 +570,9 @@ async def set_safety_mode(
 
     # Set mode in Redis
     redis.set("safety:mode", mode, ex=86400)
-    redis.set("safety:mode:changed_at", datetime.utcnow().isoformat(), ex=86400)
+    redis.set(
+        "safety:mode:changed_at", datetime.utcnow().isoformat(), ex=86400
+    )
 
     logger.success(f"Safety mode set to {mode}")
 

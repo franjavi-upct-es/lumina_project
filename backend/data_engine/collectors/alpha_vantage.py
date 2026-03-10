@@ -84,7 +84,8 @@ class AlphaVantageCollector(BaseDataCollector):
             # Make async request
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
-                None, lambda: requests.get(self.base_url, params=params, timeout=30)
+                None,
+                lambda: requests.get(self.base_url, params=params, timeout=30),
             )
 
             if response.status_code != 200:
@@ -122,7 +123,9 @@ class AlphaVantageCollector(BaseDataCollector):
                         "adjusted_close": float(values["5. adjusted close"]),
                         "volume": int(values["6. volume"]),
                         "dividend": float(values["7. dividend amount"]),
-                        "split_coefficient": float(values["8. split coefficient"]),
+                        "split_coefficient": float(
+                            values["8. split coefficient"]
+                        ),
                     }
                 )
 
@@ -168,7 +171,9 @@ class AlphaVantageCollector(BaseDataCollector):
 
         # Check for invalid prices
         invalid = data.filter(
-            (pl.col("high") < pl.col("low")) | (pl.col("close") < 0) | (pl.col("volume") < 0)
+            (pl.col("high") < pl.col("low"))
+            | (pl.col("close") < 0)
+            | (pl.col("volume") < 0)
         )
 
         if invalid.height > 0:
@@ -198,7 +203,8 @@ class AlphaVantageCollector(BaseDataCollector):
 
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
-                None, lambda: requests.get(self.base_url, params=params, timeout=30)
+                None,
+                lambda: requests.get(self.base_url, params=params, timeout=30),
             )
 
             if response.status_code != 200:
@@ -221,40 +227,60 @@ class AlphaVantageCollector(BaseDataCollector):
                 "currency": data.get("Currency"),
                 "country": data.get("Country"),
                 # Market data
-                "market_cap": self._parse_float(data.get("MarketCapitalization")),
+                "market_cap": self._parse_float(
+                    data.get("MarketCapitalization")
+                ),
                 "ebitda": self._parse_float(data.get("EBITDA")),
                 "pe_ratio": self._parse_float(data.get("PERatio")),
                 "peg_ratio": self._parse_float(data.get("PEGRatio")),
                 "book_value": self._parse_float(data.get("BookValue")),
-                "dividend_per_share": self._parse_float(data.get("DividendPerShare")),
+                "dividend_per_share": self._parse_float(
+                    data.get("DividendPerShare")
+                ),
                 "dividend_yield": self._parse_float(data.get("DividendYield")),
                 "eps": self._parse_float(data.get("EPS")),
-                "revenue_per_share": self._parse_float(data.get("RevenuePerShareTTM")),
+                "revenue_per_share": self._parse_float(
+                    data.get("RevenuePerShareTTM")
+                ),
                 "profit_margin": self._parse_float(data.get("ProfitMargin")),
-                "operating_margin": self._parse_float(data.get("OperatingMarginTTM")),
+                "operating_margin": self._parse_float(
+                    data.get("OperatingMarginTTM")
+                ),
                 "roe": self._parse_float(data.get("ReturnOnEquityTTM")),
                 "roa": self._parse_float(data.get("ReturnOnAssetsTTM")),
                 "revenue_ttm": self._parse_float(data.get("RevenueTTM")),
-                "gross_profit_ttm": self._parse_float(data.get("GrossProfitTTM")),
+                "gross_profit_ttm": self._parse_float(
+                    data.get("GrossProfitTTM")
+                ),
                 "quarterly_earnings_growth": self._parse_float(
                     data.get("QuarterlyEarningsGrowthYOY")
                 ),
                 "quarterly_revenue_growth": self._parse_float(
                     data.get("QuarterlyRevenueGrowthYOY")
                 ),
-                "analyst_target_price": self._parse_float(data.get("AnalystTargetPrice")),
+                "analyst_target_price": self._parse_float(
+                    data.get("AnalystTargetPrice")
+                ),
                 "trailing_pe": self._parse_float(data.get("TrailingPE")),
                 "forward_pe": self._parse_float(data.get("ForwardPE")),
-                "price_to_sales": self._parse_float(data.get("PriceToSalesRatioTTM")),
-                "price_to_book": self._parse_float(data.get("PriceToBookRatio")),
+                "price_to_sales": self._parse_float(
+                    data.get("PriceToSalesRatioTTM")
+                ),
+                "price_to_book": self._parse_float(
+                    data.get("PriceToBookRatio")
+                ),
                 "ev_to_revenue": self._parse_float(data.get("EVToRevenue")),
                 "ev_to_ebitda": self._parse_float(data.get("EVToEBITDA")),
                 "beta": self._parse_float(data.get("Beta")),
                 "52_week_high": self._parse_float(data.get("52WeekHigh")),
                 "52_week_low": self._parse_float(data.get("52WeekLow")),
                 "50_day_ma": self._parse_float(data.get("50DayMovingAverage")),
-                "200_day_ma": self._parse_float(data.get("200DayMovingAverage")),
-                "shares_outstanding": self._parse_float(data.get("SharesOutstanding")),
+                "200_day_ma": self._parse_float(
+                    data.get("200DayMovingAverage")
+                ),
+                "shares_outstanding": self._parse_float(
+                    data.get("SharesOutstanding")
+                ),
                 "dividend_date": data.get("DividendDate"),
                 "ex_dividend_date": data.get("ExDividendDate"),
             }
@@ -291,7 +317,8 @@ class AlphaVantageCollector(BaseDataCollector):
 
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
-                None, lambda: requests.get(self.base_url, params=params, timeout=30)
+                None,
+                lambda: requests.get(self.base_url, params=params, timeout=30),
             )
 
             if response.status_code != 200:
@@ -316,13 +343,25 @@ class AlphaVantageCollector(BaseDataCollector):
                     {
                         "fiscal_date": report.get("fiscalDateEnding"),
                         "reported_currency": report.get("reportedCurrency"),
-                        "total_revenue": self._parse_float(report.get("totalRevenue")),
-                        "cost_of_revenue": self._parse_float(report.get("costOfRevenue")),
-                        "gross_profit": self._parse_float(report.get("grossProfit")),
-                        "operating_expenses": self._parse_float(report.get("operatingExpenses")),
-                        "operating_income": self._parse_float(report.get("operatingIncome")),
+                        "total_revenue": self._parse_float(
+                            report.get("totalRevenue")
+                        ),
+                        "cost_of_revenue": self._parse_float(
+                            report.get("costOfRevenue")
+                        ),
+                        "gross_profit": self._parse_float(
+                            report.get("grossProfit")
+                        ),
+                        "operating_expenses": self._parse_float(
+                            report.get("operatingExpenses")
+                        ),
+                        "operating_income": self._parse_float(
+                            report.get("operatingIncome")
+                        ),
                         "ebitda": self._parse_float(report.get("ebitda")),
-                        "net_income": self._parse_float(report.get("netIncome")),
+                        "net_income": self._parse_float(
+                            report.get("netIncome")
+                        ),
                         "eps": self._parse_float(report.get("eps")),
                         "research_development": self._parse_float(
                             report.get("researchAndDevelopment")
@@ -331,7 +370,9 @@ class AlphaVantageCollector(BaseDataCollector):
                 )
 
             df = pl.DataFrame(records)
-            df = df.with_columns(pl.col("fiscal_date").str.strptime(pl.Date, "%Y-%m-%d"))
+            df = df.with_columns(
+                pl.col("fiscal_date").str.strptime(pl.Date, "%Y-%m-%d")
+            )
 
             logger.success(f"Fetched income statement for {ticker}")
             return df
@@ -340,7 +381,9 @@ class AlphaVantageCollector(BaseDataCollector):
             logger.error(f"Error fetching income statement for {ticker}: {e}")
             return None
 
-    async def get_balance_sheet(self, ticker: str, quarterly: bool = False) -> pl.DataFrame | None:
+    async def get_balance_sheet(
+        self, ticker: str, quarterly: bool = False
+    ) -> pl.DataFrame | None:
         """
         Get balance sheet data
         """
@@ -356,7 +399,8 @@ class AlphaVantageCollector(BaseDataCollector):
 
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
-                None, lambda: requests.get(self.base_url, params=params, timeout=30)
+                None,
+                lambda: requests.get(self.base_url, params=params, timeout=30),
             )
 
             if response.status_code != 200:
@@ -377,27 +421,43 @@ class AlphaVantageCollector(BaseDataCollector):
                 records.append(
                     {
                         "fiscal_date": report.get("fiscalDateEnding"),
-                        "total_assets": self._parse_float(report.get("totalAssets")),
-                        "total_liabilities": self._parse_float(report.get("totalLiabilities")),
+                        "total_assets": self._parse_float(
+                            report.get("totalAssets")
+                        ),
+                        "total_liabilities": self._parse_float(
+                            report.get("totalLiabilities")
+                        ),
                         "total_shareholder_equity": self._parse_float(
                             report.get("totalShareholderEquity")
                         ),
-                        "current_assets": self._parse_float(report.get("totalCurrentAssets")),
+                        "current_assets": self._parse_float(
+                            report.get("totalCurrentAssets")
+                        ),
                         "current_liabilities": self._parse_float(
                             report.get("totalCurrentLiabilities")
                         ),
                         "cash": self._parse_float(
                             report.get("cashAndCashEquivalentsAtCarryingValue")
                         ),
-                        "inventory": self._parse_float(report.get("inventory")),
-                        "short_term_debt": self._parse_float(report.get("shortTermDebt")),
-                        "long_term_debt": self._parse_float(report.get("longTermDebt")),
-                        "retained_earnings": self._parse_float(report.get("retainedEarnings")),
+                        "inventory": self._parse_float(
+                            report.get("inventory")
+                        ),
+                        "short_term_debt": self._parse_float(
+                            report.get("shortTermDebt")
+                        ),
+                        "long_term_debt": self._parse_float(
+                            report.get("longTermDebt")
+                        ),
+                        "retained_earnings": self._parse_float(
+                            report.get("retainedEarnings")
+                        ),
                     }
                 )
 
             df = pl.DataFrame(records)
-            df = df.with_columns(pl.col("fiscal_date").str.strptime(pl.Date, "%Y-%m-%d"))
+            df = df.with_columns(
+                pl.col("fiscal_date").str.strptime(pl.Date, "%Y-%m-%d")
+            )
 
             logger.success(f"Fetched balance sheet for {ticker}")
             return df
@@ -406,7 +466,9 @@ class AlphaVantageCollector(BaseDataCollector):
             logger.error(f"Error fetching balance sheet for {ticker}: {e}")
             return None
 
-    async def get_cash_flow(self, ticker: str, quarterly: bool = False) -> pl.DataFrame | None:
+    async def get_cash_flow(
+        self, ticker: str, quarterly: bool = False
+    ) -> pl.DataFrame | None:
         """
         Get cash flow statement
         """
@@ -422,7 +484,8 @@ class AlphaVantageCollector(BaseDataCollector):
 
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
-                None, lambda: requests.get(self.base_url, params=params, timeout=30)
+                None,
+                lambda: requests.get(self.base_url, params=params, timeout=30),
             )
 
             if response.status_code != 200:
@@ -443,7 +506,9 @@ class AlphaVantageCollector(BaseDataCollector):
                 records.append(
                     {
                         "fiscal_date": report.get("fiscalDateEnding"),
-                        "operating_cashflow": self._parse_float(report.get("operatingCashflow")),
+                        "operating_cashflow": self._parse_float(
+                            report.get("operatingCashflow")
+                        ),
                         "capital_expenditures": self._parse_float(
                             report.get("capitalExpenditures")
                         ),
@@ -453,9 +518,15 @@ class AlphaVantageCollector(BaseDataCollector):
                         "cashflow_from_financing": self._parse_float(
                             report.get("cashflowFromFinancing")
                         ),
-                        "dividend_payout": self._parse_float(report.get("dividendPayout")),
-                        "net_income": self._parse_float(report.get("netIncome")),
-                        "depreciation": self._parse_float(report.get("depreciation")),
+                        "dividend_payout": self._parse_float(
+                            report.get("dividendPayout")
+                        ),
+                        "net_income": self._parse_float(
+                            report.get("netIncome")
+                        ),
+                        "depreciation": self._parse_float(
+                            report.get("depreciation")
+                        ),
                         "change_in_cash": self._parse_float(
                             report.get("changeInCashAndCashEquivalents")
                         ),
@@ -463,7 +534,9 @@ class AlphaVantageCollector(BaseDataCollector):
                 )
 
             df = pl.DataFrame(records)
-            df = df.with_columns(pl.col("fiscal_date").str.strptime(pl.Date, "%Y-%m-%d"))
+            df = df.with_columns(
+                pl.col("fiscal_date").str.strptime(pl.Date, "%Y-%m-%d")
+            )
 
             logger.success(f"Fetched cash flow for {ticker}")
             return df
@@ -488,7 +561,8 @@ class AlphaVantageCollector(BaseDataCollector):
 
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
-                None, lambda: requests.get(self.base_url, params=params, timeout=30)
+                None,
+                lambda: requests.get(self.base_url, params=params, timeout=30),
             )
 
             if response.status_code != 200:
@@ -509,10 +583,16 @@ class AlphaVantageCollector(BaseDataCollector):
                     {
                         "fiscal_date": earning.get("fiscalDateEnding"),
                         "reported_date": earning.get("reportedDate"),
-                        "reported_eps": self._parse_float(earning.get("reportedEPS")),
-                        "estimated_eps": self._parse_float(earning.get("estimatedEPS")),
+                        "reported_eps": self._parse_float(
+                            earning.get("reportedEPS")
+                        ),
+                        "estimated_eps": self._parse_float(
+                            earning.get("estimatedEPS")
+                        ),
                         "surprise": self._parse_float(earning.get("surprise")),
-                        "surprise_percentage": self._parse_float(earning.get("surprisePercentage")),
+                        "surprise_percentage": self._parse_float(
+                            earning.get("surprisePercentage")
+                        ),
                     }
                 )
 
@@ -550,7 +630,8 @@ class AlphaVantageCollector(BaseDataCollector):
 
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
-                None, lambda: requests.get(self.base_url, params=params, timeout=30)
+                None,
+                lambda: requests.get(self.base_url, params=params, timeout=30),
             )
 
             if response.status_code != 200:
@@ -575,7 +656,9 @@ class AlphaVantageCollector(BaseDataCollector):
                 return None
 
             df = pl.DataFrame(records)
-            df = df.with_columns(pl.col("date").str.strptime(pl.Date, "%Y-%m-%d"))
+            df = df.with_columns(
+                pl.col("date").str.strptime(pl.Date, "%Y-%m-%d")
+            )
 
             logger.success(f"Fetched economic indicator: {indicator}")
             return df

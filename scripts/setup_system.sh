@@ -180,7 +180,7 @@ EOF
             print_warning "uv is not installed. Installing uv..."
             curl -LsSf https://astral.sh/uv/install.sh | sh
             export PATH="$HOME/.cargo/bin:$PATH"
-            
+
             if ! check_command "uv"; then
                 print_error "Failed to install uv. Falling back to pip."
                 PKG_MANAGER="1"
@@ -204,13 +204,13 @@ EOF
 
     print_info "Activating virtual environment..."
     source .venv/bin/activate
-    
+
     # Add project to PYTHONPATH
     export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
 
     if [[ $PKG_MANAGER == "2" ]]; then
         print_info "Installing dependencies with uv..."
-        
+
         if [ -f "pyproject.toml" ]; then
             print_info "Installing from pyproject.toml..."
             uv sync --all-groups
@@ -218,7 +218,7 @@ EOF
         elif [ -f "requirements/base.txt" ]; then
             uv pip install -r requirements/base.txt
             print_success "Base dependencies installed"
-            
+
             if [ -f "requirements/dev.txt" ]; then
                 uv pip install -r requirements/dev.txt
                 print_success "Dev dependencies installed"

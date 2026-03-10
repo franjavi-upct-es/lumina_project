@@ -98,7 +98,9 @@ def validate_date_range(
     # Parse strings to datetime
     if isinstance(start_date, str):
         try:
-            start_date = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+            start_date = datetime.fromisoformat(
+                start_date.replace("Z", "+00:00")
+            )
         except ValueError as e:
             raise ValidationError(f"Invalid start_date format: {e}")
 
@@ -116,7 +118,9 @@ def validate_date_range(
     days_diff = (end_date - start_date).days
 
     if max_days and days_diff > max_days:
-        raise ValidationError(f"Date range ({days_diff} days) exceeds maximum ({max_days} days)")
+        raise ValidationError(
+            f"Date range ({days_diff} days) exceeds maximum ({max_days} days)"
+        )
 
     if min_days and days_diff < min_days:
         raise ValidationError(
@@ -173,7 +177,9 @@ def validate_weights(
             raise ValidationError(f"Negative weight not allowed for {ticker}")
 
         if weight > 1.0 and not allow_leverage:
-            raise ValidationError(f"Weight for {ticker} ({weight}) exceeds 1.0")
+            raise ValidationError(
+                f"Weight for {ticker} ({weight}) exceeds 1.0"
+            )
 
     # Validate sum
     total = sum(weights.values())
@@ -206,7 +212,9 @@ def validate_model_type(model_type: str) -> str:
     model_type = model_type.lower().strip()
 
     if model_type not in valid_types:
-        raise ValidationError(f"Invalid model type: {model_type}. Must be one of: {valid_types}")
+        raise ValidationError(
+            f"Invalid model type: {model_type}. Must be one of: {valid_types}"
+        )
 
     return model_type
 

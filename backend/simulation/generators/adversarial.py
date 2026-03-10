@@ -95,7 +95,9 @@ class AdversarialScenarioGenerator:
 
         logger.info("AdversarialScenarioGenerator initialized")
 
-    def apply_scenario(self, data: pd.DataFrame, scenario: NightmareScenario) -> pd.DataFrame:
+    def apply_scenario(
+        self, data: pd.DataFrame, scenario: NightmareScenario
+    ) -> pd.DataFrame:
         """
         Apply adversarial scenario to data.
 
@@ -120,28 +122,44 @@ class AdversarialScenarioGenerator:
 
         # Apply scenario-specific transformation
         if scenario.scenario_type == ScenarioType.FLASH_CRASH:
-            warped = self._apply_flash_crash(warped, start, end, scenario.intensity)
+            warped = self._apply_flash_crash(
+                warped, start, end, scenario.intensity
+            )
 
         elif scenario.scenario_type == ScenarioType.VOLATILITY_SPIKE:
-            warped = self._apply_volatility_spike(warped, start, end, scenario.intensity)
+            warped = self._apply_volatility_spike(
+                warped, start, end, scenario.intensity
+            )
 
         elif scenario.scenario_type == ScenarioType.LIQUIDITY_DROUGHT:
-            warped = self._apply_liquidity_drought(warped, start, end, scenario.intensity)
+            warped = self._apply_liquidity_drought(
+                warped, start, end, scenario.intensity
+            )
 
         elif scenario.scenario_type == ScenarioType.DATA_OUTAGE:
-            warped = self._apply_data_outage(warped, start, end, scenario.intensity)
+            warped = self._apply_data_outage(
+                warped, start, end, scenario.intensity
+            )
 
         elif scenario.scenario_type == ScenarioType.CORRELATION_BREAKDOWN:
-            warped = self._apply_correlation_breakdown(warped, start, end, scenario.intensity)
+            warped = self._apply_correlation_breakdown(
+                warped, start, end, scenario.intensity
+            )
 
         elif scenario.scenario_type == ScenarioType.TRENDING_REVERSAL:
-            warped = self._apply_trending_reversal(warped, start, end, scenario.intensity)
+            warped = self._apply_trending_reversal(
+                warped, start, end, scenario.intensity
+            )
 
         elif scenario.scenario_type == ScenarioType.GAP_OPENING:
-            warped = self._apply_gap_opening(warped, start, end, scenario.intensity)
+            warped = self._apply_gap_opening(
+                warped, start, end, scenario.intensity
+            )
 
         elif scenario.scenario_type == ScenarioType.CIRCUIT_BREAKER:
-            warped = self._apply_circuit_breaker(warped, start, end, scenario.intensity)
+            warped = self._apply_circuit_breaker(
+                warped, start, end, scenario.intensity
+            )
 
         logger.debug(
             f"Applied {scenario.scenario_type.value} scenario: "
@@ -171,7 +189,9 @@ class AdversarialScenarioGenerator:
                 recovery_progress = (relative_pos - 0.3) / 0.7
                 multiplier = 1 + crash_magnitude * (1 - recovery_progress)
 
-            data.loc[data.index[i], ["open", "high", "low", "close"]] *= multiplier
+            data.loc[
+                data.index[i], ["open", "high", "low", "close"]
+            ] *= multiplier
 
             # Spike volume during crash
             if relative_pos < 0.3:
@@ -196,7 +216,10 @@ class AdversarialScenarioGenerator:
 
             # Expand OHLC range
             range_multiplier = 1 + (intensity - 1) * 0.5
-            current_range = data.loc[data.index[i], "high"] - data.loc[data.index[i], "low"]
+            current_range = (
+                data.loc[data.index[i], "high"]
+                - data.loc[data.index[i], "low"]
+            )
             expanded_range = current_range * range_multiplier
 
             data.loc[data.index[i], "high"] = new_close + expanded_range / 2
@@ -284,7 +307,9 @@ class AdversarialScenarioGenerator:
         """
         # Determine if up-trend or down-trend
         if start > 0:
-            recent_returns = data.loc[data.index[max(0, start - 10) : start], "close"].pct_change()
+            recent_returns = data.loc[
+                data.index[max(0, start - 10) : start], "close"
+            ].pct_change()
             trend_up = recent_returns.mean() > 0
         else:
             trend_up = np.random.random() > 0.5
@@ -296,7 +321,9 @@ class AdversarialScenarioGenerator:
             progress = (i - start) / (end - start)
             move = reversal_magnitude * progress
 
-            data.loc[data.index[i], ["open", "high", "low", "close"]] *= 1 + move
+            data.loc[data.index[i], ["open", "high", "low", "close"]] *= (
+                1 + move
+            )
 
         return data
 
@@ -336,7 +363,9 @@ class AdversarialScenarioGenerator:
             freeze_price = data.loc[data.index[start - 1], "close"]
 
             for i in range(start, end):
-                data.loc[data.index[i], ["open", "high", "low", "close"]] = freeze_price
+                data.loc[data.index[i], ["open", "high", "low", "close"]] = (
+                    freeze_price
+                )
                 data.loc[data.index[i], "volume"] = 0
 
         return data
@@ -363,7 +392,10 @@ class AdversarialScenarioGenerator:
         )
 
     def generate_nightmare_episode(
-        self, base_data: pd.DataFrame, num_scenarios: int = 3, max_intensity: float = 5.0
+        self,
+        base_data: pd.DataFrame,
+        num_scenarios: int = 3,
+        max_intensity: float = 5.0,
     ) -> pd.DataFrame:
         """
         Generate complete nightmare episode with multiple scenarios.
@@ -383,7 +415,9 @@ class AdversarialScenarioGenerator:
         used_ranges = []
 
         for _ in range(num_scenarios):
-            scenario = self.generate_random_scenario(max_intensity=max_intensity)
+            scenario = self.generate_random_scenario(
+                max_intensity=max_intensity
+            )
 
             # Find non-overlapping start position
             attempts = 0
@@ -406,7 +440,9 @@ class AdversarialScenarioGenerator:
 
                 attempts += 1
 
-        logger.info(f"Generated nightmare episode with {len(used_ranges)} scenarios")
+        logger.info(
+            f"Generated nightmare episode with {len(used_ranges)} scenarios"
+        )
 
         return warped
 

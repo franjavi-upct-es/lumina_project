@@ -125,7 +125,9 @@ class ActorCriticNetwork(nn.Module):
         nn.init.orthogonal_(self.actor_mean.weight, gain=0.01)
         nn.init.orthogonal_(self.critic_value.weight, gain=1.0)
 
-    def forward(self, state: torch.Tensor) -> tuple[DiagonalGaussian, torch.Tensor]:
+    def forward(
+        self, state: torch.Tensor
+    ) -> tuple[DiagonalGaussian, torch.Tensor]:
         """
         Forward pass through network.
 
@@ -152,7 +154,10 @@ class ActorCriticNetwork(nn.Module):
         if self.action_bounds is not None:
             for i, (low, high) in enumerate(self.action_bounds):
                 # Squash mean to bounds using tanh
-                mean[:, i] = torch.tanh(mean[:, i]) * (high - low) / 2 + (high + low) / 2
+                mean[:, i] = (
+                    torch.tanh(mean[:, i]) * (high - low) / 2
+                    + (high + low) / 2
+                )
 
         # Create action distribution
         action_dist = DiagonalGaussian(mean, log_std)
@@ -341,7 +346,9 @@ class SACCriticNetwork(nn.Module):
         # Initialize
         self.apply(weight_init)
 
-    def forward(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, state: torch.Tensor, action: torch.Tensor
+    ) -> torch.Tensor:
         """
         Forward pass.
 
@@ -412,7 +419,9 @@ class MLPNetwork(nn.Module):
 
         if output_activation is not None:
             if output_activation not in activations:
-                raise ValueError(f"Unknown output activation: {output_activation}")
+                raise ValueError(
+                    f"Unknown output activation: {output_activation}"
+                )
             layers.append(activations[output_activation]())
 
         self.network = nn.Sequential(*layers)

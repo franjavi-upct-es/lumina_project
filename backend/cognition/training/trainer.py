@@ -75,7 +75,9 @@ class TrainingConfig:
 
     # General
     experiment_name: str = "lumina_v3_training"
-    run_name: str = field(default_factory=lambda: f"run_{datetime.now():%Y%m%d_%H%M%S}")
+    run_name: str = field(
+        default_factory=lambda: f"run_{datetime.now():%Y%m%d_%H%M%S}"
+    )
     seed: int = 42
 
     # Training
@@ -177,7 +179,9 @@ class RLTrainer:
         self.eval_env = eval_env or env
 
         # Agent type detection
-        self.agent_type = "PPO" if isinstance(agent, PPOContinuousAgent) else "SAC"
+        self.agent_type = (
+            "PPO" if isinstance(agent, PPOContinuousAgent) else "SAC"
+        )
 
         # Metrics tracking
         self.metrics = TrainingMetrics()
@@ -201,7 +205,9 @@ class RLTrainer:
 
         logger.info(f"RLTrainer initialized for {self.agent_type} agent")
         logger.info(f"Training config: {self.config}")
-        logger.info(f"Starting curriculum phase: {self.curriculum.current_phase.description}")
+        logger.info(
+            f"Starting curriculum phase: {self.curriculum.current_phase.description}"
+        )
 
     def _set_seeds(self, seed: int):
         """Set random seeds for reproducibility."""
@@ -282,7 +288,9 @@ class RLTrainer:
             # Early stopping check
             if self.config.use_early_stopping:
                 if self._check_early_stopping():
-                    logger.warning(f"Early stopping triggered at episode {episode}")
+                    logger.warning(
+                        f"Early stopping triggered at episode {episode}"
+                    )
                     break
 
         # Training complete
@@ -337,7 +345,9 @@ class RLTrainer:
                 action = self.agent.select_action(state)
 
             # Environment step
-            next_state, reward, terminated, truncated, info = self.env.ste(action)
+            next_state, reward, terminated, truncated, info = self.env.ste(
+                action
+            )
             done = terminated or truncated
 
             # Store transition
@@ -353,7 +363,11 @@ class RLTrainer:
                 )
             else:  # SAC
                 self.agent.store_transition(
-                    state=state, action=action, reward=reward, next_state=next_state, done=done
+                    state=state,
+                    action=action,
+                    reward=reward,
+                    next_state=next_state,
+                    done=done,
                 )
 
             # Update state
@@ -365,7 +379,9 @@ class RLTrainer:
         # Update agent
         if self.agent_type == "PPO":
             # PPO updates at episode end
-            update_metrics = self.agent.update(next_state if not done else None)
+            update_metrics = self.agent.update(
+                next_state if not done else None
+            )
         else:
             # SAC updates every step (already done in loop via replay buffer)
             update_metrics = self.agent.update()
@@ -384,7 +400,9 @@ class RLTrainer:
 
         # Add training metrics
         if update_metrics:
-            episode_metrics.update({f"train/{k}": v for k, v in update_metrics.items()})
+            episode_metrics.update(
+                {f"train/{k}": v for k, v in update_metrics.items()}
+            )
 
         # Add environment info
         if info:
@@ -397,9 +415,15 @@ class RLTrainer:
         recent = self.episode_history[-window:]
 
         if recent:
-            self.metrics.avg_return = np.mean([e["total_return"] for e in recent])
-            self.metrics.avg_sharpe = np.mean([e.get("env/sharpe_ratio", 0) for e in recent])
-            self.metrics.avg_drawdown = np.mean([e.get("env/max_drawdown", 0) for e in recent])
+            self.metrics.avg_return = np.mean(
+                [e["total_return"] for e in recent]
+            )
+            self.metrics.avg_sharpe = np.mean(
+                [e.get("env/sharpe_ratio", 0) for e in recent]
+            )
+            self.metrics.avg_drawdown = np.mean(
+                [e.get("env/max_drawdown", 0) for e in recent]
+            )
 
             successes = sum(1 for e in recent if e["total_return"] > 0)
             self.metrics.success_rate = successes / len(recent)
@@ -452,11 +476,17 @@ class RLTrainer:
             while not done and steps < self.config.max_steps_per_episode:
                 # Use deterministic policy for evaluation
                 if self.agent_type == "PPO":
-                    action, _, _ = self.agent.select_action(state, deterministic=True)
+                    action, _, _ = self.agent.select_action(
+                        state, deterministic=True
+                    )
                 else:
-                    action = self.agent.select_action(state, deterministic=True)
+                    action = self.agent.select_action(
+                        state, deterministic=True
+                    )
 
-                state, reward, terminated, truncated, _ = self.eval_env.step(action)
+                state, reward, terminated, truncated, _ = self.eval_env.step(
+                    action
+                )
                 done = terminated or truncated
                 episode_return += reward
                 steps += 1
@@ -483,7 +513,9 @@ class RLTrainer:
             improvement = eval_mean - self.best_avg_return
             self.best_avg_return = eval_mean
             self.patience_counter = 0
-            logger.success(f"New best average return: {eval_mean:.4f} (+{improvement:.4f})")
+            logger.success(
+                f"New best average return: {eval_mean:.4f} (+{improvement:.4f})"
+            )
         else:
             self.patience_counter += 1
 
@@ -520,7 +552,9 @@ class RLTrainer:
         self.agent.save(str(checkpoint_path))
 
         # Save curriculum state
-        curriculum_path = self.checkpoint_dir / f"curriculum_{self.metrics.episode}.json"
+        curriculum_path = (
+            self.checkpoint_dir / f"curriculum_{self.metrics.episode}.json"
+        )
         self.curriculum.save_curriculum_state(str(curriculum_path))
 
         logger.info(f"Checkpoint saved: {checkpoint_path}")
@@ -543,7 +577,9 @@ class RLTrainer:
         self.agent.load(checkpoint_path)
 
         # Try to load curriculum state
-        curriculum_path = Path(checkpoint_path).parent / "curriculum_state.json"
+        curriculum_path = (
+            Path(checkpoint_path).parent / "curriculum_state.json"
+        )
         if curriculum_path.exists():
             self.curriculum.load_curriculum_state(str(curriculum_path))
 

@@ -1,0 +1,133 @@
+# ./docker/Dockerfile.brain
+# =============================================================================
+# LUMINA V3 - RL BRAIN / COGNITION SERVICE (GPU)
+# =============================================================================
+# This container embodies Layer 3 of the Chimera — the Cognitive Core.
+# It handles the entire RL decision pipeline and Spartan Training Curriculum:
+#
+# INFERENCE MODE (Live Trading):
+#   1. Fetch Super-State from Feature Store (Redis MGET: price + news + graph embeddings)
+#   2. Run Deep Fusion Nexus (cross-modal attention on 224d super-vector)
+#   3. Estimate epistemic uncertainty via Monte Carlo Dropout (10 forward passes)
+#   4. If uncertainty > CRITICAL_THRESHOLD (0.8): delegate to Hard Risk Protocol
+#   5. If confident: run PPO/SAC Agent → continuous action vector [direction, urgency, sizing, stop-distance]
+#   6. Pass action through Safety Arbitrator before execution
+#
+# TRAINING MODE (Spartan Curriculum):
+#   Phase A — Behavioral Cloning: imitation learning from V2 teacher signals
+#   Phase B — Domain Randomization: 100,000 warped episodes (Monte Carlo generators)
+#   Phase C — Pure RL: Sharpe Ratio maximization via self-play + adversarial scenarios
+#
+# This service uses CUDA for:
+#   - Fusion layer forward passes (cross-modal attention)
+#   - PPO/SAC policy network inference
+#   - Monte Carlo Dropout uncertainty estimation (10x forward passes)
+#   - RL training loop (gradient computation, policy updates)
+#
+# MLflow integration: all training runs are logged to the MLflow tracking service.
+# =============================================================================
+
+# Full CUDA 12.1 devel image required for training (cuDNN headers needed for compilation)
+FROM nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04 AS base
+
+LABEL org.opencontainers.image.title="Lumina V3 - RL Brain / Cognition Service"
+LABEL org.opencontainers.image.description="PPO/SAC agent, Deep Fusion Nexus and Spartan Training Curriculum (GPU)"
+LABEL org.opencontainers.image.version="3.0.0"
+LABEL org.opencontainers.image.authors="Lumina Quant Lab"
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    UV_NO_CACHE=1 \
+    UV_SYSTEM_PYTHON=1 \
+    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+    # OMP threads: match physical core count of the training machine
+    OMP_NUM_THREADS=4 \
+    # Stable Baselines3 / Gymnasium env settings
+    GYM_DISABLE_ENV_CHECKER=false
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3.11-dev \
+    python3-pip \
+    python3.11-venv \
+    build-essential \
+    libpq-dev \
+    libgomp1 \
+    git \
+    curl \
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir uv==0.4.29
+
+# ---- Dependency Stage ----
+FROM base AS dependencies
+
+WORKDIR /app
+
+COPY requirements/base.txt requirements/base.txt
+COPY requirements/ml.txt requirements/ml.txt
+
+# Install full ML + RL stack:
+# - PyTorch 2.x with CUDA 12.1
+# - Gymnasium (successor to OpenAI Gym) for RL environments
+# - Stable-Baselines3 for PPO/SAC reference implementations
+# - Ray RLlib (optional, for distributed multi-agent training)
+# - mlflow for experiment logging
+RUN uv pip install --no-cache \
+    -r requirements/base.txt \
+    -r requirements/ml.txt
+
+RUN pip install --no-cache-dir \
+    torch==2.3.1+cu121 \
+    torchvision==0.18.1+cu121 \
+    --extra-index-url https://download.pytorch.org/whl/cu121
+
+RUN pip install --no-cache-dir \
+    "gymnasium==0.29.1" \
+    "stable-baselines3==2.3.2" \
+    "mlflow==2.15.1" \
+    "optuna==3.6.1" \
+    "shap==0.45.0"
+
+# ---- Final Stage ----
+FROM dependencies AS final
+
+WORKDIR /app
+
+# Copy Cognition, Fusion, Simulation, Execution and Safety modules
+# (the entire "thinking" stack of the Chimera architecture)
+COPY backend/cognition/ ./backend/cognition/
+COPY backend/fusion/ ./backend/fusion/
+COPY backend/simulation/ ./backend/simulation/
+COPY backend/execution/ ./backend/execution/
+COPY backend/feature_store/ ./backend/feature_store/
+COPY backend/config/ ./backend/config/
+COPY backend/utils/ ./backend/utils/
+COPY backend/workers/celery_app.py ./backend/workers/celery_app.py
+COPY scripts/run_training.py ./scripts/run_training.py
+COPY pyproject.toml ./
+
+# Model checkpoint storage directory (mounted as a persistent volume)
+RUN mkdir -p /app/checkpoints /app/logs && \
+    groupadd --gid 1001 lumina && \
+    useradd --uid 1001 --gid lumina --shell /bin/bash --create-home lumina && \
+    chown -R lumina:lumina /app
+
+USER lumina
+
+EXPOSE 8003
+
+HEALTHCHECK --interval=60s --timeout=20s --start-period=45s --retries=3 \
+    CMD curl -f http://localhost:8003/health || exit 1
+
+# Default command: run inference-mode Celery worker consuming cognition tasks.
+# For training mode, override CMD in docker-compose or via `docker run`:
+#   docker run lumina-brain python scripts/run_training.py --phase A
+CMD ["celery", "-A", "backend.workers.celery_app", "worker", \
+     "--loglevel=info", \
+     "--concurrency=1", \
+     "--queues=cognition,inference,training", \
+     "--hostname=brain@%h"]

@@ -29,8 +29,14 @@ import polars as pl
 from loguru import logger
 
 from backend.data_engine.feature_store.definitions import FeatureMetadata
-from backend.data_engine.feature_store.offline import OfflineFeatureStore, get_offline_store
-from backend.data_engine.feature_store.online import OnlineFeatureStore, get_online_store
+from backend.data_engine.feature_store.offline import (
+    OfflineFeatureStore,
+    get_offline_store,
+)
+from backend.data_engine.feature_store.online import (
+    OnlineFeatureStore,
+    get_online_store,
+)
 
 
 class FeatureStoreClient:
@@ -72,7 +78,8 @@ class FeatureStoreClient:
         Args:
             ticker: Asset ticker
             features: DataFrame with raw features
-            embeddings: Pre-computed embeddings {"tft": array, "llm": array, "gnn": array}
+            embeddings: Pre-computed embeddings
+                        {"tft": array, "llm": array, "gnn": array}
             feature_names: Feature column names
             categories: Feature categories
             metadata: Additional metadata
@@ -98,15 +105,23 @@ class FeatureStoreClient:
                         encoder=encoder,
                         vector=vector,
                         metadata={
-                            "model_version": metadata.get("model_version") if metadata else None
+                            "model_version": (
+                                metadata.get("model_version")
+                                if metadata
+                                else None
+                            )
                         },
                     )
 
             # Also store latest raw features in hot storage (fallback)
             if len(features) > 0:
                 latest_row = features.tail(1).to_dict(as_series=False)
-                latest_features = {k: v[0] for k, v in latest_row.items() if k != "time"}
-                await self.online.store_latest_features(ticker, latest_features)
+                latest_features = {
+                    k: v[0] for k, v in latest_row.items() if k != "time"
+                }
+                await self.online.store_latest_features(
+                    ticker, latest_features
+                )
 
             logger.success(f"Stored features for {ticker} (hot + cold)")
             return feature_metadata
@@ -168,7 +183,10 @@ class FeatureStoreClient:
         online_deleted = await self.online.clear_ticker(ticker)
         offline_deleted = await self.offline.delete_features(ticker)
 
-        logger.info(f"Cleared {ticker}: {online_deleted} online + {offline_deleted} offline")
+        logger.info(
+            f"Cleared {ticker}: {online_deleted} online "
+            f"+ {offline_deleted} offline"
+        )
         return (online_deleted, offline_deleted)
 
     async def health_check(self) -> dict[str, Any]:
@@ -183,7 +201,11 @@ class FeatureStoreClient:
         return {
             "online": online_health,
             "offline": {"status": "healthy"},  # Simplified
-            "overall": "healthy" if online_health["status"] == "healthy" else "degraded",
+            "overall": (
+                "healthy"
+                if online_health["status"] == "healthy"
+                else "degraded"
+            ),
         }
 
 

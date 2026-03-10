@@ -16,7 +16,9 @@ import pandas as pd
 from loguru import logger
 
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
-from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+from backend.data_engine.transformers.feature_engineering import (
+    FeatureEngineer,
+)
 from backend.db.models import (
     bulk_insert_features,
     bulk_insert_price_data,
@@ -73,7 +75,10 @@ async def seed_price_data(tickers: list[str], days: int = 365):
 
     # Collect data for all tickers
     results = await collector.collect_batch(
-        tickers=tickers, start_date=start_date, end_date=end_date, max_concurrent=5
+        tickers=tickers,
+        start_date=start_date,
+        end_date=end_date,
+        max_concurrent=5,
     )
 
     logger.info(f"Collected data for {len(results)}/{len(tickers)} tickers")
@@ -101,7 +106,9 @@ async def seed_price_data(tickers: list[str], days: int = 365):
                     "low": float(row["low"]) if row["low"] else None,
                     "close": float(row["close"]) if row["close"] else None,
                     "volume": int(row["volume"]) if row["volume"] else None,
-                    "adjusted_close": float(row["close"]) if row["close"] else None,
+                    "adjusted_close": (
+                        float(row["close"]) if row["close"] else None
+                    ),
                     "dividends": 0.0,
                     "stock_splits": 0.0,
                 }
@@ -145,7 +152,9 @@ async def seed_features(tickers: list[str], days: int = 90):
         try:
             from backend.db.models import delete_features_by_ticker
 
-            deleted = await delete_features_by_ticker(ticker, start_date, end_date)
+            deleted = await delete_features_by_ticker(
+                ticker, start_date, end_date
+            )
             if deleted > 0:
                 logger.info(f"  Deleted {deleted} existing feature rows")
         except Exception as e:
@@ -162,7 +171,9 @@ async def seed_features(tickers: list[str], days: int = 90):
 
         # Engineer features
         try:
-            enriched = fe.create_all_features(data, add_lags=True, add_rolling=True)
+            enriched = fe.create_all_features(
+                data, add_lags=True, add_rolling=True
+            )
             logger.info(f"  Created {len(enriched.columns)} features")
         except Exception as e:
             logger.error(f"  ❌ Feature engineering failed: {e}")
@@ -210,13 +221,24 @@ def _get_category(feature_name: str) -> str:
         for x in ["return", "price", "gap", "change", "typical", "weighted"]
     ):
         return "price"
-    elif any(x in feature_name.lower() for x in ["volume", "obv", "vwap", "cmf"]):
+    elif any(
+        x in feature_name.lower() for x in ["volume", "obv", "vwap", "cmf"]
+    ):
         return "volume"
-    elif any(x in feature_name.lower() for x in ["volatility", "atr", "bb", "parkinson"]):
+    elif any(
+        x in feature_name.lower()
+        for x in ["volatility", "atr", "bb", "parkinson"]
+    ):
         return "volatility"
-    elif any(x in feature_name.lower() for x in ["rsi", "stoch", "williams", "roc", "cci", "mfi"]):
+    elif any(
+        x in feature_name.lower()
+        for x in ["rsi", "stoch", "williams", "roc", "cci", "mfi"]
+    ):
         return "momentum"
-    elif any(x in feature_name.lower() for x in ["sma", "ema", "macd", "adx", "psar", "bb_"]):
+    elif any(
+        x in feature_name.lower()
+        for x in ["sma", "ema", "macd", "adx", "psar", "bb_"]
+    ):
         return "trend"
     else:
         return "statistical"
@@ -250,8 +272,12 @@ async def main():
         default=90,
         help="Days of feature history (default: 90)",
     )
-    parser.add_argument("--skip-price", action="store_true", help="Skip price data seeding")
-    parser.add_argument("--skip-features", action="store_true", help="Skip feature seeding")
+    parser.add_argument(
+        "--skip-price", action="store_true", help="Skip price data seeding"
+    )
+    parser.add_argument(
+        "--skip-features", action="store_true", help="Skip feature seeding"
+    )
 
     args = parser.parse_args()
 
@@ -280,7 +306,9 @@ async def main():
     if not args.skip_features:
         logger.info("\n🔬 Step 3: Seed feature data")
         try:
-            feature_count = await seed_features(args.tickers, args.feature_days)
+            feature_count = await seed_features(
+                args.tickers, args.feature_days
+            )
             logger.success(f"✅ Seeded {feature_count} feature records")
         except Exception as e:
             logger.error(f"❌ Feature seeding failed: {e}")

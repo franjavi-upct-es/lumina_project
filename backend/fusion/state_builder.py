@@ -59,7 +59,11 @@ class ModalityInput:
             True is valid
         """
         return any(
-            [self.temporal is not None, self.semantic is not None, self.structural is not None]
+            [
+                self.temporal is not None,
+                self.semantic is not None,
+                self.structural is not None,
+            ]
         )
 
 
@@ -163,7 +167,9 @@ class FusionStateBuilder(nn.Module):
         # Optional output projection
         if self.config.use_residual and self.config.use_attention:
             # Project raw state to match attention output dim
-            self.residual_proj = nn.Linear(self.raw_state_dim, self.config.hidden_dim)
+            self.residual_proj = nn.Linear(
+                self.raw_state_dim, self.config.hidden_dim
+            )
         else:
             self.residual_proj = None
 
@@ -195,10 +201,14 @@ class FusionStateBuilder(nn.Module):
         embedding_dict = inputs.to_dict()
 
         # Remove None values
-        embedding_dict = {k: v for k, v in embedding_dict.items() if v is not None}
+        embedding_dict = {
+            k: v for k, v in embedding_dict.items() if v is not None
+        }
 
         # Concatenate embeddings
-        raw_state = self.concatenation.concatenate(embedding_dict, fill_missing=True)
+        raw_state = self.concatenation.concatenate(
+            embedding_dict, fill_missing=True
+        )
 
         # If not attention, return raw concatenation
         if not self.config.use_attention:
@@ -263,7 +273,10 @@ class FusionStateBuilder(nn.Module):
         return state, info
 
     def forward(
-        self, temporal: torch.Tensor, semantic: torch.Tensor, structural: torch.Tensor
+        self,
+        temporal: torch.Tensor,
+        semantic: torch.Tensor,
+        structural: torch.Tensor,
     ) -> tuple[torch.Tensor, dict]:
         """
         PyTorch forward pass (for training).
@@ -283,7 +296,9 @@ class FusionStateBuilder(nn.Module):
             return state, {}
 
         # Cross-modal attention
-        fused_state, attention_weights = self.attention(temporal, semantic, structural)
+        fused_state, attention_weights = self.attention(
+            temporal, semantic, structural
+        )
 
         # Apply residual if enabled
         if self.config.use_residual and self.residual_proj is not None:
@@ -297,7 +312,9 @@ class FusionStateBuilder(nn.Module):
 
         return fused_state, attention_weights
 
-    def get_attention_summary(self, inputs: ModalityInput) -> dict[str, float | str]:
+    def get_attention_summary(
+        self, inputs: ModalityInput
+    ) -> dict[str, float | str]:
         """
         Get summary statistics of attention weights.
 
@@ -375,4 +392,6 @@ def create_default_fusion_builder() -> FusionStateBuilder:
         normalize_output=False,
     )
 
-    return FusionStateBuilder(config=config, temporal_dim=128, semantic_dim=64, structural_dim=32)
+    return FusionStateBuilder(
+        config=config, temporal_dim=128, semantic_dim=64, structural_dim=32
+    )
