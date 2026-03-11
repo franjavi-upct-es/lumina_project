@@ -425,9 +425,7 @@ async def get_system_metrics():
             gpu_memory_used = torch.cuda.memory_allocated(0) / (1024**2)  # MB
             gpu_memory_total = torch.cuda.get_device_properties(
                 0
-            ).total_memory / (
-                1024**2
-            )  # MB
+            ).total_memory / (1024**2)  # MB
     except Exception as e:
         logger.debug(f"GPU metrics not available: {e}")
 

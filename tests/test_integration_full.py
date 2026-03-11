@@ -192,9 +192,9 @@ class TestFullMLPipeline:
             prediction = pred_task.result
 
             assert "predictions" in prediction, "No predictions in result"
-            assert (
-                len(prediction["predictions"]) == 3
-            ), "Expected 3 days of predictions"
+            assert len(prediction["predictions"]) == 3, (
+                "Expected 3 days of predictions"
+            )
 
             logger.success("✓ Predictions generated successfully")
             logger.info(

@@ -998,7 +998,9 @@ async def check_data_quality(
             "recommendation": (
                 "good"
                 if quality_score > 80
-                else "check_data" if quality_score > 50 else "poor_quality"
+                else "check_data"
+                if quality_score > 50
+                else "poor_quality"
             ),
         }
 

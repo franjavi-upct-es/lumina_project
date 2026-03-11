@@ -189,9 +189,9 @@ class AdversarialScenarioGenerator:
                 recovery_progress = (relative_pos - 0.3) / 0.7
                 multiplier = 1 + crash_magnitude * (1 - recovery_progress)
 
-            data.loc[
-                data.index[i], ["open", "high", "low", "close"]
-            ] *= multiplier
+            data.loc[data.index[i], ["open", "high", "low", "close"]] *= (
+                multiplier
+            )
 
             # Spike volume during crash
             if relative_pos < 0.3:

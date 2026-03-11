@@ -66,9 +66,9 @@ class TestCeleryConfiguration:
 
         expected_queues = ["default", "data", "ml", "backtest"]
         for expected in expected_queues:
-            assert (
-                expected in queue_names
-            ), f"Queue '{expected}' not configured"
+            assert expected in queue_names, (
+                f"Queue '{expected}' not configured"
+            )
             print(f"✓ Queue '{expected}' configured")
 
     def test_celery_broker_connection(self, celery_app):
@@ -430,9 +430,9 @@ class TestTaskRetry:
         conf = celery_app.conf
 
         # Check retry-related configuration
-        assert (
-            conf.task_acks_late is True
-        ), "task_acks_late should be True for reliable retries"
+        assert conf.task_acks_late is True, (
+            "task_acks_late should be True for reliable retries"
+        )
         print("✓ Task retry configuration verified")
         print(f"  task_acks_late: {conf.task_acks_late}")
         print(

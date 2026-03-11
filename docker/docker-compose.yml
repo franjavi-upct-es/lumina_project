@@ -113,7 +113,7 @@ services:
   # INFRASTRUCTURE: TIMESCALEDB
   # ---------------------------------------------------------------------------
   timescaledb:
-    image: timescale/timescaledb-ha:pg16-latest
+    image: timescale/timescaledb:latest-pg16
     container_name: lumina_timescaledb
     <<: *restart-policy
     environment:

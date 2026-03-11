@@ -96,9 +96,9 @@ class TestDataEndpoints:
             )
 
             # Should return validation error
-            assert (
-                response.status_code == 422
-            ), f"Expected 422 validation error, got {response.status_code}"
+            assert response.status_code == 422, (
+                f"Expected 422 validation error, got {response.status_code}"
+            )
             print("✓ Missing fields validation working")
         except requests.RequestException as e:
             pytest.fail(f"Missing fields test failed: {e}")
@@ -597,9 +597,9 @@ class TestAPIValidation:
                 f"{API_BASE_URL}/api/v1/data/collect", json=payload, timeout=30
             )
 
-            assert (
-                response.status_code == 422
-            ), f"Expected 422 for invalid date, got {response.status_code}"
+            assert response.status_code == 422, (
+                f"Expected 422 for invalid date, got {response.status_code}"
+            )
             print("✓ Invalid date format handled correctly")
         except requests.RequestException as e:
             pytest.fail(f"Date validation test failed: {e}")

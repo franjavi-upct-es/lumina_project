@@ -372,9 +372,7 @@ class SyntheticDataGenerator:
                 self.config.mu - 0.5 * self.config.sigma**2
             ) * self.config.dt + self.config.sigma * np.sqrt(
                 self.config.dt
-            ) * correlated_Z[
-                i
-            ]
+            ) * correlated_Z[i]
 
             log_prices = np.log(self.config.initial_price) + np.cumsum(
                 log_returns
