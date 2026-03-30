@@ -1,4 +1,4 @@
-DOCKER_COMPOSE = docker-compose --env-file ../backend/.env
+DOCKER_COMPOSE = docker compose --env-file ../backend/.env
 
 .PHONY: help build up up-gpu down restart logs clean build-ml test lint format setup-gpu check-gpu
 

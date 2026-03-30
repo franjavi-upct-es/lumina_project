@@ -44,16 +44,16 @@ celery_app.conf.update(
     result_backend_transport_options={"visibility_timeout": 3600},
     # Worker settings
     worker_prefetch_multiplier=1,
-    worker_max_tasks_per_child=1000,
+    worker_max_tasks_per_child=50,  # Recycle workers frequently to avoid stale event loops
     # Broker settings
     broker_connection_retry_on_startup=True,
     broker_connection_retry=True,
     broker_connection_max_retries=10,
     # Task routing
     task_routes={
-        "workers.data_tasks.*": {"queue": "data"},
-        "workers.ml_tasks.*": {"queue": "ml"},
-        "workers.backtest_tasks.*": {"queue": "backtest"},
+        "backend.workers.data_tasks.*": {"queue": "data"},
+        "backend.workers.ml_tasks.*": {"queue": "ml"},
+        "backend.workers.backtest_tasks.*": {"queue": "backtest"},
     },
     # Task queues
     task_queues=(

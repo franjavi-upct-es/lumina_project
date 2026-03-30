@@ -5,9 +5,8 @@ Scheduled tasks for updating market data, features, and maintenance.
 """
 
 import asyncio
-from collections.abc import Coroutine
 from datetime import datetime, timedelta
-from typing import Any, TypeVar
+from typing import Any
 
 import pandas as pd
 from celery import group, shared_task
@@ -17,43 +16,15 @@ from backend.config.settings import get_settings
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
 from backend.data_engine.transformers.feature_engineering import FeatureEngineer
 from backend.db.models import (
+    _execute_raw_sql_internal as execute_raw_sql,
     bulk_insert_features,
     bulk_insert_price_data,
-    close_db,
-    execute_raw_sql,
+    check_db_connection,
     get_latest_price,
-    reset_db_engine,
+    run_async,
 )
 
-T = TypeVar("T")
-
 settings = get_settings()
-
-
-def run_async(coro: Coroutine[Any, Any, T]) -> T:
-    """
-    Run an async coroutine from a synchronous Celery task.
-
-    Creates a fresh event loop and resets the global DB engine/session
-    factory so that asyncpg connections are always bound to the current
-    loop. This prevents 'Future attached to a different loop' and
-    'Event loop is closed' errors in Celery's prefork worker pool.
-    """
-    # Discard any stale engine whose connections belong to a previous loop
-    reset_db_engine()
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(coro)
-    finally:
-        # Dispose the engine while the loop is still open so asyncpg can
-        # cleanly close its connections.
-        try:
-            loop.run_until_complete(close_db())
-        except Exception:
-            pass
-        loop.close()
 
 
 # Popular tickers to update automatically
@@ -119,9 +90,7 @@ def update_ticker_data(
     try:
         logger.info(f"Updating data for {ticker}")
 
-        result = run_async(
-            _update_ticker_data_async(ticker, days, include_features)
-        )
+        result = run_async(_update_ticker_data_async(ticker, days, include_features))
         return result
 
     except Exception as e:
@@ -320,9 +289,7 @@ def update_all_features(tickers: list[str] | None = None, days: int = 90) -> dic
         raise
 
 
-async def _update_all_features_async(
-    tickers: list[str], days: int
-) -> dict[str, Any]:
+async def _update_all_features_async(tickers: list[str], days: int) -> dict[str, Any]:
     """Async implementation of update_all_features."""
     collector = YFinanceCollector()
     fe = FeatureEngineer()
@@ -419,8 +386,6 @@ def health_check_task() -> dict[str, Any]:
 
 async def _health_check_async() -> dict[str, Any]:
     """Async implementation of health_check_task."""
-    from backend.db.models import check_db_connection
-
     health_status = {
         "timestamp": datetime.now().isoformat(),
         "database": "unknown",

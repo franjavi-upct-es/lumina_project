@@ -1,5 +1,9 @@
 version: "3.9"
 
+# NOTE: Internal services (DB, Redis, MLflow) are bound to 127.0.0.1
+# to prevent external access. Only API and Streamlit are publicly exposed.
+# For production, place a reverse proxy (nginx/traefik) in front of the API.
+
 services:
   # Database - TimescaleDB
   timescaledb:
@@ -15,7 +19,7 @@ services:
       - ../backend/db/00_create_mlflow_db.sh:/docker-entrypoint-initdb.d/00_create_mlflow_db.sh:ro
       - ../backend/db/timescale_setup.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
     ports:
-      - "5435:5432"
+      - "127.0.0.1:5435:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U lumina -d lumina_db -p 5432"]
       interval: 10s
@@ -29,13 +33,14 @@ services:
     image: redis:7-alpine
     container_name: lumina-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     volumes:
       - redis_data:/data
-    ports:
-      - "6379:6379"
+    # Uncomment for local development access:
+    # ports:
+    #   - "127.0.0.1:6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -51,9 +56,9 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-lumina_db}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/2
       MLFLOW_TRACKING_URI: http://mlflow:5000
       ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
       FRED_API_KEY: ${FRED_API_KEY:-}
@@ -83,9 +88,9 @@ services:
     runtime: nvidia
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-lumina_db}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/2
       MLFLOW_TRACKING_URI: http://mlflow:5000
       CUDA_VISIBLE_DEVICES: "0"
       NVIDIA_VISIBLE_DEVICES: all
@@ -120,16 +125,21 @@ services:
         "backend.workers.celery_app",
         "worker",
         "--loglevel=info",
+        "--queues=default,data,ml,backtest,priority",
+        "--concurrency=4",
       ]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-lumina_db}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/2
       MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_EXPERIMENT_NAME: lumina_quant
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
     volumes:
       - ../data:/app/data
       - ../logs:/app/logs
+      - ../models:/app/models
     depends_on:
       timescaledb:
         condition: service_healthy
@@ -162,9 +172,12 @@ services:
       ]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-lumina_db}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/2
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_EXPERIMENT_NAME: lumina_quant
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
     depends_on:
       - celery-worker
     healthcheck:
@@ -184,10 +197,11 @@ services:
     restart: unless-stopped
     environment:
       MLFLOW_BACKEND_STORE_URI: ${MLFLOW_BACKEND_STORE_URI:-postgresql://${POSTGRES_USER:-lumina}:${POSTGRES_PASSWORD}@timescaledb:5432/${MLFLOW_DB:-lumina_mlflow}}
+      MLFLOW_ALLOWED_HOSTS: "*"
     volumes:
       - mlflow_artifacts:/app/mlartifacts
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     depends_on:
       timescaledb:
         condition: service_healthy
@@ -226,7 +240,7 @@ services:
       - ../data:/app/data
       - ../models:/app/models
     ports:
-      - "8888:8888"
+      - "127.0.0.1:8888:8888"
     depends_on:
       timescaledb:
         condition: service_healthy

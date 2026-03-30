@@ -77,7 +77,7 @@ with st.sidebar:
             st.success("✅ API Online")
         else:
             st.error("❌ API Error")
-    except:
+    except Exception:
         st.error("❌ API Offline")
 
 # Main content
@@ -166,7 +166,7 @@ try:
                         x=df["time"], y=df["normalized"], name=ticker, mode="lines"
                     )
                 )
-        except:
+        except Exception:
             pass
 
     fig.update_layout(

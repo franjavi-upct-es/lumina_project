@@ -16,9 +16,7 @@ from sklearn.metrics import (
 )
 
 
-def calculate_directional_accuracy(
-    y_true: np.ndarray, y_pred: np.ndarray
-) -> float:
+def calculate_directional_accuracy(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     """
     Calculate directional accuracy between true and predicted series.
 

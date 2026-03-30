@@ -13,23 +13,29 @@ import torch
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field
+from redis import Redis
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.dependencies import check_rate_limit, verify_api_key
+from backend.api.dependencies import check_rate_limit, get_redis, verify_api_key
+from backend.api.job_store import JobStore
 from backend.config.settings import get_settings
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
 from backend.data_engine.transformers.feature_engineering import FeatureEngineer
 from backend.db.models import get_async_session
 from backend.ml_engine.models.lstm_advanced import AdvancedLSTM, LSTMTrainer, TimeSeriesDataset
 from backend.workers.ml_tasks import (
-    compute_feature_importance_task,
-    evaluate_model_task,
     train_model_task,
+    train_xgboost_task,
 )
 
 router = APIRouter(dependencies=[Depends(check_rate_limit), Depends(verify_api_key)])
 settings = get_settings()
+
+
+def _get_training_job_store(redis: Redis = Depends(get_redis)) -> JobStore:
+    return JobStore(redis, prefix="training")
 
 
 # Request Models
@@ -115,12 +121,12 @@ class ModelDetailsResponse(BaseModel):
     is_active: bool
 
 
-# In-memory job tracking (in production, use Redis)
-training_jobs = {}
-
-
 @router.post("/train", response_model=TrainJobResponse)
-async def train_model(request: TrainModelRequest, background_tasks: BackgroundTasks):
+async def train_model(
+    request: TrainModelRequest,
+    background_tasks: BackgroundTasks,
+    job_store: JobStore = Depends(_get_training_job_store),
+):
     """
     Train a machine learning model
 
@@ -140,21 +146,30 @@ async def train_model(request: TrainModelRequest, background_tasks: BackgroundTa
 
     if request.async_training:
         try:
-            # Async training with Celery
-            task = train_model_task.delay(
-                job_id=job_id,
-                ticker=request.ticker,
-                model_type=request.model_type,
-                hyperparams=request.model_dump(),
-            )
+            # Route to appropriate task based on model type
+            if request.model_type == "xgboost":
+                task = train_xgboost_task.delay(
+                    ticker=request.ticker,
+                    hyperparams=request.model_dump(),
+                )
+            else:
+                task = train_model_task.delay(
+                    job_id=job_id,
+                    ticker=request.ticker,
+                    model_type=request.model_type,
+                    hyperparams=request.model_dump(),
+                )
 
-            training_jobs[job_id] = {
-                "task_id": task.id,
-                "ticker": request.ticker,
-                "model_type": request.model_type,
-                "status": "queued",
-                "created_at": datetime.now(),
-            }
+            job_store.set(
+                job_id,
+                {
+                    "task_id": task.id,
+                    "ticker": request.ticker,
+                    "model_type": request.model_type,
+                    "status": "queued",
+                    "created_at": datetime.now(),
+                },
+            )
 
             return TrainJobResponse(
                 job_id=job_id,
@@ -167,18 +182,25 @@ async def train_model(request: TrainModelRequest, background_tasks: BackgroundTa
         except Exception as e:
             # Check if it's a connection error (Celery broker unavailable)
             error_str = str(e).lower()
-            if "connection refused" in error_str or "connection" in error_str or "refused" in error_str:
+            if (
+                "connection refused" in error_str
+                or "connection" in error_str
+                or "refused" in error_str
+            ):
                 # Celery broker not available, fall back to background task
                 logger.warning(f"Celery broker unavailable, falling back to background task: {e}")
                 background_tasks.add_task(_train_model_sync, job_id, request)
 
-                training_jobs[job_id] = {
-                    "task_id": job_id,
-                    "ticker": request.ticker,
-                    "model_type": request.model_type,
-                    "status": "training",
-                    "created_at": datetime.now(),
-                }
+                job_store.set(
+                    job_id,
+                    {
+                        "task_id": job_id,
+                        "ticker": request.ticker,
+                        "model_type": request.model_type,
+                        "status": "training",
+                        "created_at": datetime.now(),
+                    },
+                )
 
                 return TrainJobResponse(
                     job_id=job_id,
@@ -195,13 +217,16 @@ async def train_model(request: TrainModelRequest, background_tasks: BackgroundTa
         # Synchronous training (not recommended for production)
         background_tasks.add_task(_train_model_sync, job_id, request)
 
-        training_jobs[job_id] = {
-            "task_id": job_id,
-            "ticker": request.ticker,
-            "model_type": request.model_type,
-            "status": "training",
-            "created_at": datetime.now(),
-        }
+        job_store.set(
+            job_id,
+            {
+                "task_id": job_id,
+                "ticker": request.ticker,
+                "model_type": request.model_type,
+                "status": "training",
+                "created_at": datetime.now(),
+            },
+        )
 
         return TrainJobResponse(
             job_id=job_id,
@@ -214,14 +239,16 @@ async def train_model(request: TrainModelRequest, background_tasks: BackgroundTa
 
 
 @router.get("/jobs/{job_id}")
-async def get_training_job_status(job_id: str):
+async def get_training_job_status(
+    job_id: str,
+    job_store: JobStore = Depends(_get_training_job_store),
+):
     """
     Get status of a training job
     """
-    if job_id not in training_jobs:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    job = training_jobs[job_id]
+    job = job_store.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found or expired")
 
     # Check Celery task status
     from backend.workers.celery_app import celery_app
@@ -376,8 +403,9 @@ async def list_models(
     """
     try:
         # Try to get database session
-        from backend.db.models import Model, get_async_engine
         from sqlalchemy import func
+
+        from backend.db.models import Model, get_async_engine
 
         engine = get_async_engine()
         async with AsyncSession(engine) as db:
@@ -428,10 +456,18 @@ async def list_models(
 
             return ModelListResponse(models=models_list, total=total or 0)
 
-    except Exception as e:
-        logger.warning(f"Database unavailable, returning empty model list: {e}")
-        # Return empty list when database is unavailable
-        return ModelListResponse(models=[], total=0)
+    except OperationalError as e:
+        logger.error(f"Database connection failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Database is temporarily unavailable. Please try again later.",
+        ) from e
+    except SQLAlchemyError as e:
+        logger.error(f"Database query failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An internal database error occurred.",
+        ) from e
 
 
 @router.get("/models/{model_id}", response_model=ModelDetailsResponse)
@@ -470,10 +506,18 @@ async def get_model_details(model_id: str):
 
     except HTTPException:
         raise
-    except Exception as e:
-        logger.warning(f"Database unavailable or model not found: {e}")
-        # Return 404 when database is unavailable (model cannot be found)
-        raise HTTPException(status_code=404, detail="Model not found") from e
+    except OperationalError as e:
+        logger.error(f"Database connection failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Database is temporarily unavailable. Please try again later.",
+        ) from e
+    except SQLAlchemyError as e:
+        logger.error(f"Database query failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An internal database error occurred.",
+        ) from e
 
 
 @router.delete("/models/{model_id}")
@@ -485,7 +529,7 @@ async def delete_model(
     Delete a model (soft delete - marks as inactive)
     """
     try:
-        from db.models import Model
+        from backend.db.models import Model
 
         # Query model
         query = select(Model).where(Model.model_id == model_id)
@@ -516,26 +560,7 @@ async def evaluate_model(model_id: str, request: ModelEvaluationRequest):
     """
     Evaluate model performance on test data
     """
-    try:
-        logger.info(f"Starting evaluation for model {model_id}")
-
-        # Submit evaluation task
-        task = evaluate_model_task.delay(
-            model_id=model_id,
-            test_start_date=request.test_start_date.isoformat(),
-            test_end_date=request.test_end_date.isoformat(),
-        )
-
-        return {
-            "message": "Evaluation started",
-            "task_id": task.id,
-            "model_id": model_id,
-            "status": "queued",
-        }
-
-    except Exception as e:
-        logger.error(f"Error evaluating model: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    raise HTTPException(status_code=501, detail="Not implemented")
 
 
 @router.get("/features/importance/{model_id}")
@@ -546,25 +571,7 @@ async def get_feature_importance(
     """
     Get feature importance for a trained model using SHAP
     """
-    try:
-        logger.info(f"Computing feature importance for model {model_id}")
-
-        # Submit feature importance task
-        task = compute_feature_importance_task.delay(
-            model_id=model_id,
-            num_samples=num_samples,
-        )
-
-        return {
-            "message": "Feature importance computation started",
-            "task_id": task.id,
-            "model_id": model_id,
-            "status": "queued",
-        }
-
-    except Exception as e:
-        logger.error(f"Error computing feature importance: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    raise HTTPException(status_code=501, detail="Not implemented")
 
 
 # Helper functions
@@ -572,8 +579,12 @@ async def _train_model_sync(job_id: str, request: TrainModelRequest):
     """
     Synchronous training (for background tasks)
     """
+    redis_client = Redis.from_url(
+        settings.REDIS_URL, decode_responses=True, socket_connect_timeout=5
+    )
+    bg_job_store = JobStore(redis_client, prefix="training")
     try:
-        training_jobs[job_id]["status"] = "training"
+        bg_job_store.update(job_id, {"status": "training"})
 
         # Collect data
         collector = YFinanceCollector()
@@ -644,17 +655,23 @@ async def _train_model_sync(job_id: str, request: TrainModelRequest):
         with open(metadata_path, "w") as f:
             json.dump(metadata, f)
 
-        training_jobs[job_id]["status"] = "completed"
-        training_jobs[job_id]["model_id"] = model_id
-        training_jobs[job_id]["metrics"] = {
-            "train_loss": history["train_loss"][-1],
-            "val_loss": history["val_loss"][-1],
-        }
+        bg_job_store.update(
+            job_id,
+            {
+                "status": "completed",
+                "model_id": model_id,
+                "metrics": {
+                    "train_loss": history["train_loss"][-1],
+                    "val_loss": history["val_loss"][-1],
+                },
+            },
+        )
 
     except Exception as e:
         logger.error(f"Training error: {e}")
-        training_jobs[job_id]["status"] = "failed"
-        training_jobs[job_id]["error"] = str(e)
+        bg_job_store.update(job_id, {"status": "failed", "error": str(e)})
+    finally:
+        redis_client.close()
 
 
 def _get_active_model(ticker: str, model_type: str) -> str | None:

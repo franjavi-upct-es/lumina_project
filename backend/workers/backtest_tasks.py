@@ -16,6 +16,7 @@ from loguru import logger
 from backend.config.settings import get_settings
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
 from backend.data_engine.transformers.feature_engineering import FeatureEngineer
+from backend.db.models import run_async
 
 settings = get_settings()
 
@@ -33,17 +34,12 @@ def run_backtest_task(
         # Update progress
         self.update_state(state="PROGRESS", meta={"step": "data_collection", "progress": 10})
 
-        # Collect data
-        import asyncio
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
+        # Collect data (Celery-safe: run_async creates a fresh event loop each call)
         collector = YFinanceCollector()
         all_data = {}
 
         for ticker in config["tickers"]:
-            data = loop.run_until_complete(
+            data = run_async(
                 collector.collect_with_retry(
                     ticker=ticker,
                     start_date=datetime.fromisoformat(config["start_date"]),
@@ -55,8 +51,6 @@ def run_backtest_task(
                 fe = FeatureEngineer()
                 enriched_data = fe.create_all_features(data)
                 all_data[ticker] = enriched_data
-
-        loop.close()
 
         if not all_data:
             raise ValueError("No data collected")

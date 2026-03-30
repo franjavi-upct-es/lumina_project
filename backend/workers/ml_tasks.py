@@ -1,85 +1,166 @@
 # backend/workers/ml_tasks.py
 """
-Celery tasks for machine learning model training and inference
+Celery tasks for machine learning model training and inference.
+
+Fixed:
+- Each async operation uses run_async() with fresh engine (no stale event loop)
+- MLflow tracking URI read from env (resolves to http://mlflow:5000 in Docker)
+- Models saved to DB Model table after training
+- Heavy deps (torch, mlflow, shap) lazy-imported inside tasks
+- Proper error handling and retries
 """
 
 import os
 from datetime import datetime, timedelta
 from typing import Any
+from uuid import uuid4
 
-import mlflow
 import numpy as np
-import shap
-import torch
 from celery import shared_task
 from loguru import logger
-from torch.utils.data import DataLoader, random_split
 
 from backend.config.settings import get_settings
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
 from backend.data_engine.transformers.feature_engineering import FeatureEngineer
-from backend.ml_engine.models.lstm_advanced import AdvancedLSTM, LSTMTrainer, TimeSeriesDataset
+from backend.db.models import run_async, save_model_to_db
 
 settings = get_settings()
 
+# ---------------------------------------------------------------------------
+#  CUDA / Device helper
+# ---------------------------------------------------------------------------
 
-@shared_task(bind=True, name="workers.ml_tasks.train_model_task")
+
+def _get_device():
+    """
+    Safely resolve the compute device.
+    In forked Celery workers CUDA cannot be re-initialised, so we fall back
+    to CPU and log a warning instead of crashing.
+    """
+    import torch
+
+    if not torch.cuda.is_available():
+        logger.info("CUDA not available – using CPU")
+        return torch.device("cpu")
+
+    try:
+        # Attempt a tiny allocation to verify CUDA works in this process
+        torch.tensor([0.0], device="cuda")
+        device = torch.device("cuda")
+        logger.info(f"Using CUDA device: {torch.cuda.get_device_name(0)}")
+        return device
+    except RuntimeError as e:
+        if "CUDA" in str(e) or "fork" in str(e):
+            logger.warning(
+                "CUDA unavailable in forked subprocess – falling back to CPU. "
+                "Start the worker with --pool=solo or --pool=threads to use GPU."
+            )
+            return torch.device("cpu")
+        raise
+
+
+# ---------------------------------------------------------------------------
+#  MLflow helper
+# ---------------------------------------------------------------------------
+
+
+def _setup_mlflow(experiment_name: str | None = None):
+    """
+    Configure MLflow tracking URI and experiment.
+    Must be called inside each worker task (not at module-level)
+    because the tracking URI differs between local and Docker.
+    """
+    import mlflow
+
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", settings.MLFLOW_TRACKING_URI)
+    mlflow.set_tracking_uri(tracking_uri)
+    logger.info(f"MLflow tracking URI: {tracking_uri}")
+
+    exp_name = experiment_name or os.getenv("MLFLOW_EXPERIMENT_NAME", "lumina_quant")
+    experiment = mlflow.get_experiment_by_name(exp_name)
+    if experiment is None:
+        mlflow.create_experiment(exp_name)
+        logger.info(f"Created MLflow experiment: {exp_name}")
+    mlflow.set_experiment(exp_name)
+
+    return mlflow
+
+
+# ---------------------------------------------------------------------------
+#  Data collection helper (sync, uses run_async internally)
+# ---------------------------------------------------------------------------
+
+
+def _collect_data(ticker: str, start_date, end_date):
+    """Collect data using run_async (Celery-safe)."""
+    collector = YFinanceCollector()
+    return run_async(
+        collector.collect_with_retry(ticker=ticker, start_date=start_date, end_date=end_date)
+    )
+
+
+# ---------------------------------------------------------------------------
+#  LSTM training task
+# ---------------------------------------------------------------------------
+
+
+@shared_task(
+    bind=True,
+    name="workers.ml_tasks.train_model_task",
+    max_retries=2,
+    default_retry_delay=120,
+)
 def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparams: dict[str, Any]):
     """
-    Train a machine learning model asynchronously
-
-    Args:
-        job_id: Unique job identifier
-        ticker: Stock ticker symbol
-        model_type: Type of model (lstm, transformer, xgboost, ensemble)
-        hyperparams: Model and training hyperparameters
+    Train a machine learning model asynchronously.
     """
     try:
+        import mlflow
+        import torch
+        from torch.utils.data import DataLoader, random_split
+
+        from backend.ml_engine.models.lstm_advanced import (
+            AdvancedLSTM,
+            LSTMTrainer,
+            TimeSeriesDataset,
+        )
+
         logger.info(f"Starting training job {job_id} for {ticker} ({model_type})")
 
-        # Update task state
+        # ── Resolve device safely ──────────────────────────────────────────
+        device = _get_device()
+
         self.update_state(state="PROGRESS", meta={"step": "data_collection", "progress": 0})
 
-        # 1. Collect data
-        import asyncio
-
-        collector = YFinanceCollector()
-
+        # 1. Collect data ---------------------------------------------------
         start_date = hyperparams.get("start_date")
         end_date = hyperparams.get("end_date")
 
         if not start_date:
             end_date = datetime.now()
-            start_date = end_date - timedelta(days=365 * 3)  # 3 years default
+            start_date = end_date - timedelta(days=365 * 3)
 
-        # Run async collection in sync context
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        data = loop.run_until_complete(collector.collect_with_retry(ticker, start_date, end_date))
-        loop.close()
+        data = _collect_data(ticker, start_date, end_date)
 
         if data is None or data.height == 0:
             raise ValueError(f"No data collected for {ticker}")
 
         logger.info(f"Collected {data.height} data points for {ticker}")
 
-        # Update progress
         self.update_state(state="PROGRESS", meta={"step": "feature_engineering", "progress": 20})
 
-        # 2. Engineer features
+        # 2. Feature engineering --------------------------------------------
         fe = FeatureEngineer()
         enriched_data = fe.create_all_features(data, add_lags=True, add_rolling=True)
 
-        # Select top features
         max_features = hyperparams.get("max_features", 50)
         feature_columns = fe.get_all_feature_names()[:max_features]
 
         logger.info(f"Engineered {len(feature_columns)} features")
 
-        # Update progress
         self.update_state(state="PROGRESS", meta={"step": "dataset_preparation", "progress": 40})
 
-        # 3. Prepare dataset
+        # 3. Prepare dataset ------------------------------------------------
         sequence_length = hyperparams.get("sequence_length", 60)
         prediction_horizon = hyperparams.get("prediction_horizon", 5)
 
@@ -91,7 +172,6 @@ def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparam
             stride=1,
         )
 
-        # Split train/validation
         train_size = int(0.8 * len(dataset))
         val_size = len(dataset) - train_size
         train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
@@ -100,46 +180,54 @@ def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparam
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         val_loader = DataLoader(val_dataset, batch_size=batch_size)
 
-        logger.info(f"Dataset prepared: {train_size} train, {val_size} validation samples")
+        logger.info(f"Dataset: {train_size} train, {val_size} validation samples")
 
-        # Update progress
         self.update_state(state="PROGRESS", meta={"step": "model_initialization", "progress": 50})
 
-        # 4. Initialize model
+        # 4. Initialize model -----------------------------------------------
+        hidden_dim = hyperparams.get("hidden_dim", 128)
+        num_layers = hyperparams.get("num_layers", 3)
+        dropout = hyperparams.get("dropout", 0.3)
+
         if model_type == "lstm":
             model = AdvancedLSTM(
                 input_dim=len(feature_columns),
-                hidden_dim=hyperparams.get("hidden_dim", 128),
-                num_layers=hyperparams.get("num_layers", 3),
-                dropout=hyperparams.get("dropout", 0.3),
+                hidden_dim=hidden_dim,
+                num_layers=num_layers,
+                dropout=dropout,
                 output_horizon=prediction_horizon,
                 bidirectional=True,
             )
         else:
             raise NotImplementedError(f"Model type {model_type} not yet implemented")
 
-        trainer = LSTMTrainer(model)
+        # ── Move model to resolved device ──────────────────────────────────
+        model = model.to(device)
 
-        logger.info(f"Initialized {model_type} model")
+        trainer = LSTMTrainer(model, device=device)
 
-        # Update progress
         self.update_state(state="PROGRESS", meta={"step": "training", "progress": 60})
 
-        # 5. Start MLflow run
-        tracking_uri = os.getenv("MLFLOW_TRACKING_URI") or settings.MLFLOW_TRACKING_URI
-        mlflow.set_tracking_uri(tracking_uri)
-        logger.info(f"MLflow tracking URI: {tracking_uri}")
-        mlflow.set_experiment(f"lumina_{ticker}")
+        # 5. MLflow run -----------------------------------------------------
+        mlflow = _setup_mlflow(f"lumina_{ticker}")
 
-        with mlflow.start_run(run_name=f"{model_type}_{job_id}"):
-            # Log parameters
-            mlflow.log_params(hyperparams)
-            mlflow.log_param("ticker", ticker)
-            mlflow.log_param("num_features", len(feature_columns))
-            mlflow.log_param("train_samples", train_size)
-            mlflow.log_param("val_samples", val_size)
+        with mlflow.start_run(run_name=f"{model_type}_{job_id}") as active_run:
+            mlflow.log_params(
+                {
+                    "ticker": ticker,
+                    "model_type": model_type,
+                    "num_features": len(feature_columns),
+                    "train_samples": train_size,
+                    "val_samples": val_size,
+                    "hidden_dim": hidden_dim,
+                    "num_layers": num_layers,
+                    "dropout": dropout,
+                    "sequence_length": sequence_length,
+                    "prediction_horizon": prediction_horizon,
+                    "batch_size": batch_size,
+                }
+            )
 
-            # Train model
             num_epochs = hyperparams.get("num_epochs", 50)
             learning_rate = hyperparams.get("learning_rate", 0.001)
             early_stopping_patience = hyperparams.get("early_stopping_patience", 10)
@@ -152,27 +240,25 @@ def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparam
                 early_stopping_patience=early_stopping_patience,
             )
 
-            # Log metrics
-            mlflow.log_metrics(
-                {
-                    "final_train_loss": history["train_loss"][-1],
-                    "final_val_loss": history["val_loss"][-1],
-                    "best_val_loss": min(history["val_loss"]),
-                    "epochs_trained": len(history["train_loss"]),
-                }
-            )
+            final_metrics = {
+                "final_train_loss": history["train_loss"][-1],
+                "final_val_loss": history["val_loss"][-1],
+                "best_val_loss": min(history["val_loss"]),
+                "epochs_trained": len(history["train_loss"]),
+            }
+            mlflow.log_metrics(final_metrics)
 
-            # Save model with metadata
+            # Save model checkpoint
             model_path = f"{settings.MODEL_STORAGE_PATH}/{ticker}_{model_type}_{job_id}.pt"
+            os.makedirs(os.path.dirname(model_path) or ".", exist_ok=True)
 
-            # Add metadata to checkpoint
             checkpoint_data = {
                 "model_state_dict": model.state_dict(),
                 "meta_data": {
                     "input_dim": len(feature_columns),
-                    "hidden_dim": hyperparams.get("hidden_dim", 128),
-                    "num_layers": hyperparams.get("num_layers", 3),
-                    "dropout": hyperparams.get("dropout", 0.3),
+                    "hidden_dim": hidden_dim,
+                    "num_layers": num_layers,
+                    "dropout": dropout,
                     "sequence_length": sequence_length,
                     "prediction_horizon": prediction_horizon,
                     "feature_columns": feature_columns,
@@ -184,54 +270,296 @@ def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparam
             torch.save(checkpoint_data, model_path)
             mlflow.log_artifact(model_path)
 
-            run_id = mlflow.active_run().info.run_id
+            run_id = active_run.info.run_id
 
-        logger.success(f"Training completed for job {job_id}")
+        logger.success(f"Training completed for job {job_id}, MLflow run_id={run_id}")
 
-        # Update progress
+        # 6. Save model record to database ----------------------------------
+        model_version = datetime.now().strftime("%Y%m%d_%H%M%S")
+        try:
+            db_model_id = run_async(
+                save_model_to_db(
+                    {
+                        "model_name": f"{model_type}_{ticker}",
+                        "model_type": model_type,
+                        "version": model_version,
+                        "ticker": ticker,
+                        "training_samples": train_size,
+                        "validation_samples": val_size,
+                        "mae": final_metrics.get("final_val_loss"),
+                        "rmse": final_metrics.get("best_val_loss"),
+                        "hyperparameters": {
+                            "hidden_dim": hidden_dim,
+                            "num_layers": num_layers,
+                            "dropout": dropout,
+                            "sequence_length": sequence_length,
+                            "prediction_horizon": prediction_horizon,
+                            "batch_size": batch_size,
+                            "learning_rate": learning_rate,
+                            "max_features": max_features,
+                        },
+                        "mlflow_run_id": run_id,
+                        "is_active": True,
+                    }
+                )
+            )
+            logger.success(f"Model saved to DB with id={db_model_id}")
+        except Exception as db_err:
+            logger.warning(f"Failed to save model to DB (training still succeeded): {db_err}")
+            db_model_id = None
+
         self.update_state(state="PROGRESS", meta={"step": "completed", "progress": 100})
 
-        # Return result
         return {
             "job_id": job_id,
             "ticker": ticker,
             "model_type": model_type,
             "mlflow_run_id": run_id,
+            "db_model_id": db_model_id,
             "model_path": model_path,
-            "metrics": {
-                "train_loss": history["train_loss"][-1],
-                "val_loss": history["val_loss"][-1],
-                "epochs": len(history["train_loss"]),
-            },
+            "metrics": final_metrics,
             "feature_columns": feature_columns,
             "completed_at": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"Training failed for job {job_id}: {e}")
+        logger.error(f"Training failed for job {job_id}: {e}", exc_info=True)
         raise
 
 
-@shared_task(bind=True, name="workers.ml_tasks.predict_task")
-def predict_task(self, ticker: str, model_id: str, days_ahead: int):
-    """
-    Generate predictions using a trained model
-    """
+# ---------------------------------------------------------------------------
+#  XGBoost training task
+# ---------------------------------------------------------------------------
+
+
+@shared_task(
+    bind=True,
+    name="workers.ml_tasks.train_xgboost_task",
+    max_retries=2,
+    default_retry_delay=120,
+)
+def train_xgboost_task(
+    self,
+    ticker: str,
+    hyperparams: dict[str, Any] | None = None,
+    lookback_days: int = 500,
+    prediction_horizon: int = 5,
+):
+    """Train an XGBoost model and log to MLflow + DB."""
     try:
+        import mlflow
+        import xgboost as xgb
+        from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+        job_id = str(uuid4())[:8]
+        logger.info(f"Starting XGBoost training for {ticker} (job={job_id})")
+
+        self.update_state(state="PROGRESS", meta={"step": "data_collection", "progress": 10})
+
+        # 1. Collect data
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=lookback_days)
+        data = _collect_data(ticker, start_date, end_date)
+
+        if data is None or data.height == 0:
+            raise ValueError(f"No data collected for {ticker}")
+
+        self.update_state(state="PROGRESS", meta={"step": "feature_engineering", "progress": 30})
+
+        # 2. Feature engineering
+        fe = FeatureEngineer()
+        enriched = fe.create_all_features(data, add_lags=True, add_rolling=True)
+        enriched_pd = enriched.to_pandas()
+
+        feature_cols = [
+            c
+            for c in enriched_pd.columns
+            if c
+            not in (
+                "time",
+                "ticker",
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+                "adjusted_close",
+                "dividends",
+                "stock_splits",
+            )
+        ]
+        if not feature_cols:
+            raise ValueError("No feature columns generated")
+
+        # Target: future return
+        enriched_pd["target"] = (
+            enriched_pd["close"].pct_change(prediction_horizon).shift(-prediction_horizon)
+        )
+        enriched_pd = enriched_pd.dropna(subset=["target"])
+
+        X = enriched_pd[feature_cols].replace([np.inf, -np.inf], np.nan).fillna(0)
+        y = enriched_pd["target"].values
+
+        split_idx = int(len(X) * 0.8)
+        if split_idx < 30:
+            raise ValueError(f"Not enough data for training: {len(X)} rows")
+
+        X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
+        y_train, y_test = y[:split_idx], y[split_idx:]
+
+        self.update_state(state="PROGRESS", meta={"step": "training", "progress": 50})
+
+        # 3. Hyperparameters
+        default_params = {
+            "n_estimators": 500,
+            "max_depth": 6,
+            "learning_rate": 0.01,
+            "subsample": 0.8,
+            "colsample_bytree": 0.8,
+            "reg_alpha": 0.1,
+            "reg_lambda": 1.0,
+            "min_child_weight": 3,
+            "random_state": 42,
+            "n_jobs": -1,
+        }
+        if hyperparams:
+            default_params.update(hyperparams)
+        params = default_params
+
+        # 4. MLflow run
+        mlflow = _setup_mlflow(f"lumina_{ticker}")
+        model_name = f"xgboost_{ticker}"
+        model_version = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        with mlflow.start_run(run_name=f"{model_name}_{model_version}") as active_run:
+            mlflow.set_tags(
+                {
+                    "ticker": ticker,
+                    "model_type": "xgboost",
+                    "prediction_horizon": str(prediction_horizon),
+                    "training_samples": str(len(X_train)),
+                    "test_samples": str(len(X_test)),
+                    "num_features": str(len(feature_cols)),
+                }
+            )
+            mlflow.log_params({k: v for k, v in params.items() if k != "n_jobs"})
+
+            model = xgb.XGBRegressor(**params)
+            model.fit(
+                X_train,
+                y_train,
+                eval_set=[(X_test, y_test)],
+                verbose=False,
+            )
+
+            y_pred_train = model.predict(X_train)
+            y_pred_test = model.predict(X_test)
+
+            metrics = {
+                "train_rmse": float(np.sqrt(mean_squared_error(y_train, y_pred_train))),
+                "test_rmse": float(np.sqrt(mean_squared_error(y_test, y_pred_test))),
+                "train_mae": float(mean_absolute_error(y_train, y_pred_train)),
+                "test_mae": float(mean_absolute_error(y_test, y_pred_test)),
+                "train_r2": float(r2_score(y_train, y_pred_train)),
+                "test_r2": float(r2_score(y_test, y_pred_test)),
+            }
+
+            importance = model.feature_importances_
+            feat_importance = sorted(
+                zip(feature_cols, importance), key=lambda x: x[1], reverse=True
+            )[:20]
+
+            mlflow.log_metrics(metrics)
+            mlflow.xgboost.log_model(
+                model,
+                artifact_path="model",
+                registered_model_name=model_name,
+            )
+
+            run_id = active_run.info.run_id
+            model_uri = f"runs:/{run_id}/model"
+
+        logger.success(
+            f"XGBoost trained for {ticker}: test_rmse={metrics['test_rmse']:.6f}, "
+            f"test_r2={metrics['test_r2']:.4f}, run_id={run_id}"
+        )
+
+        # 5. Save to DB
+        try:
+            db_model_id = run_async(
+                save_model_to_db(
+                    {
+                        "model_name": model_name,
+                        "model_type": "xgboost",
+                        "version": model_version,
+                        "ticker": ticker,
+                        "training_samples": len(X_train),
+                        "validation_samples": len(X_test),
+                        "mae": metrics["test_mae"],
+                        "rmse": metrics["test_rmse"],
+                        "r2_score": metrics["test_r2"],
+                        "hyperparameters": params,
+                        "feature_importance": {f: float(v) for f, v in feat_importance},
+                        "mlflow_run_id": run_id,
+                        "is_active": True,
+                    }
+                )
+            )
+            logger.success(f"XGBoost model saved to DB: id={db_model_id}")
+        except Exception as db_err:
+            logger.warning(f"Failed to save XGBoost model to DB: {db_err}")
+            db_model_id = None
+
+        self.update_state(state="PROGRESS", meta={"step": "completed", "progress": 100})
+
+        return {
+            "ticker": ticker,
+            "status": "success",
+            "model_name": model_name,
+            "model_version": model_version,
+            "db_model_id": db_model_id,
+            "mlflow_run_id": run_id,
+            "mlflow_model_uri": model_uri,
+            "metrics": metrics,
+            "top_features": {f: float(v) for f, v in feat_importance[:10]},
+            "completed_at": datetime.now().isoformat(),
+        }
+
+    except Exception as exc:
+        logger.error(f"XGBoost training failed for {ticker}: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+
+
+# ---------------------------------------------------------------------------
+#  Prediction task
+# ---------------------------------------------------------------------------
+
+
+@shared_task(
+    bind=True,
+    name="workers.ml_tasks.predict_task",
+    max_retries=2,
+    default_retry_delay=60,
+)
+def predict_task(self, ticker: str, model_id: str, days_ahead: int):
+    """Generate predictions using a trained LSTM model."""
+    try:
+        import torch
+
+        from backend.ml_engine.models.lstm_advanced import AdvancedLSTM, LSTMTrainer
+
         logger.info(f"Prediction task for {ticker} using model {model_id}")
 
-        # Update task state
         self.update_state(state="PROGRESS", meta={"step": "loading_model", "progress": 10})
 
-        # 1. Load model and metadata
+        # 1. Load model
         model_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}.pt"
 
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file not found: {model_path}")
 
-        checkpoint = torch.load(model_path, map_location="cpu")
+        checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
 
-        # Extract metadata from checkpoint
         meta_data = checkpoint.get("meta_data", {})
         input_dim = meta_data.get("input_dim", 50)
         hidden_dim = meta_data.get("hidden_dim", 128)
@@ -240,7 +568,6 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
         sequence_length = meta_data.get("sequence_length", 60)
         feature_columns = meta_data.get("feature_columns", None)
 
-        # Reconstruct model with saved parameters
         model = AdvancedLSTM(
             input_dim=input_dim,
             hidden_dim=hidden_dim,
@@ -254,71 +581,46 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
 
         trainer = LSTMTrainer(model)
 
-        # Update progress
         self.update_state(state="PROGRESS", meta={"step": "collecting_data", "progress": 30})
 
         # 2. Collect recent data
-        import asyncio
-
-        collector = YFinanceCollector()
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        # Collect enough data for feature engineering and sequence
         lookback_days = max(sequence_length * 2, 90)
-        data = loop.run_until_complete(
-            collector.collect_with_retry(
-                ticker=ticker,
-                start_date=datetime.now() - timedelta(days=lookback_days),
-                end_date=datetime.now(),
-            )
+        data = _collect_data(
+            ticker,
+            start_date=datetime.now() - timedelta(days=lookback_days),
+            end_date=datetime.now(),
         )
-        loop.close()
 
         if data is None or data.height == 0:
             raise ValueError(f"No data available for {ticker}")
 
         logger.info(f"Collected {data.height} data points")
 
-        # Update progress
         self.update_state(state="PROGRESS", meta={"step": "feature_engineering", "progress": 50})
 
-        # 3. Engineer features
+        # 3. Feature engineering
         fe = FeatureEngineer()
         enriched_data = fe.create_all_features(data, add_lags=True, add_rolling=True)
 
-        # Use saved feature columns or generate them
         if feature_columns is None:
             feature_columns = fe.get_all_feature_names()[:input_dim]
             logger.warning(f"Using default feature columns: {len(feature_columns)} features")
 
-        # Validate features exist
-        missing_features = [f for f in feature_columns if f not in enriched_data.columns]
-        if missing_features:
-            logger.warning(f"Missing features: {missing_features}")
-            # Use available features
-            feature_columns = [f for f in feature_columns if f in enriched_data.columns]
-
+        feature_columns = [f for f in feature_columns if f in enriched_data.columns]
         features = enriched_data.select(feature_columns).to_numpy()
 
-        # Update progress
-        self.update_state(state="PROGRESS", meta={"step": "preparing_sequence", "progress": 70})
+        self.update_state(state="PROGRESS", meta={"step": "generating_predictions", "progress": 80})
 
-        # 4. Prepare input sequence
+        # 4. Prepare input and predict
         if len(features) < sequence_length:
-            raise ValueError(f"Not enough data points. Need {sequence_length}, got {len(features)}")
+            raise ValueError(f"Not enough data. Need {sequence_length}, got {len(features)}")
 
-        # Use the most recent sequence
         input_sequence = torch.FloatTensor(features[-sequence_length:]).unsqueeze(0)
 
-        # Update progress
-        self.update_state(state="PROGRESS", meta={"step": "generating_predictions", "progress": 85})
-
-        # 5. Generate predictions
         with torch.no_grad():
             predictions = trainer.predict(input_sequence)
 
-        # 6. Format predictions
+        # 5. Format results
         current_price = float(data["close"].tail(1).item())
         last_date = data["date"].tail(1).item()
 
@@ -327,8 +629,7 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
             pred_price = float(predictions["price"][0][i])
             pred_date = last_date + timedelta(days=i + 1)
 
-            # Skip weekends for stock predictions
-            while pred_date.weekday() >= 5:  # Saturday=5, Sunday=6
+            while pred_date.weekday() >= 5:
                 pred_date += timedelta(days=1)
 
             formatted_predictions.append(
@@ -346,13 +647,14 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
                 }
             )
 
-        # Calculate prediction summary statistics
         avg_predicted_price = np.mean([p["predicted_price"] for p in formatted_predictions])
         total_change_percent = (
             (formatted_predictions[-1]["predicted_price"] - current_price) / current_price * 100
         )
 
-        result = {
+        self.update_state(state="PROGRESS", meta={"step": "completed", "progress": 100})
+
+        return {
             "ticker": ticker,
             "model_id": model_id,
             "current_price": round(current_price, 2),
@@ -384,47 +686,36 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
             "completed_at": datetime.now().isoformat(),
         }
 
-        # Update progress
-        self.update_state(state="PROGRESS", meta={"step": "completed", "progress": 100})
-
-        logger.success(f"Predictions generated for {ticker}")
-        return result
-
     except FileNotFoundError as e:
         logger.error(f"Model not found: {e}")
-        self.update_state(state="FAILURE", meta={"error": str(e), "type": "model_not_found"})
         raise
     except ValueError as e:
-        logger.error(f"Data validation error: {e}")
-        self.update_state(state="FAILURE", meta={"error": str(e), "type": "data_error"})
+        logger.error(f"Data error: {e}")
         raise
     except Exception as e:
-        logger.error(f"Prediction failed: {e}")
-        self.update_state(state="FAILURE", meta={"error": str(e), "type": "unknown"})
+        logger.error(f"Prediction failed: {e}", exc_info=True)
         raise
+
+
+# ---------------------------------------------------------------------------
+#  Periodic retraining
+# ---------------------------------------------------------------------------
 
 
 @shared_task(name="workers.ml_tasks.retrain_models")
 def retrain_models_task():
-    """
-    Periodic task to retrain models with new data
-    """
+    """Periodic task to retrain models with new data."""
     try:
         logger.info("Starting periodic model retraining")
 
-        # Get list of active models from database
-        # For now, use a hardcoded list of popular tickers
         tickers_to_retrain = ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN"]
 
         results = []
         for ticker in tickers_to_retrain:
             try:
-                # Trigger training task for each ticker
                 job_id = f"retrain_{ticker}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
                 hyperparams = {
-                    "start_date": datetime.now() - timedelta(days=365 * 3),
-                    "end_date": datetime.now(),
                     "hidden_dim": 128,
                     "num_layers": 3,
                     "dropout": 0.3,
@@ -437,7 +728,6 @@ def retrain_models_task():
                     "max_features": 50,
                 }
 
-                # Submit async training task
                 task = train_model_task.delay(
                     job_id=job_id,
                     ticker=ticker,
@@ -458,13 +748,7 @@ def retrain_models_task():
 
             except Exception as e:
                 logger.error(f"Failed to queue retraining for {ticker}: {e}")
-                results.append(
-                    {
-                        "ticker": ticker,
-                        "status": "failed",
-                        "error": str(e),
-                    }
-                )
+                results.append({"ticker": ticker, "status": "failed", "error": str(e)})
 
         return {
             "status": "Retraining jobs submitted",
@@ -480,32 +764,43 @@ def retrain_models_task():
         raise
 
 
+# ---------------------------------------------------------------------------
+#  Model evaluation task
+# ---------------------------------------------------------------------------
+
+
 @shared_task(name="workers.ml_tasks.evaluate_model")
 def evaluate_model_task(model_id: str, test_start_date: str, test_end_date: str):
-    """
-    Evaluate a trained model on test data
-    """
+    """Evaluate a trained model on test data."""
     try:
+        import torch
+        from torch.utils.data import DataLoader
+
+        from backend.ml_engine.models.lstm_advanced import (
+            AdvancedLSTM,
+            LSTMTrainer,
+            TimeSeriesDataset,
+        )
+
         logger.info(f"Evaluating model {model_id}")
 
-        # Parse dates
         start_date = datetime.fromisoformat(test_start_date)
         end_date = datetime.fromisoformat(test_end_date)
 
-        # Load model meta_data to get ticker
-        # For now, extract from model_id (format: ticker_modeltype_jobid)
         ticker = model_id.split("_")[0]
 
         # Load model
         model_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}.pt"
-        checkpoint = torch.load(model_path, map_location="cpu")
+        checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
+
+        meta_data = checkpoint.get("meta_data", {})
 
         model = AdvancedLSTM(
-            input_dim=50,
-            hidden_dim=128,
-            num_layers=3,
-            dropout=0.3,
-            output_horizon=5,
+            input_dim=meta_data.get("input_dim", 50),
+            hidden_dim=meta_data.get("hidden_dim", 128),
+            num_layers=meta_data.get("num_layers", 3),
+            dropout=meta_data.get("dropout", 0.3),
+            output_horizon=meta_data.get("prediction_horizon", 5),
         )
         model.load_state_dict(checkpoint["model_state_dict"])
         model.eval()
@@ -513,20 +808,7 @@ def evaluate_model_task(model_id: str, test_start_date: str, test_end_date: str)
         trainer = LSTMTrainer(model)
 
         # Collect test data
-        import asyncio
-
-        collector = YFinanceCollector()
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        data = loop.run_until_complete(
-            collector.collect_with_retry(
-                ticker=ticker,
-                start_date=start_date,
-                end_date=end_date,
-            )
-        )
-        loop.close()
+        data = _collect_data(ticker, start_date, end_date)
 
         if data is None or data.height == 0:
             raise ValueError(f"No test data available for {ticker}")
@@ -535,22 +817,22 @@ def evaluate_model_task(model_id: str, test_start_date: str, test_end_date: str)
         fe = FeatureEngineer()
         enriched_data = fe.create_all_features(data)
 
-        feature_columns = fe.get_all_feature_names()[:50]
+        feature_columns = meta_data.get(
+            "feature_columns", fe.get_all_feature_names()[: meta_data.get("input_dim", 50)]
+        )
 
-        # Create test dataset
         test_dataset = TimeSeriesDataset(
             data=enriched_data,
             feature_columns=feature_columns,
-            sequence_length=60,
-            prediction_horizon=5,
+            sequence_length=meta_data.get("sequence_length", 60),
+            prediction_horizon=meta_data.get("prediction_horizon", 5),
         )
 
         test_loader = DataLoader(test_dataset, batch_size=32)
 
-        # Evaluate
         test_metrics = trainer.validate(test_loader)
 
-        # Calculate additional metrics
+        # Directional accuracy
         all_predictions = []
         all_targets = []
 
@@ -563,10 +845,13 @@ def evaluate_model_task(model_id: str, test_start_date: str, test_end_date: str)
         predictions = np.concatenate(all_predictions, axis=0)
         targets = np.concatenate(all_targets, axis=0)
 
-        # Calculate directional accuracy
         pred_direction = np.sign(predictions[:, 0] - targets[:, 0])
-        actual_direction = np.sign(targets[:, 1] - targets[:, 0])
-        directional_accuracy = np.mean(pred_direction == actual_direction)
+        actual_direction = (
+            np.sign(targets[:, 1] - targets[:, 0])
+            if targets.shape[1] > 1
+            else np.zeros_like(pred_direction)
+        )
+        directional_accuracy = float(np.mean(pred_direction == actual_direction))
 
         result = {
             "model_id": model_id,
@@ -578,9 +863,9 @@ def evaluate_model_task(model_id: str, test_start_date: str, test_end_date: str)
             "metrics": {
                 "test_loss": test_metrics["total_loss"],
                 "price_loss": test_metrics["price_loss"],
-                "volatility_loss": test_metrics["volatility_loss"],
-                "regime_loss": test_metrics["regime_loss"],
-                "directional_accuracy": float(directional_accuracy),
+                "volatility_loss": test_metrics.get("volatility_loss", 0),
+                "regime_loss": test_metrics.get("regime_loss", 0),
+                "directional_accuracy": directional_accuracy,
                 "num_samples": len(test_dataset),
             },
             "evaluated_at": datetime.now().isoformat(),
@@ -590,93 +875,88 @@ def evaluate_model_task(model_id: str, test_start_date: str, test_end_date: str)
         return result
 
     except Exception as e:
-        logger.error(f"Evaluation failed: {e}")
+        logger.error(f"Evaluation failed: {e}", exc_info=True)
         raise
+
+
+# ---------------------------------------------------------------------------
+#  SHAP feature importance
+# ---------------------------------------------------------------------------
 
 
 @shared_task(name="workers.ml_tasks.compute_feature_importance")
 def compute_feature_importance_task(model_id: str, num_samples: int = 100):
-    """
-    Compute SHAP feature importance for a model
-    """
+    """Compute SHAP feature importance for a model."""
     try:
+        import shap
+        import torch
+
+        from backend.ml_engine.models.lstm_advanced import AdvancedLSTM
+
         logger.info(f"Computing feature importance for model {model_id}")
 
-        # Extract ticker from model_id
         ticker = model_id.split("_")[0]
 
-        # Load model
         model_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}.pt"
-        checkpoint = torch.load(model_path, map_location="cpu")
+        checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
+
+        meta_data = checkpoint.get("meta_data", {})
 
         model = AdvancedLSTM(
-            input_dim=50,
-            hidden_dim=128,
-            num_layers=3,
-            dropout=0.3,
-            output_horizon=5,
+            input_dim=meta_data.get("input_dim", 50),
+            hidden_dim=meta_data.get("hidden_dim", 128),
+            num_layers=meta_data.get("num_layers", 3),
+            dropout=meta_data.get("dropout", 0.3),
+            output_horizon=meta_data.get("prediction_horizon", 5),
         )
         model.load_state_dict(checkpoint["model_state_dict"])
         model.eval()
 
-        # Collect recent data
-        import asyncio
-
-        collector = YFinanceCollector()
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        data = loop.run_until_complete(
-            collector.collect_with_retry(
-                ticker=ticker,
-                start_date=datetime.now() - timedelta(days=180),
-                end_date=datetime.now(),
-            )
+        # Collect data
+        data = _collect_data(
+            ticker,
+            start_date=datetime.now() - timedelta(days=180),
+            end_date=datetime.now(),
         )
-        loop.close()
 
-        # Engineer features
         fe = FeatureEngineer()
         enriched_data = fe.create_all_features(data)
 
-        feature_columns = fe.get_all_feature_names()[:50]
+        feature_columns = meta_data.get(
+            "feature_columns",
+            fe.get_all_feature_names()[: meta_data.get("input_dim", 50)],
+        )
         features = enriched_data.select(feature_columns).to_numpy()
 
-        # Sample data for SHAP
-        if len(features) > num_samples:
-            indices = np.random.choice(len(features) - 60, num_samples, replace=False)
-            sample_data = np.array([features[i : i + 60] for i in indices])
+        seq_len = meta_data.get("sequence_length", 60)
+
+        if len(features) > num_samples + seq_len:
+            indices = np.random.choice(len(features) - seq_len, num_samples, replace=False)
+            sample_data = np.array([features[i : i + seq_len] for i in indices])
         else:
-            sample_data = np.array([features[i : i + 60] for i in range(len(features) - 60)])
+            sample_data = np.array(
+                [features[i : i + seq_len] for i in range(len(features) - seq_len)]
+            )
 
         sample_data = torch.FloatTensor(sample_data)
 
-        # Create SHAP explainer
         def model_predict(x):
             with torch.no_grad():
                 x_tensor = torch.FloatTensor(x)
                 outputs = model(x_tensor)
                 return outputs["price"][:, 0].cpu().numpy()
 
-        # Use a subset as background
         background = sample_data[: min(10, len(sample_data))]
 
-        # DeepExplainer for neural networks
         explainer = shap.DeepExplainer(lambda x: model_predict(x), background.numpy())
-
-        # Calculate SHAP values
         shap_values = explainer.shap_values(sample_data.numpy())
 
-        # Average absolute SHAP values across samples and time steps
-        # Shape: (num_samples, seq_length, num_features)
         mean_shap = np.abs(shap_values).mean(axis=(0, 1))
 
-        # Create feature importance dictionary
         feature_importance = {
             feature_columns[i]: float(mean_shap[i]) for i in range(len(feature_columns))
         }
 
-        # Sort by importance
         sorted_importance = dict(
             sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)
         )
@@ -694,5 +974,5 @@ def compute_feature_importance_task(model_id: str, num_samples: int = 100):
         return result
 
     except Exception as e:
-        logger.error(f"Feature importance calculation failed: {e}")
+        logger.error(f"Feature importance calculation failed: {e}", exc_info=True)
         raise

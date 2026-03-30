@@ -6,6 +6,7 @@ Main entry point for the API
 
 import logging
 import sys
+import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -47,9 +48,26 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
     allow_credentials=allow_credentials,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "X-API-Key",
+        "X-Request-ID",
+    ],
+    expose_headers=["X-Request-ID"],
 )
+
+
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+    request.state.request_id = request_id
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
 
 # Include routers - v1 routes (for backwards compatibility)
 app.include_router(data.router, prefix="/api/v1/data", tags=["Data"])
@@ -58,7 +76,9 @@ app.include_router(portfolio.router, prefix="/api/v1/portfolio", tags=["Portfoli
 app.include_router(risk.router, prefix="/api/v1/risk", tags=["Risk Management"])
 app.include_router(backtest.router, prefix="/api/v1/backtest", tags=["Backtesting"])
 
-# Include routers - v2 routes
+# TODO: v2 routes currently mirror v1. When v2 diverges, create separate
+# router modules (e.g., backend/api/routes/v2/data.py) and import them here.
+# For now, both versions point to the same handlers for backwards compatibility.
 app.include_router(data.router, prefix="/api/v2/data", tags=["Data v2"])
 app.include_router(ml.router, prefix="/api/v2/ml", tags=["Machine Learning v2"])
 app.include_router(portfolio.router, prefix="/api/v2/portfolio", tags=["Portfolio v2"])
@@ -75,61 +95,60 @@ async def root():
     }
 
 
-@app.get("/health")
+@app.get("/health", tags=["System"])
 async def health_check():
-    db_status = "disconnected"
-    redis_status = "disconnected"
-    errors: dict[str, str] = {}
+    """
+    Health check endpoint for container orchestration.
+    Returns status of all critical dependencies.
+    """
+    health = {
+        "status": "ok",
+        "version": settings.VERSION,
+        "environment": settings.ENVIRONMENT,
+    }
 
+    # Check database
     try:
         engine = get_async_engine()
-        async with engine.connect() as connection:
-            await connection.execute(text("SELECT 1"))
-        db_status = "connected"
-    except Exception as exc:
-        errors["database"] = str(exc) if settings.DEBUG else "unavailable"
-        logger.warning(f"Health check DB error: {exc}")
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        health["database"] = "connected"
+    except Exception as e:
+        health["database"] = f"error: {type(e).__name__}"
+        health["status"] = "degraded"
 
+    # Check Redis
     redis_client: Redis | None = None
     try:
         redis_client = Redis.from_url(
             settings.REDIS_URL,
             decode_responses=True,
-            socket_connect_timeout=5,
+            socket_connect_timeout=2,
         )
         redis_client.ping()
-        redis_status = "connected"
-    except Exception as exc:
-        errors["redis"] = str(exc) if settings.DEBUG else "unavailable"
-        logger.warning(f"Health check Redis error: {exc}")
+        health["redis"] = "connected"
+    except Exception as e:
+        health["redis"] = f"error: {type(e).__name__}"
+        health["status"] = "degraded"
     finally:
         if redis_client is not None:
             redis_client.close()
 
-    if db_status == "connected" and redis_status == "connected":
-        overall_status = "healthy"
-    elif db_status == "connected" or redis_status == "connected":
-        overall_status = "degraded"
-    else:
-        overall_status = "unhealthy"
-
-    response = {
-        "status": overall_status,
-        "database": db_status,
-        "redis": redis_status,
-    }
-
-    if errors and settings.DEBUG:
-        response["errors"] = errors
-
-    status_code = 200 if overall_status == "healthy" else 503
-    return JSONResponse(status_code=status_code, content=response)
+    status_code = 200 if health["status"] == "ok" else 503
+    return JSONResponse(content=health, status_code=status_code)
 
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Global exception: {exc}", exc_info=True)
-    detail = "Internal server error"
-    if settings.DEBUG:
-        detail = f"{exc.__class__.__name__}: {exc}"
-    return JSONResponse(status_code=500, content={"detail": detail})
+    request_id = getattr(request.state, "request_id", "unknown")
+    logger.error(
+        f"Unhandled exception [request_id={request_id}]: {type(exc).__name__}: {exc}",
+        exc_info=True,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "An internal server error occurred.",
+            "request_id": request_id,
+        },
+    )

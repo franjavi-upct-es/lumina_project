@@ -49,9 +49,12 @@ from backend.db.models import (
     bulk_insert_features,
     bulk_insert_price_data,
     # Engine and session
+    close_db,
     get_async_engine,
     get_async_session,
+    get_latest_price,
     init_db,
+    reset_db_engine,
 )
 
 __all__ = [
@@ -69,7 +72,10 @@ __all__ = [
     "get_async_engine",
     "get_async_session",
     "init_db",
+    "close_db",
+    "reset_db_engine",
     # Utilities
     "bulk_insert_price_data",
     "bulk_insert_features",
+    "get_latest_price",
 ]

@@ -85,12 +85,38 @@ async def get_available_tickers():
     """
     return {
         "tickers": [
-            "AAPL", "GOOGL", "MSFT", "AMZN", "META", "TSLA", "NVDA", "JPM",
-            "V", "JNJ", "WMT", "PG", "MA", "UNH", "HD", "DIS", "BAC", "XOM",
-            "VZ", "ADBE", "CRM", "NFLX", "INTC", "CSCO", "PFE", "ABT", "KO",
-            "PEP", "MRK", "TMO"
+            "AAPL",
+            "GOOGL",
+            "MSFT",
+            "AMZN",
+            "META",
+            "TSLA",
+            "NVDA",
+            "JPM",
+            "V",
+            "JNJ",
+            "WMT",
+            "PG",
+            "MA",
+            "UNH",
+            "HD",
+            "DIS",
+            "BAC",
+            "XOM",
+            "VZ",
+            "ADBE",
+            "CRM",
+            "NFLX",
+            "INTC",
+            "CSCO",
+            "PFE",
+            "ABT",
+            "KO",
+            "PEP",
+            "MRK",
+            "TMO",
         ],
-        "total": 30
+        "total": 30,
     }
 
 
@@ -113,7 +139,9 @@ async def collect_data(
     - 202: Data collection task submitted (async)
     """
     try:
-        logger.info(f"Collecting data for {request.ticker} from {request.start_date} to {request.end_date}")
+        logger.info(
+            f"Collecting data for {request.ticker} from {request.start_date} to {request.end_date}"
+        )
 
         data = await collector.collect_with_retry(
             ticker=request.ticker,
@@ -123,7 +151,9 @@ async def collect_data(
         )
 
         if data is None or data.height == 0:
-            raise HTTPException(status_code=404, detail=f"No data found for ticker {request.ticker}")
+            raise HTTPException(
+                status_code=404, detail=f"No data found for ticker {request.ticker}"
+            )
 
         data_dict = data.to_dicts()
 

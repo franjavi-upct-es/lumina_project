@@ -242,4 +242,3 @@ class SentimentAggregator:
         df = df.sort_values("aggregate_score", ascending=False)
 
         return df
-

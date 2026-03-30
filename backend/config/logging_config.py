@@ -156,8 +156,9 @@ def setup_logging(
             retention=retention,
             compression=compression,
             enqueue=True,
-            filter=lambda record: "ml_engine" in record["name"].lower()
-            or "train" in record["name"].lower(),
+            filter=lambda record: (
+                "ml_engine" in record["name"].lower() or "train" in record["name"].lower()
+            ),
             serialize=serialize,
         )
 

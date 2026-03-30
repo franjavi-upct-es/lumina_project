@@ -85,6 +85,11 @@ main() {
 
     print_success "All prerequisites met!"
 
+    # Generate random secrets for .env
+    GENERATED_SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(64))")
+    GENERATED_PG_PASSWORD=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+    GENERATED_REDIS_PASSWORD=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+
     # Step 2: Create directory structure
     print_header "Step 2: Creating Directory Structure"
 
@@ -102,7 +107,7 @@ main() {
     if [ ! -f $PROJECT_ROOT/backend/.env ]; then
         print_info "Creating .env file..."
 
-        cat >$PROJECT_ROOT/backend/.env <<'EOF'
+        cat >$PROJECT_ROOT/backend/.env <<EOF
 # Environment
 ENVIRONMENT=development
 DEBUG=true
@@ -110,23 +115,24 @@ LOG_LEVEL=INFO
 
 # Database
 POSTGRES_USER=lumina
-POSTGRES_PASSWORD=lumina_password
+POSTGRES_PASSWORD=${GENERATED_PG_PASSWORD}
 POSTGRES_DB=lumina_db
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5435
-DATABASE_URL=postgresql://lumina:lumina_password@localhost:5435/lumina_db
+DATABASE_URL=postgresql://lumina:${GENERATED_PG_PASSWORD}@localhost:5435/lumina_db
 
 # Redis
-REDIS_URL=redis://localhost:6379/0
+REDIS_PASSWORD=${GENERATED_REDIS_PASSWORD}
+REDIS_URL=redis://:${GENERATED_REDIS_PASSWORD}@localhost:6379/0
 REDIS_HOST=localhost
 REDIS_PORT=6379
 
 # Celery
-CELERY_BROKER_URL=redis://localhost:6379/1
-CELERY_RESULT_BACKEND=redis://localhost:6379/2
+CELERY_BROKER_URL=redis://:${GENERATED_REDIS_PASSWORD}@localhost:6379/1
+CELERY_RESULT_BACKEND=redis://:${GENERATED_REDIS_PASSWORD}@localhost:6379/2
 
 # Security
-SECRET_KEY=change-me-use-a-long-random-secret
+SECRET_KEY=${GENERATED_SECRET_KEY}
 ALLOWED_ORIGINS='["http://localhost:3000","http://localhost:8501","http://localhost:8000","http://localhost:8888"]'
 API_KEYS=[]
 API_KEY_HASHES=[]
@@ -149,8 +155,9 @@ PARQUET_STORAGE_PATH=./data/parquet
 LOG_FILE_PATH=./logs/lumina.log
 EOF
 
+        chmod 600 $PROJECT_ROOT/backend/.env
         print_success ".env file created"
-        print_warning "Please edit .env and add your API keys if needed"
+        print_warning "Generated secrets have been written to backend/.env — keep this file secure and never commit it to version control."
     else
         print_info ".env file already exists, skipping..."
     fi

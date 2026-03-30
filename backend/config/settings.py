@@ -36,7 +36,8 @@ class Settings(BaseSettings):
     # API
     API_V2_PREFIX: str = "/api/v2"
     SECRET_KEY: str = Field(min_length=32)
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    JWT_ALGORITHM: str = Field(default="HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
 
     # CORS
     ALLOWED_ORIGINS: list[str] = Field(
@@ -63,8 +64,6 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str
-    REDIS_URL: str
-    SECRET_KEY: str
     POSTGRES_USER: str
 
     DB_POOL_SIZE: int = 20
@@ -74,14 +73,15 @@ class Settings(BaseSettings):
     DB_ECHO: bool = False
 
     # Redis
-    REDIS_URL: str = Field(default="redis://localhost:6379/0")
+    REDIS_PASSWORD: str = Field(default="")
+    REDIS_URL: str = Field(default="redis://redis:6379/0")
     REDIS_CACHE_TTL: int = 3600  # 1 hour
 
     # Celery
-    CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/1")
-    CELERY_RESULT_BACKEND: str = Field(default="redis://localhost:6379/2")
+    CELERY_BROKER_URL: str = Field(default="redis://redis:6379/1")
+    CELERY_RESULT_BACKEND: str = Field(default="redis://redis:6379/2")
     CELERY_TASK_TIME_LIMIT: int = 3600  # 1 hour
-    CELERY_TASK_SOFT_TIME_LIMIT: int = 3300  # 55 hour
+    CELERY_TASK_SOFT_TIME_LIMIT: int = 3300  # 55 minutes
 
     # Data Sources
     YFINANCE_RATE_LIMIT: int = 2000  # requests per hour
@@ -93,7 +93,7 @@ class Settings(BaseSettings):
     TWITTER_BEARER_TOKEN: str | None = None
 
     # ML/AI
-    MLFLOW_TRACKING_URI: str = "http://localhost:5000"
+    MLFLOW_TRACKING_URI: str = "http://mlflow:5000"
     MODEL_STORAGE_PATH: str = "/app/models"
     FEATURE_STORE_PATH: str = "/app/data/features"
 
@@ -129,6 +129,20 @@ class Settings(BaseSettings):
     LOG_MAX_BYTES: int = 10485760
     LOG_BACKUP_COUNT: int = 5
 
+    @field_validator("API_KEYS", mode="after")
+    @classmethod
+    def warn_plaintext_keys(cls, v):
+        if v:
+            import warnings
+
+            warnings.warn(
+                "API_KEYS contains plain-text keys. Use API_KEY_HASHES instead. "
+                "Generate a hash with: python -c \"import hashlib; print(hashlib.sha256(b'your-key').hexdigest())\"",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return v
+
     @field_validator("ENVIRONMENT")
     @classmethod
     def validate_enviroment(cls, v):
@@ -146,10 +160,32 @@ class Settings(BaseSettings):
 
     @field_validator("ALLOWED_ORIGINS", "API_KEYS", "API_KEY_HASHES", mode="before")
     @classmethod
-    def split_csv_values(cls, v):
+    def parse_list_field(cls, v):
+        """Parse list fields from environment variables.
+
+        Supports both JSON arrays and comma-separated values:
+        - '["http://localhost:3000", "http://localhost:8501"]'  -> JSON
+        - 'http://localhost:3000,http://localhost:8501'          -> CSV
+        """
         if v is None:
             return []
+        if isinstance(v, list):
+            return v
         if isinstance(v, str):
+            v = v.strip()
+            if not v or v == "[]":
+                return []
+            # Try JSON first
+            if v.startswith("["):
+                import json
+
+                try:
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return [str(item).strip() for item in parsed if item]
+                except json.JSONDecodeError:
+                    pass
+            # Fall back to comma-separated
             return [item.strip() for item in v.split(",") if item.strip()]
         return list(v)
 

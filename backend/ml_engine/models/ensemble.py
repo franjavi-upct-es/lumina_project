@@ -412,7 +412,9 @@ class EnsembleModel(BaseModel):
 
         return ensemble_pred
 
-    def predict_with_uncertainty(self, X: np.ndarray | pd.DataFrame, **kwargs) -> tuple[np.ndarray, np.ndarray]:
+    def predict_with_uncertainty(
+        self, X: np.ndarray | pd.DataFrame, **kwargs
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Make predictions with uncertainty estimates
 
@@ -437,14 +439,16 @@ class EnsembleModel(BaseModel):
         ensemble_pred = self.predict(X, **kwargs)
 
         # Uncertainty as standard deviation
-        if predictions.ndim == 3: # Multi-step
+        if predictions.ndim == 3:  # Multi-step
             uncertainty = np.std(predictions, axis=0)
         else:
             uncertainty = np.std(predictions, axis=0)
 
         return ensemble_pred, uncertainty
 
-    def evaluate(self, X: np.ndarray | pd.DataFrame, y: np.ndarray | pd.Series, **kwargs) -> dict[str, float]:
+    def evaluate(
+        self, X: np.ndarray | pd.DataFrame, y: np.ndarray | pd.Series, **kwargs
+    ) -> dict[str, float]:
         """
         Evaluate ensemble performance
 
@@ -502,7 +506,7 @@ class EnsembleModel(BaseModel):
 
         for feature in feature_names:
             values = [imp.get(feature, 0.0) for imp in all_importances]
-        
+
             # Weight by model weights if available
             if self.weights is not None:
                 aggregate[feature] = np.average(values, weights=self.weights)
@@ -526,7 +530,7 @@ class EnsembleModel(BaseModel):
             "weights": self.weights,
             "meta_model": self.meta_model,
             "model_performances": self.model_performances,
-            "base_model_names": [m.model_name for m in self.base_models]
+            "base_model_names": [m.model_name for m in self.base_models],
         }
 
         with open(path, "wb") as f:
@@ -547,7 +551,7 @@ class EnsembleModel(BaseModel):
         with open(path, "rb") as f:
             ensemble_data = pickle.load(f)
 
-        self.strategy = ensemble_data['strategy']
+        self.strategy = ensemble_data["strategy"]
         self.weights = ensemble_data["weights"]
         self.meta_model = ensemble_data["meta_model"]
         self.model_performances = ensemble_data["model_performances"]
@@ -568,7 +572,7 @@ class EnsembleModel(BaseModel):
         if self.weights is not None:
             mlflow.log_dict(
                 {f"weight_{i}": float(w) for i, w in enumerate(self.weights)},
-                "ensemble_weights.json"
+                "ensemble_weights.json",
             )
 
         # Log model performances
@@ -577,8 +581,7 @@ class EnsembleModel(BaseModel):
 
         # Log base model names
         mlflow.log_dict(
-            {"base_models": [m.model_name for m in self.base_models]},
-            "base_models.json"
+            {"base_models": [m.model_name for m in self.base_models]}, "base_models.json"
         )
 
     def get_model_contributions(

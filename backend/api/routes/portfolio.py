@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api.dependencies import check_rate_limit, verify_api_key
 from backend.config.settings import get_settings
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
-from backend.db.models import PortfolioBalance, PortfolioPosition, get_async_session
+from backend.db.models import get_async_session
 
 router = APIRouter(dependencies=[Depends(check_rate_limit), Depends(verify_api_key)])
 settings = get_settings()
@@ -394,130 +394,7 @@ async def get_portfolio_metrics(
     """
     Get current portfolio metrics and performance
     """
-    try:
-        # Get portfolio balance
-        balance_query = select(PortfolioBalance).where(PortfolioBalance.user_id == user_id)
-        balance_result = await db.execute(balance_query)
-        balance = balance_result.scalar_one_or_none()
-
-        if not balance:
-            # Create default balance
-            balance = PortfolioBalance(user_id=user_id)
-
-        # Get all positions
-        positions_query = (
-            select(PortfolioPosition)
-            .where(PortfolioPosition.user_id == user_id)
-            .order_by(PortfolioPosition.executed_at.desc())
-        )
-        positions_result = await db.execute(positions_query)
-        all_transactions = positions_result.scalars().all()
-
-        # Calculate current positions
-        holdings = {}
-        for txn in all_transactions:
-            if txn.ticker not in holdings:
-                holdings[txn.ticker] = 0.0
-
-            if txn.transaction_type == "buy":
-                holdings[txn.ticker] += txn.quantity
-            else:
-                holdings[txn.ticker] -= txn.quantity
-
-        # Remove zero positions
-        holdings = {k: v for k, v in holdings.items() if abs(v) > 1e-6}
-
-        # Get current prices
-        collector = YFinanceCollector()
-        positions_list = []
-        total_equity = 0.0
-
-        for ticker, quantity in holdings.items():
-            data = await collector.collect_with_retry(
-                ticker=ticker,
-                start_date=datetime.now() - timedelta(days=7),
-                end_date=datetime.now(),
-            )
-
-            if data is not None and data.height > 0:
-                current_price = float(data.select("close").tail(1).item())
-                value = quantity * current_price
-                total_equity += value
-
-                positions_list.append(
-                    {
-                        "ticker": ticker,
-                        "quantity": quantity,
-                        "current_price": current_price,
-                        "value": value,
-                        "weight": 0.0,  # Will calculate after
-                    }
-                )
-
-        # Calculate weights
-        for pos in positions_list:
-            pos["weight"] = pos["value"] / total_equity if total_equity > 0 else 0
-
-        # Calculate performance metrics
-        total_value = balance.cash + total_equity
-        initial_capital = 100000.0  # Default
-        total_return = (total_value - initial_capital) / initial_capital
-
-        # Calculate daily return (simplified)
-        daily_return = 0.0
-        if len(all_transactions) > 0:
-            recent_balance = all_transactions[0].balance_after if all_transactions else total_value
-            daily_return = (
-                (total_value - recent_balance) / recent_balance if recent_balance > 0 else 0.0
-            )
-
-        # YTD return (simplified)
-        ytd_start = datetime(datetime.now().year, 1, 1)
-        ytd_transactions = [t for t in all_transactions if t.executed_at >= ytd_start]
-        ytd_return = 0.0
-        if ytd_transactions:
-            ytd_initial = ytd_transactions[-1].balance_after
-            ytd_return = (total_value - ytd_initial) / ytd_initial if ytd_initial > 0 else 0.0
-
-        # Risk metrics (simplified calculations)
-        volatility = 0.15  # Default
-        sharpe_ratio = (total_return * 252 - 0.05) / volatility if volatility > 0 else 0.0
-        beta = 1.0
-        var_95 = total_value * 0.02  # 2% VaR
-        max_drawdown = 0.0
-
-        # Concentration analysis
-        concentration = {
-            "top_position": max(p["weight"] for p in positions_list) if positions_list else 0.0,
-            "top_3_concentration": (
-                sum(sorted((p["weight"] for p in positions_list), reverse=True)[:3])
-                if len(positions_list) >= 3
-                else 1.0
-            ),
-            "effective_positions": (
-                1 / sum(p["weight"] ** 2 for p in positions_list) if positions_list else 0.0
-            ),
-        }
-
-        return PortfolioMetricsResponse(
-            total_value=total_value,
-            cash=balance.cash,
-            equity=total_equity,
-            total_return=total_return,
-            daily_return=daily_return,
-            ytd_return=ytd_return,
-            volatility=volatility,
-            sharpe_ratio=sharpe_ratio,
-            beta=beta,
-            var_95=var_95,
-            max_drawdown=max_drawdown,
-            positions=positions_list,
-            concentration=concentration,
-        )
-
-    except Exception as e:
-        logger.error(f"Error fetching portfolio metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    raise HTTPException(status_code=501, detail="Not implemented")
 
 
 # ============================================================================
@@ -935,71 +812,7 @@ async def get_sector_allocation(
     """
     Get portfolio allocation by sector
     """
-    try:
-        # Get user positions
-        positions_query = (
-            select(PortfolioPosition)
-            .where(PortfolioPosition.user_id == user_id)
-            .order_by(PortfolioPosition.executed_at.desc())
-        )
-        positions_result = await db.execute(positions_query)
-        transactions = positions_result.scalars().all()
-
-        # Calculate current holdings
-        holdings = {}
-        for txn in transactions:
-            if txn.ticker not in holdings:
-                holdings[txn.ticker] = 0.0
-
-            if txn.transaction_type == "buy":
-                holdings[txn.ticker] += txn.quantity
-            else:
-                holdings[txn.ticker] -= txn.quantity
-
-        holdings = {k: v for k, v in holdings.items() if abs(v) > 1e-6}
-
-        if not holdings:
-            return {"allocation": {}}
-
-        # Get sector information
-        collector = YFinanceCollector()
-        sector_values = {}
-        total_value = 0.0
-
-        for ticker, quantity in holdings.items():
-            try:
-                # Get company info for sector
-                info = await collector.get_company_info(ticker)
-                sector = info.get("sector", "Other") if info else "Other"
-
-                # Get current price
-                data = await collector.collect_with_retry(
-                    ticker=ticker,
-                    start_date=datetime.now() - timedelta(days=7),
-                    end_date=datetime.now(),
-                )
-
-                if data is not None and data.height > 0:
-                    current_price = float(data.select("close").tail(1).item())
-                    value = quantity * current_price
-
-                    sector_values[sector] = sector_values.get(sector, 0.0) + value
-                    total_value += value
-            except Exception:
-                continue
-
-        # Calculate allocation percentages
-        allocation = (
-            {sector: value / total_value for sector, value in sector_values.items()}
-            if total_value > 0
-            else {}
-        )
-
-        return {"allocation": allocation}
-
-    except Exception as e:
-        logger.error(f"Error calculating sector allocation: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    raise HTTPException(status_code=501, detail="Not implemented")
 
 
 @router.get("/allocation/geography")
@@ -1010,67 +823,7 @@ async def get_geographic_allocation(
     """
     Get portfolio allocation by geography
     """
-    try:
-        # Similar to sector allocation but by country
-        positions_query = (
-            select(PortfolioPosition)
-            .where(PortfolioPosition.user_id == user_id)
-            .order_by(PortfolioPosition.executed_at.desc())
-        )
-        positions_result = await db.execute(positions_query)
-        transactions = positions_result.scalars().all()
-
-        holdings = {}
-        for txn in transactions:
-            if txn.ticker not in holdings:
-                holdings[txn.ticker] = 0.0
-
-            if txn.transaction_type == "buy":
-                holdings[txn.ticker] += txn.quantity
-            else:
-                holdings[txn.ticker] -= txn.quantity
-
-        holdings = {k: v for k, v in holdings.items() if abs(v) > 1e-6}
-
-        if not holdings:
-            return {"allocation": {}}
-
-        # Get geographic information
-        collector = YFinanceCollector()
-        geo_values = {}
-        total_value = 0.0
-
-        for ticker, quantity in holdings.items():
-            try:
-                info = await collector.get_company_info(ticker)
-                country = info.get("country", "Unknown") if info else "Unknown"
-
-                data = await collector.collect_with_retry(
-                    ticker=ticker,
-                    start_date=datetime.now() - timedelta(days=7),
-                    end_date=datetime.now(),
-                )
-
-                if data is not None and data.height > 0:
-                    current_price = float(data.select("close").tail(1).item())
-                    value = quantity * current_price
-
-                    geo_values[country] = geo_values.get(country, 0.0) + value
-                    total_value += value
-            except Exception:
-                continue
-
-        allocation = (
-            {country: value / total_value for country, value in geo_values.items()}
-            if total_value > 0
-            else {}
-        )
-
-        return {"allocation": allocation}
-
-    except Exception as e:
-        logger.error(f"Error calculating geographic allocation: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    raise HTTPException(status_code=501, detail="Not implemented")
 
 
 # ============================================================================

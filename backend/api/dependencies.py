@@ -6,8 +6,9 @@ Provides common dependencies like database sessions, authentication, rate limiti
 
 import hashlib
 import hmac
+import uuid
 from collections.abc import AsyncGenerator, Generator
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 import jwt
@@ -123,17 +124,26 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     """
     to_encode = data.copy()
 
+    now = datetime.now(UTC)
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = now + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    to_encode.update({"exp": expire})
+    to_encode.update(
+        {
+            "exp": expire,
+            "iat": now,
+            "jti": str(
+                uuid.uuid4()
+            ),  # TODO: Implement token revocation using Redis-backed JTI blacklist
+        }
+    )
 
     encoded_jwt = jwt.encode(
         to_encode,
         settings.SECRET_KEY,
-        algorithm="HS256",
+        algorithm=settings.JWT_ALGORITHM,
     )
 
     return encoded_jwt
@@ -156,7 +166,7 @@ def decode_access_token(token: str) -> dict:
         payload = jwt.decode(
             token,
             settings.SECRET_KEY,
-            algorithms=["HS256"],
+            algorithms=[settings.JWT_ALGORITHM],
         )
         return payload
     except jwt.ExpiredSignatureError as err:
@@ -283,8 +293,12 @@ class RateLimiter:
 
         except Exception as e:
             logger.error(f"Rate limit check failed: {e}")
-            # Fail open - allow request if Redis unavailable
-            return True
+            # Fail closed — reject requests when rate limiting infrastructure is unavailable.
+            # This prevents abuse when Redis is down.
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Rate limiting service temporarily unavailable. Please retry shortly.",
+            ) from e
 
     def get_remaining_requests(self, identifier: str) -> int:
         """
@@ -303,7 +317,7 @@ class RateLimiter:
             remaining = max(0, self.max_requests - current)
             return remaining
         except Exception:
-            return self.max_requests
+            return 0
 
 
 async def check_rate_limit(
@@ -318,21 +332,33 @@ async def check_rate_limit(
         async def limited_route():
             ...
     """
-    # Use IP address as identifier
-    client_ip = request.client.host if request.client else "unknown"
+    from redis.exceptions import ConnectionError as RedisConnectionError
+    from redis.exceptions import TimeoutError as RedisTimeoutError
 
-    limiter = RateLimiter(
-        redis=redis,
-        max_requests=settings.RATE_LIMIT_MAX_REQUESTS,
-        window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS,
-    )
+    try:
+        # Use IP address as identifier
+        client_ip = request.client.host if request.client else "unknown"
 
-    if not await limiter.check_rate_limit(client_ip):
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Rate limit exceeded. Please try again later.",
-            headers={"Retry-After": str(settings.RATE_LIMIT_WINDOW_SECONDS)},
+        limiter = RateLimiter(
+            redis=redis,
+            max_requests=settings.RATE_LIMIT_MAX_REQUESTS,
+            window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS,
         )
+
+        if not await limiter.check_rate_limit(client_ip):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Rate limit exceeded. Please try again later.",
+                headers={"Retry-After": str(settings.RATE_LIMIT_WINDOW_SECONDS)},
+            )
+    except HTTPException:
+        raise
+    except (RedisConnectionError, RedisTimeoutError) as e:
+        logger.error(f"Redis unavailable for rate limiting: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Rate limiting service temporarily unavailable. Please retry shortly.",
+        ) from e
 
 
 # ============================================================================
@@ -510,10 +536,7 @@ async def verify_api_key(
             )
         return ""
 
-    if settings.API_KEYS or settings.API_KEY_HASHES:
-        if x_api_key in settings.API_KEYS:
-            return x_api_key
-
+    if settings.API_KEY_HASHES:
         hashed_key = hashlib.sha256(x_api_key.encode("utf-8")).hexdigest()
         for stored_hash in settings.API_KEY_HASHES:
             if hmac.compare_digest(hashed_key, stored_hash):
@@ -582,7 +605,7 @@ class RequestContext:
         self.user_agent = request.headers.get("user-agent")
         self.method = request.method
         self.url = str(request.url)
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(UTC)
 
     def to_dict(self) -> dict:
         """Convert to dictionary"""

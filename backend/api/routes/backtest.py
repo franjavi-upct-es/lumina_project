@@ -8,24 +8,32 @@ from typing import Annotated, Any
 from uuid import uuid4
 
 import numpy as np
-from db.models import get_async_session
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field
+from redis import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.workers.backtest_tasks import run_backtest_task
 
-from backend.api.dependencies import check_rate_limit, verify_api_key
+from backend.api.dependencies import check_rate_limit, get_redis, verify_api_key
+from backend.api.job_store import JobStore
 from backend.config.settings import get_settings
+from backend.db.models import get_async_session
+from backend.workers.backtest_tasks import run_backtest_task
 
 router = APIRouter(dependencies=[Depends(check_rate_limit), Depends(verify_api_key)])
 settings = get_settings()
 
 
+def _get_backtest_job_store(redis: Redis = Depends(get_redis)) -> JobStore:
+    return JobStore(redis, prefix="backtest")
+
+
 # Request Models
 class BacktestRequest(BaseModel):
-    strategy: str | None = Field(None, description="Strategy name (e.g., 'momentum', 'mean_reversion')")
+    strategy: str | None = Field(
+        None, description="Strategy name (e.g., 'momentum', 'mean_reversion')"
+    )
     strategy_name: str | None = Field(None, description="Alternative field for strategy name")
     strategy_code: str | None = Field(None, description="Python code for the strategy (optional)")
     strategy_params: dict[str, Any] | None = Field(None, description="Strategy parameters")
@@ -167,9 +175,6 @@ class BacktestListResponse(BaseModel):
     total: int
 
 
-# In-memory job tracking
-backtest_jobs = {}
-
 # Pre-defined strategies
 AVAILABLE_STRATEGIES = {
     "momentum": {
@@ -220,7 +225,11 @@ async def list_available_strategies():
 
 
 @router.post("/run", response_model=BacktestJobResponse)
-async def run_backtest(request: BacktestRequest, background_tasks: BackgroundTasks):
+async def run_backtest(
+    request: BacktestRequest,
+    background_tasks: BackgroundTasks,
+    job_store: JobStore = Depends(_get_backtest_job_store),
+):
     """
     Run a backtest with a pre-defined or custom strategy
 
@@ -264,12 +273,15 @@ async def run_backtest(request: BacktestRequest, background_tasks: BackgroundTas
                 config=request.model_dump(),
             )
 
-            backtest_jobs[job_id] = {
-                "task_id": task.id,
-                "strategy_name": strategy_name,
-                "status": "queued",
-                "created_at": datetime.now(),
-            }
+            job_store.set(
+                job_id,
+                {
+                    "task_id": task.id,
+                    "strategy_name": strategy_name,
+                    "status": "queued",
+                    "created_at": datetime.now(),
+                },
+            )
 
             return BacktestJobResponse(
                 job_id=job_id,
@@ -281,17 +293,24 @@ async def run_backtest(request: BacktestRequest, background_tasks: BackgroundTas
         except Exception as e:
             # Check if it's a connection error (Celery broker unavailable)
             error_str = str(e).lower()
-            if "connection refused" in error_str or "connection" in error_str or "refused" in error_str:
+            if (
+                "connection refused" in error_str
+                or "connection" in error_str
+                or "refused" in error_str
+            ):
                 # Celery broker not available, fall back to background task
                 logger.warning(f"Celery broker unavailable, falling back to background task: {e}")
                 background_tasks.add_task(_run_backtest_sync, job_id, request)
 
-                backtest_jobs[job_id] = {
-                    "task_id": job_id,
-                    "strategy_name": strategy_name,
-                    "status": "running",
-                    "created_at": datetime.now(),
-                }
+                job_store.set(
+                    job_id,
+                    {
+                        "task_id": job_id,
+                        "strategy_name": strategy_name,
+                        "status": "running",
+                        "created_at": datetime.now(),
+                    },
+                )
 
                 return BacktestJobResponse(
                     job_id=job_id,
@@ -307,12 +326,15 @@ async def run_backtest(request: BacktestRequest, background_tasks: BackgroundTas
         # Synchronous execution
         background_tasks.add_task(_run_backtest_sync, job_id, request)
 
-        backtest_jobs[job_id] = {
-            "task_id": job_id,
-            "strategy_name": strategy_name,
-            "status": "running",
-            "created_at": datetime.now(),
-        }
+        job_store.set(
+            job_id,
+            {
+                "task_id": job_id,
+                "strategy_name": strategy_name,
+                "status": "running",
+                "created_at": datetime.now(),
+            },
+        )
 
         return BacktestJobResponse(
             job_id=job_id,
@@ -324,14 +346,16 @@ async def run_backtest(request: BacktestRequest, background_tasks: BackgroundTas
 
 
 @router.get("/jobs/{job_id}")
-async def get_backtest_job_status(job_id: str):
+async def get_backtest_job_status(
+    job_id: str,
+    job_store: JobStore = Depends(_get_backtest_job_store),
+):
     """
     Get status of a backtest job
     """
-    if job_id not in backtest_jobs:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    job = backtest_jobs[job_id]
+    job = job_store.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found or expired")
 
     # Check Celery task status
     from backend.workers.celery_app import celery_app
@@ -380,7 +404,7 @@ async def get_backtest_results(
     Get detailed results of a completed backtest
     """
     try:
-        from db.models import BacktestResult, BacktestTrade
+        from backend.db.models import BacktestResult, BacktestTrade
 
         # Query backtest results
         query = select(BacktestResult).where(BacktestResult.backtest_id == backtest_id)
@@ -483,8 +507,9 @@ async def list_backtests(
     List all backtests with filtering
     """
     try:
-        from db.models import BacktestResult
         from sqlalchemy import func
+
+        from backend.db.models import BacktestResult
 
         # Build query
         query = select(BacktestResult)
@@ -550,7 +575,7 @@ async def delete_backtest(
     Delete a backtest result
     """
     try:
-        from db.models import BacktestResult
+        from backend.db.models import BacktestResult
 
         # Query backtest
         query = select(BacktestResult).where(BacktestResult.backtest_id == backtest_id)
@@ -577,7 +602,10 @@ async def delete_backtest(
 
 
 @router.post("/walk-forward")
-async def run_walk_forward_optimization(request: WalkForwardRequest):
+async def run_walk_forward_optimization(
+    request: WalkForwardRequest,
+    job_store: JobStore = Depends(_get_backtest_job_store),
+):
     """
     Run walk-forward optimization
 
@@ -620,13 +648,16 @@ async def run_walk_forward_optimization(request: WalkForwardRequest):
             slippage=request.slippage,
         )
 
-        backtest_jobs[job_id] = {
-            "task_id": task.id,
-            "strategy_name": request.strategy_name,
-            "type": "walk_forward",
-            "status": "queued",
-            "created_at": datetime.now(),
-        }
+        job_store.set(
+            job_id,
+            {
+                "task_id": task.id,
+                "strategy_name": request.strategy_name,
+                "type": "walk_forward",
+                "status": "queued",
+                "created_at": datetime.now(),
+            },
+        )
 
         return {
             "job_id": job_id,
@@ -642,7 +673,10 @@ async def run_walk_forward_optimization(request: WalkForwardRequest):
 
 
 @router.post("/optimize")
-async def optimize_parameters(request: OptimizationRequest):
+async def optimize_parameters(
+    request: OptimizationRequest,
+    job_store: JobStore = Depends(_get_backtest_job_store),
+):
     """
     Optimize strategy parameters using grid search
 
@@ -685,13 +719,16 @@ async def optimize_parameters(request: OptimizationRequest):
             commission=request.commission,
         )
 
-        backtest_jobs[job_id] = {
-            "task_id": task.id,
-            "strategy_name": request.strategy_name,
-            "type": "optimization",
-            "status": "queued",
-            "created_at": datetime.now(),
-        }
+        job_store.set(
+            job_id,
+            {
+                "task_id": task.id,
+                "strategy_name": request.strategy_name,
+                "type": "optimization",
+                "status": "queued",
+                "created_at": datetime.now(),
+            },
+        )
 
         return {
             "job_id": job_id,
@@ -720,7 +757,7 @@ async def compare_strategies(
                 status_code=400, detail="At least 2 backtests required for comparison"
             )
 
-        from db.models import BacktestResult
+        from backend.db.models import BacktestResult
 
         # Fetch all backtests
         query = select(BacktestResult).where(BacktestResult.backtest_id.in_(backtest_ids))
@@ -797,7 +834,7 @@ async def get_backtest_trades(
     Get detailed trade list from a backtest
     """
     try:
-        from db.models import BacktestTrade
+        from backend.db.models import BacktestTrade
 
         # Query trades
         query = (
@@ -848,7 +885,7 @@ async def get_equity_curve(
     Get equity curve data for visualization
     """
     try:
-        from db.models import BacktestResult
+        from backend.db.models import BacktestResult
 
         # Query backtest
         query = select(BacktestResult).where(BacktestResult.backtest_id == backtest_id)
@@ -864,7 +901,7 @@ async def get_equity_curve(
             equity_curve = backtest.config["equity_curve"]
         else:
             # Generate basic equity curve from trades
-            from db.models import BacktestTrade
+            from backend.db.models import BacktestTrade
 
             trades_query = (
                 select(BacktestTrade)
@@ -983,7 +1020,7 @@ async def get_monthly_returns(
     Get monthly returns breakdown
     """
     try:
-        from db.models import BacktestResult, BacktestTrade
+        from backend.db.models import BacktestResult, BacktestTrade
 
         # Query backtest
         query = select(BacktestResult).where(BacktestResult.backtest_id == backtest_id)
@@ -1072,12 +1109,16 @@ async def _run_backtest_sync(job_id: str, request: BacktestRequest):
     """
     Synchronous backtest execution
     """
+    redis_client = Redis.from_url(
+        settings.REDIS_URL, decode_responses=True, socket_connect_timeout=5
+    )
+    bg_job_store = JobStore(redis_client, prefix="backtest")
     try:
-        backtest_jobs[job_id]["status"] = "running"
+        bg_job_store.update(job_id, {"status": "running"})
 
         # Import required modules
-        from data_engine.collectors.yfinance_collector import YFinanceCollector
-        from data_engine.transformers.feature_engineering import FeatureEngineer
+        from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
+        from backend.data_engine.transformers.feature_engineering import FeatureEngineer
 
         # Collect data for all tickers
         collector = YFinanceCollector()
@@ -1195,20 +1236,26 @@ async def _run_backtest_sync(job_id: str, request: BacktestRequest):
         # Store results (in production, save to database)
         backtest_id = str(uuid4())
 
-        backtest_jobs[job_id]["status"] = "completed"
-        backtest_jobs[job_id]["backtest_id"] = backtest_id
-        backtest_jobs[job_id]["results"] = {
-            "initial_capital": request.initial_capital,
-            "final_capital": equity,
-            "total_return": total_return,
-            "sharpe_ratio": sharpe,
-            "volatility": volatility,
-            "num_trades": len(trades),
-            "win_rate": win_rate,
-            "equity_curve": equity_curve,
-        }
+        bg_job_store.update(
+            job_id,
+            {
+                "status": "completed",
+                "backtest_id": backtest_id,
+                "results": {
+                    "initial_capital": request.initial_capital,
+                    "final_capital": equity,
+                    "total_return": total_return,
+                    "sharpe_ratio": sharpe,
+                    "volatility": volatility,
+                    "num_trades": len(trades),
+                    "win_rate": win_rate,
+                    "equity_curve": equity_curve,
+                },
+            },
+        )
 
     except Exception as e:
         logger.error(f"Backtest error: {e}")
-        backtest_jobs[job_id]["status"] = "failed"
-        backtest_jobs[job_id]["error"] = str(e)
+        bg_job_store.update(job_id, {"status": "failed", "error": str(e)})
+    finally:
+        redis_client.close()

@@ -32,7 +32,7 @@ target "jupyter" {
 target "streamlit" {
   dockerfile = "docker/Dockerfile.streamlit"
   tags = ["lumina-streamlit:latest"]
-  context = "./frontend/streamlit-app"
+  context = "./frontend/streamlit_app"
   cache-from = ["type=registry,ref=lumina-streamlit:cache"]
   cache-to = ["type=inline"]
   platforms = ["linux/amd64"]

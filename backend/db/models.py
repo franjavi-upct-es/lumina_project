@@ -253,7 +253,9 @@ class BacktestResult(Base):
     num_trades: Mapped[int] = mapped_column(Integer)
     avg_trade: Mapped[float | None] = mapped_column(DOUBLE_PRECISION)
     config: Mapped[dict | None] = mapped_column(JSONB)  # Store backtest configuration
-    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), default=lambda: datetime.now(UTC)
+    )
 
     # Relationship to trades
     trades: Mapped[list["BacktestTrade"]] = relationship(
@@ -331,7 +333,9 @@ class Model(Base):
         String(50)
     )  # 'lstm', 'transformer', 'xgboost', 'ensemble'
     version: Mapped[str] = mapped_column(String(20))
-    trained_on: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    trained_on: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), default=lambda: datetime.now(UTC)
+    )
     ticker: Mapped[str | None] = mapped_column(String(10))
     training_samples: Mapped[int] = mapped_column(Integer)
     validation_samples: Mapped[int] = mapped_column(Integer)
@@ -351,7 +355,9 @@ class Model(Base):
 
     # Status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), default=lambda: datetime.now(UTC)
+    )
 
     __table_args__ = (
         Index("idx_models_name", "model_name", "version", postgresql_using="btree"),
@@ -388,7 +394,9 @@ class PortfolioPosition(Base):
     commission: Mapped[float] = mapped_column(DOUBLE_PRECISION)
     total_amount: Mapped[float] = mapped_column(DOUBLE_PRECISION)
     balance_after: Mapped[float] = mapped_column(DOUBLE_PRECISION)
-    executed_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    executed_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), default=lambda: datetime.now(UTC)
+    )
 
     __table_args__ = (
         Index("idx_transactions_user", "user_id", "executed_at", postgresql_using="btree"),
@@ -412,7 +420,9 @@ class PortfolioBalance(Base):
     equity: Mapped[float] = mapped_column(DOUBLE_PRECISION, default=0.0)
     total_value: Mapped[float] = mapped_column(DOUBLE_PRECISION, default=100000.0)
     updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
+        TIMESTAMP(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     __table_args__ = (
@@ -442,20 +452,37 @@ _engine: AsyncEngine | None = None
 _async_session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
+def _create_fresh_engine() -> AsyncEngine:
+    """
+    Create a brand-new async engine (not cached).
+    Used by standalone DB operations in Celery workers.
+    """
+    database_url = settings.get_database_url(async_driver=True)
+    return create_async_engine(
+        database_url,
+        echo=settings.DB_ECHO,
+        pool_size=5,
+        max_overflow=5,
+        pool_timeout=settings.DB_POOL_TIMEOUT,
+        pool_recycle=settings.DB_POOL_RECYCLE,
+        pool_pre_ping=True,
+        poolclass=NullPool,
+        connect_args={"server_settings": {"jit": "off"}, "ssl": False}
+        if "localhost" in database_url
+        else {},
+    )
+
+
 def get_async_engine() -> AsyncEngine:
     """
-    Get or create async SQLAlchemy engine
-
-    Returns:
-        AsyncEngine instance
+    Get or create async SQLAlchemy engine (cached singleton).
+    Suitable for long-lived processes like FastAPI.
+    For Celery workers, prefer _create_fresh_engine().
     """
     global _engine
 
     if _engine is None:
-        # Get database URL and ensure it uses asyncpg
         database_url = settings.get_database_url(async_driver=True)
-
-        # Create async engine with SSL disabled for localhost
         _engine = create_async_engine(
             database_url,
             echo=settings.DB_ECHO,
@@ -463,13 +490,12 @@ def get_async_engine() -> AsyncEngine:
             max_overflow=settings.DB_MAX_OVERFLOW,
             pool_timeout=settings.DB_POOL_TIMEOUT,
             pool_recycle=settings.DB_POOL_RECYCLE,
-            pool_pre_ping=True,  # Verify connections before using
+            pool_pre_ping=True,
             poolclass=NullPool if settings.is_production else None,
             connect_args={"server_settings": {"jit": "off"}, "ssl": False}
             if "localhost" in database_url
             else {},
         )
-
         logger.info(f"Created async database engine: {database_url.split('@')[1]}")
 
     return _engine
@@ -477,16 +503,12 @@ def get_async_engine() -> AsyncEngine:
 
 def get_async_session_factory() -> async_sessionmaker[AsyncSession]:
     """
-    Get or create async session factory
-
-    Returns:
-        async_sessionmaker instance
+    Get or create async session factory (cached singleton for FastAPI).
     """
     global _async_session_factory
 
     if _async_session_factory is None:
         engine = get_async_engine()
-
         _async_session_factory = async_sessionmaker(
             engine,
             class_=AsyncSession,
@@ -494,7 +516,6 @@ def get_async_session_factory() -> async_sessionmaker[AsyncSession]:
             autocommit=False,
             autoflush=False,
         )
-
         logger.info("Created async session factory")
 
     return _async_session_factory
@@ -503,14 +524,6 @@ def get_async_session_factory() -> async_sessionmaker[AsyncSession]:
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency for FastAPI routes to get async database session
-
-    Usage:
-        @router.get("/items")
-        async def get_items(db: AsyncSession = Depends(get_async_session)):
-            ...
-
-    Yields:
-        AsyncSession instance
     """
     session_factory = get_async_session_factory()
 
@@ -529,23 +542,13 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 async def init_db():
     """
     Initialize database - create all tables
-
-    Note: Hypertables and continuous aggregates are created by SQL scripts
-    This only creates regular tables
     """
     try:
         engine = get_async_engine()
-
         logger.info("Initializing database tables...")
-
-        # Create all tables
         async with engine.begin() as conn:
-            # Only create regular tables (not hypertables)
-            # Hypertables are created by timescale_setup.sql
             await conn.run_sync(Base.metadata.create_all)
-
         logger.success("Database tables initialized successfully")
-
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         raise
@@ -567,15 +570,34 @@ async def close_db():
 def reset_db_engine():
     """
     Synchronously reset the global engine and session factory.
-
-    Must be called before creating a new event loop in Celery workers
-    to avoid 'Future attached to a different loop' errors. The old engine's
-    connections are bound to a previous (now closed) event loop and cannot
-    be reused.
+    Must be called before creating a new event loop in Celery workers.
     """
     global _engine, _async_session_factory
     _engine = None
     _async_session_factory = None
+
+
+import asyncio as _asyncio
+from typing import TypeVar as _TypeVar
+
+_T = _TypeVar("_T")
+
+
+def run_async(coro) -> "_T":
+    """
+    Run an async coroutine from a synchronous context (Celery worker).
+    Creates a fresh event loop and engine each time — safe for prefork workers.
+    """
+    loop = _asyncio.new_event_loop()
+    _asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        try:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        except Exception:
+            pass
+        loop.close()
 
 
 # ============================================================================
@@ -585,51 +607,54 @@ def reset_db_engine():
 
 async def check_db_connection() -> bool:
     """
-    Check if database connection is working
-
-    Returns:
-        True if connection successful, False otherwise
+    Check if database connection is working.
+    Uses a fresh engine so it's safe from Celery workers.
     """
+    engine = _create_fresh_engine()
     try:
-        engine = get_async_engine()
-
         async with engine.connect() as conn:
             result = await conn.execute(text("SELECT 1"))
             result.fetchone()
-
         logger.info("Database connection check: OK")
         return True
-
     except Exception as e:
         logger.error(f"Database connection check failed: {e}")
         return False
+    finally:
+        await engine.dispose()
 
 
-async def execute_raw_sql(sql: str) -> list:
-    """
-    Execute raw SQL query
+async def _execute_raw_sql_internal(sql: str) -> list:
+    """INTERNAL ONLY — never pass user input to this function.
+    For parameterized queries, use SQLAlchemy ORM or `text()` with bound parameters."""
+    import re
 
-    Args:
-        sql: SQL query string
+    # Defense-in-depth: reject SQL containing common injection patterns
+    dangerous_patterns = re.compile(
+        r";\s*(DROP|DELETE|INSERT|UPDATE|ALTER|CREATE|TRUNCATE)\b|UNION\s+SELECT",
+        re.IGNORECASE,
+    )
+    if dangerous_patterns.search(sql):
+        raise ValueError("Rejected: SQL contains potentially dangerous patterns")
 
-    Returns:
-        List of rows
+    logger.warning(f"Raw SQL executed: {sql[:100]}...")
 
-    Example:
-        rows = await execute_raw_sql("SELECT * FROM price_data LIMIT 10")
-    """
+    engine = _create_fresh_engine()
     try:
-        engine = get_async_engine()
-
         async with engine.connect() as conn:
             result = await conn.execute(text(sql))
             if result.returns_rows:
                 return result.fetchall()
             return []
-
     except Exception as e:
         logger.error(f"Failed to execute SQL: {e}")
         raise
+    finally:
+        await engine.dispose()
+
+
+# Backward-compatible alias for internal callers
+execute_raw_sql = _execute_raw_sql_internal
 
 
 # ============================================================================
@@ -637,95 +662,68 @@ async def execute_raw_sql(sql: str) -> list:
 # ============================================================================
 
 
+def _normalize_timestamps(data: list[dict]) -> None:
+    """Normalize timestamps to tz-aware UTC in-place."""
+    import pandas as _pd
+
+    for row in data:
+        t = row.get("time")
+        if t is None:
+            continue
+        if isinstance(t, _pd.Timestamp):
+            row["time"] = (
+                t.tz_localize("UTC").to_pydatetime()
+                if t.tzinfo is None
+                else t.tz_convert("UTC").to_pydatetime()
+            )
+        elif isinstance(t, datetime):
+            row["time"] = t.replace(tzinfo=UTC) if t.tzinfo is None else t.astimezone(UTC)
+
+
 async def bulk_insert_price_data(data: list[dict]) -> int:
     """
-    Bulk insert price data for performance
-
-    Args:
-        data: List of dictionaries with price data
-
-    Returns:
-        Number of rows inserted
-
-    Example:
-        data = [
-            {"time": datetime(...), "ticker": "AAPL", "close": 150.0, ...},
-            ...
-        ]
-        count = await bulk_insert_price_data(data)
+    Bulk insert price data using a fresh engine (Celery-safe).
     """
     if not data:
         return 0
 
+    _normalize_timestamps(data)
+    engine = _create_fresh_engine()
     try:
-        # Normalize timestamps to tz-aware UTC for TIMESTAMP(timezone=True)
-
-        import pandas as pd
-
-        for row in data:
-            t = row.get("time")
-            if t is None:
-                continue
-            if isinstance(t, pd.Timestamp):
-                row["time"] = (
-                    t.tz_localize("UTC").to_pydatetime()
-                    if t.tzinfo is None
-                    else t.tz_convert("UTC").to_pydatetime()
-                )
-            elif isinstance(t, datetime):
-                row["time"] = t.replace(tzinfo=UTC) if t.tzinfo is None else t.astimezone(UTC)
-
-        session_factory = get_async_session_factory()
-
+        session_factory = async_sessionmaker(
+            engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )
         async with session_factory() as session:
-            # Use bulk_insert_mappings for better performance
-            await session.execute(
-                PriceData.__table__.insert(),
-                data,
-            )
+            await session.execute(PriceData.__table__.insert(), data)
             await session.commit()
-
         logger.info(f"Bulk inserted {len(data)} price data rows")
         return len(data)
-
     except Exception as e:
         logger.error(f"Bulk insert failed: {e}")
         raise
+    finally:
+        await engine.dispose()
 
 
 async def bulk_insert_features(data: list[dict]) -> int:
     """
-    Bulk insert features for performance with UPSERT to handle duplicates
-
-    Args:
-        data: List of dictionaries with feature data
-
-    Returns:
-        Number of rows inserted
+    Bulk insert features with UPSERT using a fresh engine (Celery-safe).
     """
     if not data:
         return 0
 
+    from sqlalchemy.dialects.postgresql import insert
+
+    _normalize_timestamps(data)
+    engine = _create_fresh_engine()
     try:
-        # Normalize timestamps to tz-aware UTC for TIMESTAMP(timezone=True)
-
-        from sqlalchemy.dialects.postgresql import insert
-
-        for row in data:
-            t = row.get("time")
-            if t is None:
-                continue
-            if isinstance(t, pd.Timestamp):
-                row["time"] = (
-                    t.tz_localize("UTC").to_pydatetime()
-                    if t.tzinfo is None
-                    else t.tz_convert("UTC").to_pydatetime()
-                )
-            elif isinstance(t, datetime):
-                row["time"] = t.replace(tzinfo=UTC) if t.tzinfo is None else t.astimezone(UTC)
-
-        session_factory = get_async_session_factory()
-
+        session_factory = async_sessionmaker(
+            engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )
         async with session_factory() as session:
             stmt = insert(Feature).values(data)
             stmt = stmt.on_conflict_do_update(
@@ -737,13 +735,13 @@ async def bulk_insert_features(data: list[dict]) -> int:
             )
             await session.execute(stmt)
             await session.commit()
-
         logger.info(f"Bulk inserted/updated {len(data)} feature rows")
         return len(data)
-
     except Exception as e:
         logger.error(f"Bulk insert features failed: {e}")
         raise
+    finally:
+        await engine.dispose()
 
 
 # ============================================================================
@@ -753,114 +751,140 @@ async def bulk_insert_features(data: list[dict]) -> int:
 
 async def get_latest_price(ticker: str) -> PriceData | None:
     """
-    Get most recent price data for a ticker
-
-    Args:
-        ticker: Stock ticker symbol
-
-    Returns:
-        PriceData instance or None
+    Get most recent price data for a ticker (Celery-safe).
     """
     from sqlalchemy import desc, select
 
-    session_factory = get_async_session_factory()
-
-    async with session_factory() as session:
-        query = (
-            select(PriceData)
-            .where(PriceData.ticker == ticker)
-            .order_by(desc(PriceData.time))
-            .limit(1)
+    engine = _create_fresh_engine()
+    try:
+        session_factory = async_sessionmaker(
+            engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
         )
-
-        result = await session.execute(query)
-        return result.scalar_one_or_none()
+        async with session_factory() as session:
+            query = (
+                select(PriceData)
+                .where(PriceData.ticker == ticker)
+                .order_by(desc(PriceData.time))
+                .limit(1)
+            )
+            result = await session.execute(query)
+            return result.scalar_one_or_none()
+    finally:
+        await engine.dispose()
 
 
 async def get_price_history(
     ticker: str, start_date: datetime, end_date: datetime
 ) -> list[PriceData]:
     """
-    Get price history for a ticker in date range
-
-    Args:
-        ticker: Stock ticker symbol
-        start_date: Start date
-        end_date: End date
-
-    Returns:
-        List of PriceData instances
+    Get price history for a ticker in date range (Celery-safe).
     """
     from sqlalchemy import and_, select
 
-    session_factory = get_async_session_factory()
-
-    async with session_factory() as session:
-        query = (
-            select(PriceData)
-            .where(
-                and_(
-                    PriceData.ticker == ticker,
-                    PriceData.time >= start_date,
-                    PriceData.time <= end_date,
-                )
-            )
-            .order_by(PriceData.time)
+    engine = _create_fresh_engine()
+    try:
+        session_factory = async_sessionmaker(
+            engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
         )
-
-        result = await session.execute(query)
-        return list(result.scalars().all())
+        async with session_factory() as session:
+            query = (
+                select(PriceData)
+                .where(
+                    and_(
+                        PriceData.ticker == ticker,
+                        PriceData.time >= start_date,
+                        PriceData.time <= end_date,
+                    )
+                )
+                .order_by(PriceData.time)
+            )
+            result = await session.execute(query)
+            return list(result.scalars().all())
+    finally:
+        await engine.dispose()
 
 
 async def get_active_models(ticker: str | None = None) -> list[Model]:
     """
-    Get all active models, optionally filtered by ticker
-
-    Args:
-        ticker: Optional ticker to filter by
-
-    Returns:
-        List of Model instances
+    Get all active models, optionally filtered by ticker (Celery-safe).
     """
     from sqlalchemy import select
 
-    session_factory = get_async_session_factory()
+    engine = _create_fresh_engine()
+    try:
+        session_factory = async_sessionmaker(
+            engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )
+        async with session_factory() as session:
+            query = select(Model).where(Model.is_active.is_(True))
+            if ticker:
+                query = query.where(Model.ticker == ticker)
+            query = query.order_by(Model.trained_on.desc())
+            result = await session.execute(query)
+            return list(result.scalars().all())
+    finally:
+        await engine.dispose()
 
-    async with session_factory() as session:
-        query = select(Model).where(Model.is_active.is_(True))
 
-        if ticker:
-            query = query.where(Model.ticker == ticker)
+async def save_model_to_db(model_data: dict) -> str:
+    """
+    Save a trained model record to the models table (Celery-safe).
 
-        query = query.order_by(Model.trained_on.desc())
+    Args:
+        model_data: dict with keys matching Model columns
 
-        result = await session.execute(query)
-        return list(result.scalars().all())
+    Returns:
+        The model_id (UUID string)
+    """
+    engine = _create_fresh_engine()
+    try:
+        session_factory = async_sessionmaker(
+            engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )
+        async with session_factory() as session:
+            model = Model(**model_data)
+            session.add(model)
+            await session.commit()
+            await session.refresh(model)
+            logger.info(f"Saved model to DB: {model.model_name} v{model.version}")
+            return str(model.model_id)
+    except Exception as e:
+        logger.error(f"Failed to save model to DB: {e}")
+        raise
+    finally:
+        await engine.dispose()
 
 
 async def delete_features_by_ticker(ticker: str, start_date: datetime, end_date: datetime) -> int:
     """
-    Delete features for a ticker in date range
-
-    Args:
-        ticker: Stock ticker symbol
-        start_date: Start date
-        end_date: End date
-
-    Returns:
-        Number of rows deleted
+    Delete features for a ticker in date range (Celery-safe).
     """
     from sqlalchemy import and_, delete
 
-    session_factory = get_async_session_factory()
-
-    async with session_factory() as session:
-        stmt = delete(Feature).where(
-            and_(Feature.ticker == ticker, Feature.time >= start_date, Feature.time <= end_date)
+    engine = _create_fresh_engine()
+    try:
+        session_factory = async_sessionmaker(
+            engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
         )
-        result = await session.execute(stmt)
-        await session.commit()
-        return result.rowcount
+        async with session_factory() as session:
+            stmt = delete(Feature).where(
+                and_(Feature.ticker == ticker, Feature.time >= start_date, Feature.time <= end_date)
+            )
+            result = await session.execute(stmt)
+            await session.commit()
+            return result.rowcount
+    finally:
+        await engine.dispose()
 
 
 # ============================================================================
@@ -890,9 +914,10 @@ __all__ = [
     "get_async_session",
     "init_db",
     "close_db",
+    "reset_db_engine",
+    "run_async",
     # Utilities
     "check_db_connection",
-    "execute_raw_sql",
     # Bulk operations
     "bulk_insert_price_data",
     "bulk_insert_features",
@@ -901,4 +926,5 @@ __all__ = [
     "get_latest_price",
     "get_price_history",
     "get_active_models",
+    "save_model_to_db",
 ]

@@ -303,13 +303,13 @@ ALTER TABLE sentiment_data SET(
 );
 
 -- Compression policies
-SELECT add_compression_policy ( 'price_data', INTERVAL '7 days', if_not_exists => TRUE );
+SELECT add_compression_policy ( 'price_data', INTERVAL '30 days', if_not_exists => TRUE );
 
-SELECT add_compression_policy ('features', INTERVAL '7 days', if_not_exists => TRUE);
+SELECT add_compression_policy ('features', INTERVAL '30 days', if_not_exists => TRUE);
 
-SELECT add_compression_policy ( 'sentiment_data', INTERVAL '7 days', if_not_exists => TRUE );
+SELECT add_compression_policy ( 'sentiment_data', INTERVAL '14 days', if_not_exists => TRUE );
 
 -- Grant permissions
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO luMINa;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO lumina;
 
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO luMINa;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO lumina;
