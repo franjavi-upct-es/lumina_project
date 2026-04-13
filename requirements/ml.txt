@@ -129,7 +129,7 @@ optuna==4.6.0
 packaging==25.0
 pandas==2.3.3
 patsy==1.0.2
-pillow==12.1.0
+pillow==12.2.0
 platformdirs==4.5.1
 plotly==6.5.0
 preshed==3.0.12
