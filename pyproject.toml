@@ -61,7 +61,7 @@ dependencies = [
     "praw>=7.7.1",
     "tweepy>=4.14.0",
     "newsapi-python>=0.2.7",
-    "python-multipart>=0.0.9",
+    "python-multipart>=0.0.26",
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
     "sentry-sdk>=2.1.0",
@@ -75,7 +75,7 @@ dependencies = [
 # API service dependencies (backend/api/*)
 api = [
     "gunicorn>=21.2.0",
-    "python-multipart>=0.0.9",
+    "python-multipart>=0.0.26",
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
     "slowapi>=0.1.9",
