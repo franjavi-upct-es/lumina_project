@@ -4,6 +4,7 @@ Comprehensive feature engineering for financial time series
 Creates 100+ technical, statistical, and derived features
 """
 
+
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -21,7 +22,7 @@ class FeatureEngineer:
 
     def _reset_categories(self) -> None:
         self.feature_categories = {
-            "price": [],
+            "price": [],  # type: ignore
             "volume": [],
             "volatility": [],
             "momentum": [],
@@ -465,7 +466,9 @@ class FeatureEngineer:
 
         return df
 
-    def _add_lagged_features(self, df: pd.DataFrame, lags: list[int] = None) -> pd.DataFrame:
+    def _add_lagged_features(
+        self, df: pd.DataFrame, lags: list[int] | None = None
+    ) -> pd.DataFrame:
         """Add lagged features for capturing temporal patterns"""
         if lags is None:
             lags = [1, 2, 3, 5, 10, 20]

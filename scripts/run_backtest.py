@@ -65,6 +65,7 @@ try:
     from backend.data_engine.collectors.yfinance_collector import YFinanceCollector  # noqa: F401
     from backend.db.models import BacktestResult  # noqa: F401
     from backend.quant_engine.risk.var_calculator import VaRCalculator  # noqa: F401
+
     IMPORTS_AVAILABLE = True
 except ImportError:
     IMPORTS_AVAILABLE = False
@@ -74,11 +75,8 @@ except ImportError:
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('backtest.log'),
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("backtest.log"), logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
 
@@ -104,19 +102,20 @@ class BacktestConfig:
         benchmark: Benchmark ticker for comparison
         strategy_params: Dictionary of strategy-specific parameters
     """
+
     strategy_name: str
     ticker: str
     start_date: str
     end_date: str
     initial_capital: float = 100000.0
     commission: float = 0.001  # 0.1%
-    slippage: float = 0.001    # 0.1%
-    engine_type: str = 'vectorized'
-    position_size: str = 'percent'
+    slippage: float = 0.001  # 0.1%
+    engine_type: str = "vectorized"
+    position_size: str = "percent"
     max_position_size: float = 0.1  # 10% of capital
     stop_loss: float | None = None
     take_profit: float | None = None
-    benchmark: str = 'SPY'
+    benchmark: str = "SPY"
     strategy_params: dict[str, Any] = None
 
     def __post_init__(self):
@@ -142,14 +141,14 @@ class StrategyLibrary:
             List of strategy names
         """
         return [
-            'mean_reversion',
-            'momentum',
-            'ma_crossover',
-            'rsi_strategy',
-            'bollinger_bands',
-            'trend_following',
-            'pairs_trading',
-            'breakout'
+            "mean_reversion",
+            "momentum",
+            "ma_crossover",
+            "rsi_strategy",
+            "bollinger_bands",
+            "trend_following",
+            "pairs_trading",
+            "breakout",
         ]
 
     @staticmethod
@@ -165,15 +164,15 @@ class StrategyLibrary:
         Returns:
             Series with trading signals (1: long, -1: short, 0: neutral)
         """
-        prices = data['close']
+        prices = data["close"]
         rolling_mean = prices.rolling(window=window).mean()
         rolling_std = prices.rolling(window=window).std()
 
         z_score = (prices - rolling_mean) / rolling_std
 
         signals = pd.Series(0, index=data.index)
-        signals[z_score < -std_dev] = 1   # Buy when oversold
-        signals[z_score > std_dev] = -1   # Sell when overbought
+        signals[z_score < -std_dev] = 1  # Buy when oversold
+        signals[z_score > std_dev] = -1  # Sell when overbought
 
         return signals
 
@@ -190,20 +189,18 @@ class StrategyLibrary:
         Returns:
             Series with trading signals
         """
-        prices = data['close']
+        prices = data["close"]
         returns = prices.pct_change(lookback)
 
         signals = pd.Series(0, index=data.index)
-        signals[returns > threshold] = 1   # Buy on positive momentum
+        signals[returns > threshold] = 1  # Buy on positive momentum
         signals[returns < -threshold] = -1  # Short on negative momentum
 
         return signals
 
     @staticmethod
     def ma_crossover(
-        data: pd.DataFrame,
-        fast_period: int = 50,
-        slow_period: int = 200
+        data: pd.DataFrame, fast_period: int = 50, slow_period: int = 200
     ) -> pd.Series:
         """
         Moving average crossover strategy.
@@ -216,22 +213,19 @@ class StrategyLibrary:
         Returns:
             Series with trading signals
         """
-        prices = data['close']
+        prices = data["close"]
         fast_ma = prices.rolling(window=fast_period).mean()
         slow_ma = prices.rolling(window=slow_period).mean()
 
         signals = pd.Series(0, index=data.index)
-        signals[fast_ma > slow_ma] = 1   # Buy when fast > slow
+        signals[fast_ma > slow_ma] = 1  # Buy when fast > slow
         signals[fast_ma < slow_ma] = -1  # Sell when fast < slow
 
         return signals
 
     @staticmethod
     def rsi_strategy(
-        data: pd.DataFrame,
-        period: int = 14,
-        oversold: float = 30,
-        overbought: float = 70
+        data: pd.DataFrame, period: int = 14, oversold: float = 30, overbought: float = 70
     ) -> pd.Series:
         """
         RSI-based trading strategy.
@@ -245,7 +239,7 @@ class StrategyLibrary:
         Returns:
             Series with trading signals
         """
-        prices = data['close']
+        prices = data["close"]
         delta = prices.diff()
 
         gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
@@ -255,17 +249,13 @@ class StrategyLibrary:
         rsi = 100 - (100 / (1 + rs))
 
         signals = pd.Series(0, index=data.index)
-        signals[rsi < oversold] = 1   # Buy when oversold
+        signals[rsi < oversold] = 1  # Buy when oversold
         signals[rsi > overbought] = -1  # Sell when overbought
 
         return signals
 
     @staticmethod
-    def bollinger_bands(
-        data: pd.DataFrame,
-        period: int = 20,
-        std_dev: float = 2.0
-    ) -> pd.Series:
+    def bollinger_bands(data: pd.DataFrame, period: int = 20, std_dev: float = 2.0) -> pd.Series:
         """
         Bollinger Bands strategy.
 
@@ -277,7 +267,7 @@ class StrategyLibrary:
         Returns:
             Series with trading signals
         """
-        prices = data['close']
+        prices = data["close"]
         ma = prices.rolling(window=period).mean()
         std = prices.rolling(window=period).std()
 
@@ -285,7 +275,7 @@ class StrategyLibrary:
         lower_band = ma - (std_dev * std)
 
         signals = pd.Series(0, index=data.index)
-        signals[prices < lower_band] = 1   # Buy at lower band
+        signals[prices < lower_band] = 1  # Buy at lower band
         signals[prices > upper_band] = -1  # Sell at upper band
 
         return signals
@@ -305,11 +295,11 @@ class StrategyLibrary:
             ValueError: If strategy name is not recognized
         """
         strategies = {
-            'mean_reversion': StrategyLibrary.mean_reversion,
-            'momentum': StrategyLibrary.momentum,
-            'ma_crossover': StrategyLibrary.ma_crossover,
-            'rsi_strategy': StrategyLibrary.rsi_strategy,
-            'bollinger_bands': StrategyLibrary.bollinger_bands,
+            "mean_reversion": StrategyLibrary.mean_reversion,
+            "momentum": StrategyLibrary.momentum,
+            "ma_crossover": StrategyLibrary.ma_crossover,
+            "rsi_strategy": StrategyLibrary.rsi_strategy,
+            "bollinger_bands": StrategyLibrary.bollinger_bands,
         }
 
         if name not in strategies:
@@ -352,7 +342,7 @@ class BacktestRunner:
         start_date = pd.to_datetime(self.config.start_date)
         end_date = pd.to_datetime(self.config.end_date)
 
-        date_range = pd.date_range(start=start_date, end=end_date, freq='D')
+        date_range = pd.date_range(start=start_date, end=end_date, freq="D")
 
         # Generate realistic price data
         np.random.seed(42)
@@ -364,16 +354,18 @@ class BacktestRunner:
         trend = np.linspace(0, 20, len(date_range))
         prices = prices + trend
 
-        data = pd.DataFrame({
-            'date': date_range,
-            'open': prices * (1 + np.random.randn(len(date_range)) * 0.005),
-            'high': prices * (1 + np.abs(np.random.randn(len(date_range))) * 0.01),
-            'low': prices * (1 - np.abs(np.random.randn(len(date_range))) * 0.01),
-            'close': prices,
-            'volume': np.random.randint(1000000, 10000000, len(date_range))
-        })
+        data = pd.DataFrame(
+            {
+                "date": date_range,
+                "open": prices * (1 + np.random.randn(len(date_range)) * 0.005),
+                "high": prices * (1 + np.abs(np.random.randn(len(date_range))) * 0.01),
+                "low": prices * (1 - np.abs(np.random.randn(len(date_range))) * 0.01),
+                "close": prices,
+                "volume": np.random.randint(1000000, 10000000, len(date_range)),
+            }
+        )
 
-        data.set_index('date', inplace=True)
+        data.set_index("date", inplace=True)
 
         logger.info(f"Fetched {len(data)} days of data")
         return data
@@ -413,19 +405,19 @@ class BacktestRunner:
         positions = 0
 
         results = pd.DataFrame(index=data.index)
-        results['signal'] = signals
-        results['position'] = 0
-        results['cash'] = 0.0
-        results['holdings'] = 0.0
-        results['total'] = 0.0
+        results["signal"] = signals
+        results["position"] = 0
+        results["cash"] = 0.0
+        results["holdings"] = 0.0
+        results["total"] = 0.0
 
         for i, (date, row) in enumerate(data.iterrows()):
             signal = signals.loc[date] if date in signals.index else 0
-            price = row['close']
+            price = row["close"]
 
             # Execute trades based on signal changes
             if i > 0:
-                prev_position = results.iloc[i-1]['position']
+                prev_position = results.iloc[i - 1]["position"]
 
                 if signal != prev_position:
                     # Close previous position
@@ -451,10 +443,10 @@ class BacktestRunner:
             holdings_value = positions * price
             total_value = cash + holdings_value
 
-            results.loc[date, 'position'] = positions
-            results.loc[date, 'cash'] = cash
-            results.loc[date, 'holdings'] = holdings_value
-            results.loc[date, 'total'] = total_value
+            results.loc[date, "position"] = positions
+            results.loc[date, "cash"] = cash
+            results.loc[date, "holdings"] = holdings_value
+            results.loc[date, "total"] = total_value
 
         return results
 
@@ -472,11 +464,11 @@ class BacktestRunner:
         logger.info("Calculating performance metrics...")
 
         # Portfolio returns
-        portfolio_values = results['total']
+        portfolio_values = results["total"]
         portfolio_returns = portfolio_values.pct_change().dropna()
 
         # Benchmark returns
-        data['close'].pct_change().dropna()
+        data["close"].pct_change().dropna()
 
         # Calculate metrics
         total_return = (portfolio_values.iloc[-1] / self.config.initial_capital) - 1
@@ -512,21 +504,21 @@ class BacktestRunner:
         calmar_ratio = (annualized_return / abs(max_drawdown)) if max_drawdown != 0 else 0
 
         # Number of trades
-        position_changes = results['position'].diff()
+        position_changes = results["position"].diff()
         num_trades = (position_changes != 0).sum()
 
         metrics = {
-            'total_return': total_return,
-            'annualized_return': annualized_return,
-            'volatility': volatility,
-            'sharpe_ratio': sharpe_ratio,
-            'sortino_ratio': sortino_ratio,
-            'calmar_ratio': calmar_ratio,
-            'max_drawdown': max_drawdown,
-            'win_rate': win_rate,
-            'num_trades': num_trades,
-            'final_capital': portfolio_values.iloc[-1],
-            'total_days': days
+            "total_return": total_return,
+            "annualized_return": annualized_return,
+            "volatility": volatility,
+            "sharpe_ratio": sharpe_ratio,
+            "sortino_ratio": sortino_ratio,
+            "calmar_ratio": calmar_ratio,
+            "max_drawdown": max_drawdown,
+            "win_rate": win_rate,
+            "num_trades": num_trades,
+            "final_capital": portfolio_values.iloc[-1],
+            "total_days": days,
         }
 
         return metrics
@@ -563,10 +555,10 @@ class BacktestRunner:
         self._print_summary(metrics)
 
         return {
-            'config': asdict(self.config),
-            'results': results,
-            'metrics': metrics,
-            'backtest_id': str(uuid.uuid4())
+            "config": asdict(self.config),
+            "results": results,
+            "metrics": metrics,
+            "backtest_id": str(uuid.uuid4()),
         }
 
     def _print_summary(self, metrics: dict[str, float]):
@@ -576,15 +568,15 @@ class BacktestRunner:
         Args:
             metrics: Performance metrics dictionary
         """
-        logger.info("\n" + "="*70)
+        logger.info("\n" + "=" * 70)
         logger.info("BACKTEST SUMMARY")
-        logger.info("="*70)
+        logger.info("=" * 70)
         logger.info(f"Strategy: {self.config.strategy_name}")
         logger.info(f"Ticker: {self.config.ticker}")
         logger.info(f"Period: {self.config.start_date} to {self.config.end_date}")
         logger.info(f"Initial Capital: ${self.config.initial_capital:,.2f}")
         logger.info(f"Final Capital: ${metrics['final_capital']:,.2f}")
-        logger.info("-"*70)
+        logger.info("-" * 70)
         logger.info(f"Total Return: {metrics['total_return']:.2%}")
         logger.info(f"Annualized Return: {metrics['annualized_return']:.2%}")
         logger.info(f"Volatility (Annual): {metrics['volatility']:.2%}")
@@ -594,7 +586,7 @@ class BacktestRunner:
         logger.info(f"Max Drawdown: {metrics['max_drawdown']:.2%}")
         logger.info(f"Win Rate: {metrics['win_rate']:.2%}")
         logger.info(f"Number of Trades: {metrics['num_trades']:.0f}")
-        logger.info("="*70 + "\n")
+        logger.info("=" * 70 + "\n")
 
     def save_results(self, output_dir: str = "backtest_results"):
         """
@@ -616,13 +608,13 @@ class BacktestRunner:
 
         # Save metrics
         metrics_file = output_path / f"{base_filename}_metrics.json"
-        with open(metrics_file, 'w') as f:
+        with open(metrics_file, "w") as f:
             json.dump(self.metrics, f, indent=2)
         logger.info(f"Metrics saved to: {metrics_file}")
 
         # Save configuration
         config_file = output_path / f"{base_filename}_config.json"
-        with open(config_file, 'w') as f:
+        with open(config_file, "w") as f:
             json.dump(asdict(self.config), f, indent=2)
         logger.info(f"Configuration saved to: {config_file}")
 
@@ -647,7 +639,7 @@ class ParameterOptimizer:
         self.config = config
         self.param_grid = param_grid
 
-    def optimize(self, metric: str = 'sharpe_ratio') -> dict[str, Any]:
+    def optimize(self, metric: str = "sharpe_ratio") -> dict[str, Any]:
         """
         Run parameter optimization.
 
@@ -670,6 +662,7 @@ class ParameterOptimizer:
         param_values = list(self.param_grid.values())
 
         from itertools import product
+
         param_combinations = list(product(*param_values))
 
         logger.info(f"Testing {len(param_combinations)} parameter combinations...")
@@ -677,7 +670,7 @@ class ParameterOptimizer:
         for i, param_combo in enumerate(param_combinations):
             params = dict(zip(param_names, param_combo))
 
-            logger.info(f"Testing combination {i+1}/{len(param_combinations)}: {params}")
+            logger.info(f"Testing combination {i + 1}/{len(param_combinations)}: {params}")
 
             # Update config with current parameters
             test_config = BacktestConfig(
@@ -688,7 +681,7 @@ class ParameterOptimizer:
                 initial_capital=self.config.initial_capital,
                 commission=self.config.commission,
                 slippage=self.config.slippage,
-                strategy_params=params
+                strategy_params=params,
             )
 
             # Run backtest
@@ -696,11 +689,11 @@ class ParameterOptimizer:
             result = runner.run()
 
             # Check if this is the best result
-            score = result['metrics'][metric]
+            score = result["metrics"][metric]
             if score > best_score:
                 best_score = score
                 best_params = params
-                best_metrics = result['metrics']
+                best_metrics = result["metrics"]
                 logger.info(f"New best score: {best_score:.4f}")
 
         logger.info("Optimization complete!")
@@ -708,10 +701,10 @@ class ParameterOptimizer:
         logger.info(f"Best {metric}: {best_score:.4f}")
 
         return {
-            'best_params': best_params,
-            'best_score': best_score,
-            'best_metrics': best_metrics,
-            'optimization_metric': metric
+            "best_params": best_params,
+            "best_score": best_score,
+            "best_metrics": best_metrics,
+            "optimization_metric": metric,
         }
 
 
@@ -723,7 +716,7 @@ def parse_arguments():
         Parsed arguments
     """
     parser = argparse.ArgumentParser(
-        description='Run backtests for trading strategies',
+        description="Run backtests for trading strategies",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -737,125 +730,97 @@ Examples:
   # Run optimization
   python scripts/run_backtest.py --strategy ma_crossover --ticker SPY \\
       --optimize --param-grid '{"fast_period": [20, 50], "slow_period": [100, 200]}'
-        """
+        """,
     )
 
     # Required arguments
     parser.add_argument(
-        '--strategy',
+        "--strategy",
         type=str,
         required=True,
         choices=StrategyLibrary.get_available_strategies(),
-        help='Trading strategy to backtest'
+        help="Trading strategy to backtest",
     )
 
-    parser.add_argument(
-        '--ticker',
-        type=str,
-        required=True,
-        help='Stock ticker symbol'
-    )
+    parser.add_argument("--ticker", type=str, required=True, help="Stock ticker symbol")
 
     # Optional arguments
     parser.add_argument(
-        '--start-date',
+        "--start-date",
         type=str,
-        default=(datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d'),
-        help='Backtest start date (YYYY-MM-DD)'
+        default=(datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d"),
+        help="Backtest start date (YYYY-MM-DD)",
     )
 
     parser.add_argument(
-        '--end-date',
+        "--end-date",
         type=str,
-        default=datetime.now().strftime('%Y-%m-%d'),
-        help='Backtest end date (YYYY-MM-DD)'
+        default=datetime.now().strftime("%Y-%m-%d"),
+        help="Backtest end date (YYYY-MM-DD)",
     )
 
     parser.add_argument(
-        '--initial-capital',
-        type=float,
-        default=100000.0,
-        help='Initial capital in USD'
+        "--initial-capital", type=float, default=100000.0, help="Initial capital in USD"
     )
 
     parser.add_argument(
-        '--commission',
+        "--commission",
         type=float,
         default=0.001,
-        help='Commission per trade (as decimal, e.g., 0.001 for 0.1%%)'
+        help="Commission per trade (as decimal, e.g., 0.001 for 0.1%%)",
     )
 
     parser.add_argument(
-        '--slippage',
-        type=float,
-        default=0.001,
-        help='Slippage per trade (as decimal)'
+        "--slippage", type=float, default=0.001, help="Slippage per trade (as decimal)"
     )
 
     parser.add_argument(
-        '--engine',
+        "--engine",
         type=str,
-        default='vectorized',
-        choices=['vectorized', 'event_driven'],
-        help='Backtesting engine type'
+        default="vectorized",
+        choices=["vectorized", "event_driven"],
+        help="Backtesting engine type",
     )
 
     parser.add_argument(
-        '--max-position-size',
+        "--max-position-size",
         type=float,
         default=0.1,
-        help='Maximum position size as fraction of capital'
+        help="Maximum position size as fraction of capital",
     )
 
     parser.add_argument(
-        '--strategy-params',
-        type=str,
-        default='{}',
-        help='Strategy parameters as JSON string'
+        "--strategy-params", type=str, default="{}", help="Strategy parameters as JSON string"
     )
 
     # Optimization arguments
+    parser.add_argument("--optimize", action="store_true", help="Run parameter optimization")
+
     parser.add_argument(
-        '--optimize',
-        action='store_true',
-        help='Run parameter optimization'
+        "--param-grid",
+        type=str,
+        default="{}",
+        help="Parameter grid for optimization as JSON string",
     )
 
     parser.add_argument(
-        '--param-grid',
+        "--optimization-metric",
         type=str,
-        default='{}',
-        help='Parameter grid for optimization as JSON string'
-    )
-
-    parser.add_argument(
-        '--optimization-metric',
-        type=str,
-        default='sharpe_ratio',
-        choices=['sharpe_ratio', 'total_return', 'sortino_ratio', 'calmar_ratio'],
-        help='Metric to optimize'
+        default="sharpe_ratio",
+        choices=["sharpe_ratio", "total_return", "sortino_ratio", "calmar_ratio"],
+        help="Metric to optimize",
     )
 
     # Output arguments
     parser.add_argument(
-        '--output-dir',
-        type=str,
-        default='backtest_results',
-        help='Directory to save results'
+        "--output-dir", type=str, default="backtest_results", help="Directory to save results"
     )
 
     parser.add_argument(
-        '--save-results',
-        action='store_true',
-        default=True,
-        help='Save results to files'
+        "--save-results", action="store_true", default=True, help="Save results to files"
     )
 
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose logging'
-    )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     return parser.parse_args()
 
@@ -887,7 +852,7 @@ def main():
         slippage=args.slippage,
         engine_type=args.engine,
         max_position_size=args.max_position_size,
-        strategy_params=strategy_params
+        strategy_params=strategy_params,
     )
 
     try:
@@ -909,12 +874,14 @@ def main():
             optimization_results = optimizer.optimize(metric=args.optimization_metric)
 
             # Print results
-            logger.info("\n" + "="*70)
+            logger.info("\n" + "=" * 70)
             logger.info("OPTIMIZATION RESULTS")
-            logger.info("="*70)
+            logger.info("=" * 70)
             logger.info(f"Best Parameters: {optimization_results['best_params']}")
-            logger.info(f"Best {args.optimization_metric}: {optimization_results['best_score']:.4f}")
-            logger.info("="*70 + "\n")
+            logger.info(
+                f"Best {args.optimization_metric}: {optimization_results['best_score']:.4f}"
+            )
+            logger.info("=" * 70 + "\n")
 
             # Save optimization results
             if args.save_results:
@@ -925,7 +892,7 @@ def main():
                 filename = f"optimization_{args.strategy}_{args.ticker}_{timestamp}.json"
                 filepath = output_path / filename
 
-                with open(filepath, 'w') as f:
+                with open(filepath, "w") as f:
                     json.dump(optimization_results, f, indent=2)
 
                 logger.info(f"Optimization results saved to: {filepath}")

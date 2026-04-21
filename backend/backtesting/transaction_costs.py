@@ -252,7 +252,7 @@ class TransactionCostModel:
         # Adjust for liquidity
         market_impact *= 1 / self.config.liquidity_factor
 
-        return market_impact
+        return market_impact  # type: ignore
 
     def _get_assest_class_multiplier(self) -> float:
         """Get cost multiplier based on asset class"""
@@ -338,7 +338,7 @@ class TieredCommissionModel(TransactionCostModel):
         applicable_rate = 0
         for threshold, rate in sorted(self.tiers.items()):
             if notional_value >= threshold:
-                applicable_rate = rate
+                applicable_rate = rate  # type: ignore
             else:
                 break
 
@@ -389,7 +389,7 @@ class AlmgrenChrissCostModel(TransactionCostModel):
         # Temporary impact (square root model)
         temporary = self.gamma * volatility * notional_value * np.sqrt(participation_rate)
 
-        return permanent + temporary
+        return permanent + temporary  # type: ignore
 
 
 def create_cost_model(model_type: str = "standard", **kwargs) -> TransactionCostModel:

@@ -794,7 +794,8 @@ scenario_names = list(stress_scenarios.keys())
 scenario_losses = [s.get("estimated_loss", 0) * 100 for s in stress_scenarios.values()]
 
 colors = [
-    "#d62728" if abs(loss) > 20 else "#ff7f0e" if abs(loss) > 10 else "#2ca02c" for loss in scenario_losses
+    "#d62728" if abs(loss) > 20 else "#ff7f0e" if abs(loss) > 10 else "#2ca02c"
+    for loss in scenario_losses
 ]
 
 fig_stress.add_trace(

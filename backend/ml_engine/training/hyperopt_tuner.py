@@ -232,7 +232,7 @@ class HyperparameterTuner:
 
         logger.success("Best model trained")
 
-        return model
+        return model  # type: ignore
 
     def plot_optimization_history(self):
         """

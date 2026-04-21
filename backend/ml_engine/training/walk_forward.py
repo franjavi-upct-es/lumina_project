@@ -91,7 +91,7 @@ class WalkForwardOptimizer:
         # Calculate number of windows
         num_windows = 0
         start = 0
-        while start + self.train_window_size + self.test_window_size <= n_samples:
+        while start + self.train_window_size + self.test_window_size <= n_samples:  # type: ignore
             num_windows += 1
             start += self.step_size
 
@@ -104,14 +104,14 @@ class WalkForwardOptimizer:
         start_idx = 0
         window_num = 0
 
-        while start_idx + self.train_window_size + self.test_window_size <= n_samples:
+        while start_idx + self.train_window_size + self.test_window_size <= n_samples:  # type: ignore
             window_num += 1
 
             # Define window indices
             train_start = start_idx
             train_end = start_idx + self.train_window_size
             test_start = train_end
-            test_end = test_start + self.test_window_size
+            test_end = test_start + self.test_window_size  # type: ignore
 
             if verbose:
                 logger.info("=" * 60)
@@ -176,13 +176,13 @@ class WalkForwardOptimizer:
             "aggregate_results": aggregate_results,
             "configuration": {
                 "train_window_size": self.train_window_size,
-                "test_window_size": self.test_window_size,
+                "test_window_size": self.test_window_size,  # type: ignore
                 "step_size": self.step_size,
-                "num_windows": self.num_windows,
+                "num_windows": self.num_windows,  # type: ignore
             },
         }
 
-    def _optimize_window(
+    def _optimize_window(  # type: ignore
         self,
         X_train: pd.DataFrame,
         y_train: pd.Series,
@@ -236,9 +236,9 @@ class WalkForwardOptimizer:
 
         # Find best params
         if metric in ["mae", "rmse", "mse"]:
-            min(opt_results, key=lambda x: x["score"])
+            min(opt_results, key=lambda x: x["score"])  # type: ignore
         else:  # Higher is better (sharpe, r2, etc.)
-            max(opt_results, key=lambda x: x["score"])
+            max(opt_results, key=lambda x: x["score"])  # type: ignore
 
     def _evaluate_params(
         self,

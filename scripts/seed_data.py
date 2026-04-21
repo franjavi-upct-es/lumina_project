@@ -144,6 +144,7 @@ async def seed_features(tickers: list[str], days: int = 90):
         # Delete existing features for this ticker (optional)
         try:
             from backend.db.models import delete_features_by_ticker
+
             deleted = await delete_features_by_ticker(ticker, start_date, end_date)
             if deleted > 0:
                 logger.info(f"  Deleted {deleted} existing feature rows")

@@ -126,7 +126,7 @@ class FinBERTAnalyzer:
                 probabilities = torch.softmax(logits, dim=1)
 
             # Move to CPU and convert to numpy
-            probabilities = probabilities.cpu().numpy()
+            probabilities = probabilities.cpu().numpy()  # type: ignore
 
             # Build results
             results = []
@@ -236,7 +236,7 @@ class FinBERTAnalyzer:
         """
         if not texts:
             return {
-                "sentiment": "neutral",
+                "sentiment": "neutral",  # type: ignore
                 "score": 0.0,
                 "positive": 0.0,
                 "negative": 0.0,
@@ -253,10 +253,10 @@ class FinBERTAnalyzer:
 
         # Apply weights
         if weights is None:
-            weights = np.ones(len(texts)) / len(texts)
+            weights = np.ones(len(texts)) / len(texts)  # type: ignore
         else:
-            weights = np.array(weights)
-            weights = weights / weights.sum()
+            weights = np.array(weights)  # type: ignore
+            weights = weights / weights.sum()  # type: ignore
 
         # Weighted average
         avg_positive = float(np.average(positive_scores, weights=weights))
@@ -273,7 +273,7 @@ class FinBERTAnalyzer:
         dominant_sentiment = max(scores.items(), key=lambda x: x[1])
 
         return {
-            "sentiment": dominant_sentiment[0],
+            "sentiment": dominant_sentiment[0],  # type: ignore
             "score": dominant_sentiment[1],
             **scores,
             "num_texts": len(texts),

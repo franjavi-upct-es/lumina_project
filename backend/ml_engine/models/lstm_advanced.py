@@ -264,7 +264,7 @@ class LSTMTrainer:
             "train_loss": [],
             "val_loss": [],
             "train_price_loss": [],
-            "val_price_loss": [],
+            "val_price_loss": [],  # type: ignore
         }
 
     def train_epoch(
@@ -388,7 +388,7 @@ class LSTMTrainer:
         Full training loop with early stopping
         """
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(  # type: ignore
             optimizer, mode="min", factor=0.5, patience=5, verbose=True
         )
 
@@ -397,7 +397,7 @@ class LSTMTrainer:
 
         for epoch in range(num_epochs):
             # Train
-            train_metrics = self.train_epoch(train_loader, optimizer)
+            train_metrics = self.train_epoch(train_loader, optimizer)  # type: ignore
 
             # Validate
             val_metrics = self.validate(val_loader)

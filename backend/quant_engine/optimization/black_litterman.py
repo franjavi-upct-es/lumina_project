@@ -92,7 +92,7 @@ class BlackLittermanModel:
         implied_returns = risk_aversion * (cov_matrix @ market_weights)
 
         logger.debug(f"Calculated implied returns with risk aversion = {risk_aversion:.4f}")
-        return implied_returns
+        return implied_returns  # type: ignore
 
     def build_view_matrix(
         self,
@@ -378,7 +378,7 @@ class BlackLittermanModel:
         if not result.success:
             logger.warning(f"Optimization did not fully converge: {result.message}")
 
-        return result.x
+        return result.x  # type: ignore
 
 
 def black_litterman_optimization(

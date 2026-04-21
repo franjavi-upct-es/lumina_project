@@ -41,7 +41,7 @@ class JobStore:
         raw = self.redis.get(self._key(job_id))
         if raw is None:
             return None
-        return json.loads(raw)
+        return json.loads(raw)  # type: ignore
 
     def exists(self, job_id: str) -> bool:
         return self.redis.exists(self._key(job_id)) > 0

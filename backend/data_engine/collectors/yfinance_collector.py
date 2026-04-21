@@ -21,7 +21,7 @@ class YFinanceCollector(BaseDataCollector):
 
     def __init__(self, rate_limit: int = 2000):
         super().__init__(name="YFinance", rate_limit=rate_limit)
-        self._cache = {}
+        self._cache = {}  # type: ignore
 
     async def collect(
         self,
@@ -247,7 +247,7 @@ class YFinanceCollector(BaseDataCollector):
         calls = pl.from_pandas(opt.calls)
         puts = pl.from_pandas(opt.puts)
 
-        return {"calls": calls, "puts": puts, "expiration": expiration_date}
+        return {"calls": calls, "puts": puts, "expiration": expiration_date}  # type: ignore
 
     async def get_institutional_holders(self, ticker: str) -> pl.DataFrame | None:
         """

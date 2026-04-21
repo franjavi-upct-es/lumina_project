@@ -191,7 +191,7 @@ class SentimentAggregator:
         if aggregate_score > 0.6:
             sentiment_label = "positive"
         elif aggregate_score < 0.4:
-            sentiment_label = ("negative",)
+            sentiment_label = ("negative",)  # type: ignore
         else:
             sentiment_label = "neutral"
 

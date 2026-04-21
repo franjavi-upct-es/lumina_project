@@ -270,4 +270,4 @@ class MacroFeatures:
     def get_feature_names(self) -> list[str]:
         """Get list of all macro feature names"""
         base_features = list(self.fred_series.keys())
-        return base_features + self.feature_names
+        return base_features + self.feature_names  # type: ignore

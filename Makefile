@@ -27,11 +27,11 @@ build-ml:
 	cd docker && $(DOCKER_COMPOSE) build ml-worker
 
 up:
-	cd docker && $(DOCKER_COMPOSE) up -d
+	cd docker && $(DOCKER_COMPOSE) up -d --build
 
 up-gpu:
 	@if command -v nvidia-smi >/dev/null 2>&1; then \
-		cd docker && $(DOCKER_COMPOSE) --profile gpu up -d; \
+		cd docker && $(DOCKER_COMPOSE) --profile gpu up -d --build; \
     else \
         echo "Warning: NVIDIA GPU not detected, falling back to CPU mode"; \
         make up; \
@@ -53,14 +53,31 @@ clean:
 	cd docker && $(DOCKER_COMPOSE) down -v
 	docker system prune -f
 
-test:
-	pytest tests/ -v
+# ---------------------------------------------------------------------------
+# Quality
+# ---------------------------------------------------------------------------
 
-lint:
-	cd backend && ruff check .
+test: ## Run the full test suite
+	uv run pytest tests/ -v --tb=short
 
-format:
-	cd backend && ruff format .
+test-fast: ## Run tests excluding slow and GPU-dependent tests
+	uv run pytest tests/ -v --tb=short -m "not slow and not gpu"
+
+test-cov: ## Run tests with coverage report
+	uv run pytest tests/ -v --tb=short --cov=backend --cov-report=term-missing --cov-report=html:reports/coverage
+
+lint: ## Run linter (ruff)
+	uv run ruff check backend/ tests/
+
+format: ## Auto-format code (ruff)
+	uv run ruff format backend/ tests/
+	uv run ruff check --fix backend/ tests/
+
+typecheck: ## Run type checker (mypy)
+	uv run mypy backend/
+
+quality: lint typecheck test-fast ## Run all quality checks (lint + typecheck + fast tests)
+
 
 # GPU setup and checks
 setup-gpu:

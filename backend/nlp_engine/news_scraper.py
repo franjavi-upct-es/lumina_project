@@ -43,7 +43,9 @@ class NewsScraper:
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    url, headers={"User-Agent": self.user_agent}, timeout=30
+                    url,
+                    headers={"User-Agent": self.user_agent},
+                    timeout=30,  # type: ignore
                 ) as response:
                     if response.status != 200:
                         logger.warning(f"Failed to fetch {url}: {response.status}")
@@ -117,7 +119,7 @@ class NewsScraper:
             if h1:
                 title = h1.get_text()
 
-        return title.strip() if title else ""
+        return title.strip() if title else ""  # type: ignore
 
     def _extract_text(self, soup: BeautifulSoup) -> str:
         """Extract main article text"""
@@ -148,12 +150,12 @@ class NewsScraper:
         # Try OpenGraph description
         og_desc = soup.find("meta", property="og:description")
         if og_desc and og_desc.get("content"):
-            return og_desc["content"].strip()
+            return og_desc["content"].strip()  # type: ignore
 
         # Try meta description
         meta_desc = soup.find("meta", attrs={"name": "description"})
         if meta_desc and meta_desc.get("content"):
-            return meta_desc["content"].strip()
+            return meta_desc["content"].strip()  # type: ignore
 
         # Fallback to first paragraph
         first_p = soup.find("p")

@@ -15,7 +15,7 @@ import pandas as pd
 from loguru import logger
 
 from backend.backtesting.event_driven import EventDrivenBacktest
-from backend.backtesting.monte_carlo import MonteCarloSimulation
+from backend.backtesting.monte_carlo import MonteCarloSimulation  # type: ignore
 from backend.backtesting.transaction_costs import TransactionCostModel
 from backend.backtesting.vectorized import VectorizedBacktest
 
@@ -241,7 +241,7 @@ class BacktestEngine:
         self.config = config or BacktestConfig()
 
         # Transaction cost model
-        self.cost_model = TransactionCostModel(
+        self.cost_model = TransactionCostModel(  # type: ignore
             commission=self.config.commission,
             slippage=self.config.slippage,
         )
@@ -274,15 +274,15 @@ class BacktestEngine:
 
         # Select execution mode
         if self.config.execution_mode == BacktestMode.VECTORIZED:
-            backtest = VectorizedBacktest(
+            backtest = VectorizedBacktest(  # type: ignore
                 initial_capital=self.config.initial_capital,
                 commission=self.config.commission,
                 slippage=self.config.slippage,
             )
-            results = backtest.run(strategy_func, data, strategy_name)
+            results = backtest.run(strategy_func, data, strategy_name)  # type: ignore
 
         elif self.config.execution_mode == BacktestMode.EVENT_DRIVEN:
-            backtest = EventDrivenBacktest(
+            backtest = EventDrivenBacktest(  # type: ignore
                 initial_capital=self.config.initial_capital,
                 commission=self.config.commission,
                 slippage=self.config.slippage,
@@ -291,7 +291,7 @@ class BacktestEngine:
                 stop_loss=self.config.stop_loss,
                 take_profit=self.config.take_profit,
             )
-            results = backtest.run(strategy_func, data, strategy_name)
+            results = backtest.run(strategy_func, data, strategy_name)  # type: ignore
 
         elif self.config.execution_mode == BacktestMode.MONTE_CARLO:
             mc = MonteCarloSimulation(
@@ -303,12 +303,12 @@ class BacktestEngine:
         else:
             raise ValueError(f"Unknown execution mode: {self.config.execution_mode}")
 
-        self.results = results
+        self.results = results  # type: ignore
 
         # Log summary
-        self._log_summary(results)
+        self._log_summary(results)  # type: ignore
 
-        return results
+        return results  # type: ignore
 
     def _log_summary(self, results: BacktestResult):
         """Log backtest summary"""

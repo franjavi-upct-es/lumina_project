@@ -146,8 +146,8 @@ class ParquetWriter:
             # Convert to Polars
             df = pl.from_arrow(arrow_table)
 
-            logger.info(f"Read {df.height} rows from {dataset_name}")
-            return df
+            logger.info(f"Read {df.height} rows from {dataset_name}")  # type: ignore
+            return df  # type: ignore
 
         except Exception as e:
             logger.error(f"Error reading parquet: {e}")
@@ -179,9 +179,9 @@ class ParquetWriter:
             filters = [("ticker", "=", ticker)]
 
             if start_date:
-                filters.append(("time", ">=", start_date))
+                filters.append(("time", ">=", start_date))  # type: ignore
             if end_date:
-                filters.append(("time", "<=", end_date))
+                filters.append(("time", "<=", end_date))  # type: ignore
 
             return self.read(dataset_name, filters=filters, columns=columns)
 
@@ -477,11 +477,11 @@ class ParquetWriter:
             if numeric_cols:
                 stats["column_stats"] = {}
                 for col in numeric_cols[:10]:  # Limit to first 10
-                    stats["column_stats"][col] = {
-                        "mean": float(data[col].mean()) if data[col].mean() else 0,
-                        "std": float(data[col].std()) if data[col].std() else 0,
-                        "min": float(data[col].min()) if data[col].min() else 0,
-                        "max": float(data[col].max()) if data[col].max() else 0,
+                    stats["column_stats"][col] = {  # type: ignore
+                        "mean": float(data[col].mean()) if data[col].mean() else 0,  # type: ignore
+                        "std": float(data[col].std()) if data[col].std() else 0,  # type: ignore
+                        "min": float(data[col].min()) if data[col].min() else 0,  # type: ignore
+                        "max": float(data[col].max()) if data[col].max() else 0,  # type: ignore
                     }
 
             return stats

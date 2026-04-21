@@ -148,8 +148,8 @@ class ClusteringRegimeDetector:
 
                 # RSI-like feature
                 rsi_name = f"rsi_{window}d"
-                gains = pl.col("return_1d").clip_min(0).rolling_mean(window)
-                losses = (-pl.col("return_1d").clip_max(0)).rolling_mean(window)
+                gains = pl.col("return_1d").clip_min(0).rolling_mean(window)  # type: ignore
+                losses = (-pl.col("return_1d").clip_max(0)).rolling_mean(window)  # type: ignore
                 result = result.with_columns([(gains / (gains + losses + 1e-10)).alias(rsi_name)])
                 features.append(rsi_name)
 
@@ -196,8 +196,8 @@ class ClusteringRegimeDetector:
                 n_init=10,
                 random_state=self.random_state,
             )
-            self.model.fit(X_scaled)
-            self.regime_centers = self.model.cluster_centers_
+            self.model.fit(X_scaled)  # type: ignore
+            self.regime_centers = self.model.cluster_centers_  # type: ignore
 
         elif self.method == "gmm":
             self.model = GaussianMixture(
@@ -205,17 +205,17 @@ class ClusteringRegimeDetector:
                 covariance_type="full",
                 random_state=self.random_state,
             )
-            self.model.fit(X_scaled)
-            self.regime_centers = self.model.means_
+            self.model.fit(X_scaled)  # type: ignore
+            self.regime_centers = self.model.means_  # type: ignore
 
         elif self.method == "hierarchical":
             self.model = AgglomerativeClustering(
                 n_clusters=self.n_regimes,
                 linkage="ward",
             )
-            self.model.fit(X_scaled)
+            self.model.fit(X_scaled)  # type: ignore
             # Calculate centers manually for hierarchical
-            labels = self.model.labels_
+            labels = self.model.labels_  # type: ignore
             self.regime_centers = np.array(
                 [X_scaled[labels == i].mean(axis=0) for i in range(self.n_regimes)]
             )
@@ -225,7 +225,7 @@ class ClusteringRegimeDetector:
                 eps=0.5,
                 min_samples=10,
             )
-            self.model.fit(X_scaled)
+            self.model.fit(X_scaled)  # type: ignore
             # No fixed centers for DBSCAN
             self.regime_centers = None
 
@@ -268,12 +268,12 @@ class ClusteringRegimeDetector:
 
         # Predict regimes
         if self.method == "gmm":
-            regimes = self.model.predict(X_scaled)
+            regimes = self.model.predict(X_scaled)  # type: ignore
         else:
             regimes = (
-                self.model.fit_predict(X_scaled)
+                self.model.fit_predict(X_scaled)  # type: ignore
                 if self.method == "dbscan"
-                else self.model.predict(X_scaled)
+                else self.model.predict(X_scaled)  # type: ignore
             )
 
         # Map regimes to ordered labels (sort by mean return or volatility)
@@ -394,7 +394,7 @@ class ClusteringRegimeDetector:
                     {
                         "mean_return": returns.mean(),
                         "std_return": returns.std(),
-                        "sharpe": returns.mean() / returns.std() if returns.std() > 0 else 0,
+                        "sharpe": returns.mean() / returns.std() if returns.std() > 0 else 0,  # type: ignore
                     }
                 )
 

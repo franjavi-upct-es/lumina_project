@@ -135,9 +135,9 @@ class SHAPExplainer:
 
         try:
             if self.model_type == "tree":
-                shap_values = self.explainer.shap_values(X, check_additivity=check_additivity)
+                shap_values = self.explainer.shap_values(X, check_additivity=check_additivity)  # type: ignore
             else:
-                shap_values = self.explainer.shap_values(X)
+                shap_values = self.explainer.shap_values(X)  # type: ignore
 
             # Handle multi-output models
             if isinstance(shap_values, list):
@@ -146,7 +146,7 @@ class SHAPExplainer:
             # Create explanation object
             explanation = shap.Explanation(
                 values=shap_values,
-                base_values=self.explainer.expected_value,
+                base_values=self.explainer.expected_value,  # type: ignore
                 data=X,
                 feature_names=self.feature_names,
             )
@@ -257,19 +257,19 @@ class SHAPExplainer:
         Returns:
             Dictionary with plot data
         """
-        if feature_name not in self.feature_names:
+        if feature_name not in self.feature_names:  # type: ignore
             raise ValueError(f"Feature {feature_name} not found")
 
-        feature_idx = self.feature_names.index(feature_name)
+        feature_idx = self.feature_names.index(feature_name)  # type: ignore
         shap_values = self.explain(X).values
 
         result = {"feature_values": X[:, feature_idx], "shap_values": shap_values[:, feature_idx]}
 
         if interaction_feature:
-            if interaction_feature not in self.feature_names:
+            if interaction_feature not in self.feature_names:  # type: ignore
                 raise ValueError(f"Feature {interaction_feature} not found")
 
-            interaction_idx = self.feature_names.index(interaction_feature)
+            interaction_idx = self.feature_names.index(interaction_feature)  # type: ignore
             result["interaction_values"] = X[:, interaction_idx]
 
         return result
@@ -291,21 +291,21 @@ class SHAPExplainer:
         """
         if self.model_type != "tree":
             logger.warning("Interaction values only available for tree models")
-            return None
+            return None  # type: ignore
 
         logger.info("Calculating SHAP interaction values")
 
         try:
-            interaction_values = self.explainer.shap_interaction_values(X)
+            interaction_values = self.explainer.shap_interaction_values(X)  # type: ignore
 
             if isinstance(interaction_values, list):
                 interaction_values = interaction_values[0]
 
-            return interaction_values
+            return interaction_values  # type: ignore
 
         except Exception as e:
             logger.error(f"Error calculating interactions: {e}")
-            return None
+            return None  # type: ignore
 
     def analyze_feature_interactions(
         self,

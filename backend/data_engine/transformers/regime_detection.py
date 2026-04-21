@@ -87,7 +87,7 @@ class RegimeDetector:
             random_state=42,
         )
 
-        self.model.fit(features)
+        self.model.fit(features)  # type: ignore
 
         self.is_fitted = True
         logger.success(f"HMM fitted with {self.n_regimes} states")
@@ -126,7 +126,7 @@ class RegimeDetector:
             random_state=42,
         )
 
-        self.model.fit(features)
+        self.model.fit(features)  # type: ignore
 
         self.is_fitted = True
         logger.success(f"K-Means fitted with {self.n_regimes} clusters")
@@ -165,7 +165,7 @@ class RegimeDetector:
             random_state=42,
         )
 
-        self.model.fit(features)
+        self.model.fit(features)  # type: ignore
 
         self.is_fitted = True
         logger.success(f"GMM fitted with {self.n_regimes} components")
@@ -192,14 +192,14 @@ class RegimeDetector:
 
         # Predict based on method
         if self.method == "hmm":
-            regimes = self.model.predict(features)
-            probabilities = self.model.predict_proba(features)
+            regimes = self.model.predict(features)  # type: ignore
+            probabilities = self.model.predict_proba(features)  # type: ignore
 
         elif self.method in ["kmeans", "gmm"]:
-            regimes = self.model.predict(features)
+            regimes = self.model.predict(features)  # type: ignore
 
             if self.method == "gmm":
-                probabilities = self.model.predict_proba(features)
+                probabilities = self.model.predict_proba(features)  # type: ignore
             else:
                 # K-Means doesn't give probabilities, create dummy
                 probabilities = np.zeros((len(regimes), self.n_regimes))
@@ -559,16 +559,16 @@ def detect_regimes(
         elif method == "trend":
             result = detector.detect_trend_regime(data, **kwargs)
 
-        return result, detector
+        return result, detector  # type: ignore
 
     # ML-based methods
     if feature_columns is None:
         raise ValueError("feature_columns required for ML methods")
 
-    detector = RegimeDetector(n_regimes=kwargs.get("n_regimes", 3))
-    result = detector.fit_predict(data, feature_columns, method, **kwargs)
+    detector = RegimeDetector(n_regimes=kwargs.get("n_regimes", 3))  # type: ignore
+    result = detector.fit_predict(data, feature_columns, method, **kwargs)  # type: ignore
 
-    return result, detector
+    return result, detector  # type: ignore
 
 
 def combine_regime_signals(
@@ -622,7 +622,7 @@ def combine_regime_signals(
     # Add label
     labels = {0: "bear", 1: "sideways", 2: "bull"}
     result = result.with_columns(
-        pl.col("combined_regime").map_dict(labels).alias("combined_regime_label")
+        pl.col("combined_regime").map_dict(labels).alias("combined_regime_label")  # type: ignore
     )
 
     logger.success("Regime combination complete")

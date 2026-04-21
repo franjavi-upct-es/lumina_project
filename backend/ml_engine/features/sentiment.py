@@ -4,6 +4,7 @@ Sentiment analysis features from news and social media
 Market sentiment indicators for ML models
 """
 
+
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -26,7 +27,7 @@ class SentimentFeatures:
     def create_sentiment_features(
         self,
         sentiment_data: pd.DataFrame,
-        aggregation_windows: list[int] = None,
+        aggregation_windows: list[int] | None = None,
     ) -> pd.DataFrame:
         """
         Create sentiment features from raw sentiment data
@@ -305,4 +306,4 @@ class SentimentFeatures:
 
     def get_feature_names(self) -> list[str]:
         """Get list of all feature names"""
-        return self.feature_names
+        return self.feature_names  # type: ignore

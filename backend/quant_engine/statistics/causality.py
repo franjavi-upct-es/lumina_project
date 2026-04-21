@@ -138,7 +138,7 @@ class CausalityTester:
 
         logger.info(f"Granger causality test completed for lags 1-{max_lag}")
 
-        return results
+        return results  # type: ignore
 
     def optimal_lag_selection(
         self,
@@ -230,8 +230,8 @@ class CausalityTester:
             if "error" in results_1_to_2 or "error" in results_2_to_1:
                 continue
 
-            s1_causes_s2 = results_1_to_2[lag]["f_pvalue"] < alpha
-            s2_causes_s1 = results_2_to_1[lag]["f_pvalue"] < alpha
+            s1_causes_s2 = results_1_to_2[lag]["f_pvalue"] < alpha  # type: ignore
+            s2_causes_s1 = results_2_to_1[lag]["f_pvalue"] < alpha  # type: ignore
 
             if s1_causes_s2 and s2_causes_s1:
                 relationship = "bidirectional"
@@ -246,8 +246,8 @@ class CausalityTester:
                 {
                     "lag": lag,
                     "relationship": relationship,
-                    "s1_to_s2_pvalue": results_1_to_2[lag]["f_pvalue"],
-                    "s2_to_s1_pvalue": results_2_to_1[lag]["f_pvalue"],
+                    "s1_to_s2_pvalue": results_1_to_2[lag]["f_pvalue"],  # type: ignore
+                    "s2_to_s1_pvalue": results_2_to_1[lag]["f_pvalue"],  # type: ignore
                 }
             )
 

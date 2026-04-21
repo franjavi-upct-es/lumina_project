@@ -300,9 +300,9 @@ class VaRCalculator:
             "var": var,
             "var_pct": var * 100,
             "n_simulations": n_simulations,
-            "mean_simulated": np.mean(simulated_returns),
-            "std_simulated": np.std(simulated_returns),
-            "method": f"monte_carlo_{method}",
+            "mean_simulated": np.mean(simulated_returns),  # type: ignore
+            "std_simulated": np.std(simulated_returns),  # type: ignore
+            "method": f"monte_carlo_{method}",  # type: ignore
         }
 
     def garch_var(
@@ -336,7 +336,7 @@ class VaRCalculator:
         returns_pct = portfolio_returns * 100
 
         # Fit GARCH model
-        model = arch_model(returns_pct, vol="Garch", p=p, q=q, dist="normal")
+        model = arch_model(returns_pct, vol="Garch", p=p, q=q, dist="normal")  # type: ignore
         fitted_model = model.fit(disp="off", show_warning=False)
 
         # Forecast volatility for next period

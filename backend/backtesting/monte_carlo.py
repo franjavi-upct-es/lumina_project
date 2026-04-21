@@ -163,7 +163,7 @@ class MonteCarloSimulator:
             Bootstrapped array of length time_horizon_days
         """
         num_blocks = int(np.ceil(self.config.time_horizon_days / block_size))
-        result = []
+        result = []  # type: ignore
 
         for _ in range(num_blocks):
             # Random starting point
@@ -211,7 +211,7 @@ class MonteCarloSimulator:
                 num_jumps = np.random.poisson(jump_intensity * dt)
                 jump = 0
                 if num_jumps > 0:
-                    jump = np.sum(np.random.normal(jump_mean, jump_std, num_jumps))
+                    jump = np.sum(np.random.normal(jump_mean, jump_std, num_jumps))  # type: ignore
 
                 # Update price
                 price *= np.exp(diffusion + jump)
@@ -361,8 +361,8 @@ class MonteCarloSimulator:
             all_drawdowns.append(drawdown)
             max_drawdowns.append(np.min(drawdown))
 
-        all_drawdowns = np.array(all_drawdowns)
-        max_drawdowns = np.array(max_drawdowns)
+        all_drawdowns = np.array(all_drawdowns)  # type: ignore
+        max_drawdowns = np.array(max_drawdowns)  # type: ignore
 
         return {
             "mean_max_drawdown": float(np.mean(max_drawdowns)),
@@ -430,7 +430,7 @@ class MonteCarloSimulator:
             # Restore original config
             self.config = original_config
 
-        return results
+        return results  # type: ignore
 
 
 def run_portfolio_monte_carlo(
@@ -471,9 +471,7 @@ def run_portfolio_monte_carlo(
     simulator = MonteCarloSimulator(config)
 
     # Use GBM with portfolio parameters
-    simulator.simulate_gbm(
-        mean_return=float(portfolio_return), volatility=float(portfolio_vol)
-    )
+    simulator.simulate_gbm(mean_return=float(portfolio_return), volatility=float(portfolio_vol))
 
     # Calculate metrics
     metrics = simulator.calculate_metrics()

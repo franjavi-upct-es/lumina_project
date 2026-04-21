@@ -133,7 +133,7 @@ class RedditCollector(BaseDataCollector):
                 try:
                     posts = await loop.run_in_executor(
                         None,
-                        lambda subreddit=subreddit_name: self._search_subreddit(
+                        lambda subreddit=subreddit_name: self._search_subreddit(  # type: ignore
                             subreddit, query, limit, sort, time_filter
                         ),
                     )
@@ -182,7 +182,7 @@ class RedditCollector(BaseDataCollector):
         posts = []
 
         try:
-            subreddit = self.reddit.subreddit(subreddit_name)
+            subreddit = self.reddit.subreddit(subreddit_name)  # type: ignore
 
             # Get posts based on sort method
             if sort == "top":
@@ -272,7 +272,7 @@ class RedditCollector(BaseDataCollector):
                 return None
 
             # Extract tickers from all posts
-            ticker_counts = {}
+            ticker_counts = {}  # type: ignore
 
             for post in posts:
                 text = f"{post['title']} {post['text']}"
@@ -300,7 +300,7 @@ class RedditCollector(BaseDataCollector):
         posts = []
 
         try:
-            subreddit = self.reddit.subreddit(subreddit_name)
+            subreddit = self.reddit.subreddit(subreddit_name)  # type: ignore
             submissions = subreddit.top(time_filter=time_filter, limit=limit)
 
             for submission in submissions:
@@ -467,7 +467,7 @@ class RedditCollector(BaseDataCollector):
         posts = []
 
         try:
-            subreddit = self.reddit.subreddit(subreddit_name)
+            subreddit = self.reddit.subreddit(subreddit_name)  # type: ignore
             submissions = subreddit.top(time_filter=time_filter, limit=limit)
 
             for submission in submissions:
@@ -544,8 +544,8 @@ class RedditCollector(BaseDataCollector):
                 "period_days": days,
                 "total_mentions": total_posts,
                 "total_score": float(total_score),
-                "avg_score": float(avg_score),
-                "avg_comments": float(avg_comments),
+                "avg_score": float(avg_score),  # type: ignore
+                "avg_comments": float(avg_comments),  # type: ignore
                 "mentions_per_day": mentions_per_day.to_dicts(),
                 "top_subreddits": top_subreddits.to_dicts(),
             }

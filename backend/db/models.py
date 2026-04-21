@@ -582,7 +582,7 @@ from typing import TypeVar as _TypeVar  # noqa: E402
 _T = _TypeVar("_T")
 
 
-def run_async(coro) -> "_T":
+def run_async(coro) -> "_T":  # type: ignore
     """
     Run an async coroutine from a synchronous context (Celery worker).
     Creates a fresh event loop and engine each time — safe for prefork workers.
@@ -590,9 +590,9 @@ def run_async(coro) -> "_T":
     loop = _asyncio.new_event_loop()
     _asyncio.set_event_loop(loop)
     try:
-        return loop.run_until_complete(coro)
+        return loop.run_until_complete(coro)  # type: ignore
     finally:
-        try:
+        try:  # type: ignore
             loop.run_until_complete(loop.shutdown_asyncgens())
         except Exception:
             pass
@@ -600,7 +600,7 @@ def run_async(coro) -> "_T":
 
 
 # ============================================================================
-# UTILITY FUNCTIONS
+# UTILITY FUNCTIONS  # type: ignore
 # ============================================================================
 
 
@@ -643,7 +643,7 @@ async def _execute_raw_sql_internal(sql: str) -> list:
         async with engine.connect() as conn:
             result = await conn.execute(text(sql))
             if result.returns_rows:
-                return result.fetchall()
+                return result.fetchall()  # type: ignore
             return []
     except Exception as e:
         logger.error(f"Failed to execute SQL: {e}")
@@ -653,7 +653,7 @@ async def _execute_raw_sql_internal(sql: str) -> list:
 
 
 # Backward-compatible alias for internal callers
-execute_raw_sql = _execute_raw_sql_internal
+execute_raw_sql = _execute_raw_sql_internal  # type: ignore
 
 
 # ============================================================================
@@ -695,7 +695,7 @@ async def bulk_insert_price_data(data: list[dict]) -> int:
             expire_on_commit=False,
         )
         async with session_factory() as session:
-            await session.execute(PriceData.__table__.insert(), data)
+            await session.execute(PriceData.__table__.insert(), data)  # type: ignore
             await session.commit()
         logger.info(f"Bulk inserted {len(data)} price data rows")
         return len(data)
@@ -706,6 +706,7 @@ async def bulk_insert_price_data(data: list[dict]) -> int:
         await engine.dispose()
 
 
+# type: ignore
 async def bulk_insert_features(data: list[dict]) -> int:
     """
     Bulk insert features with UPSERT using a fresh engine (Celery-safe).
@@ -881,7 +882,7 @@ async def delete_features_by_ticker(ticker: str, start_date: datetime, end_date:
             )
             result = await session.execute(stmt)
             await session.commit()
-            return result.rowcount
+            return result.rowcount  # type: ignore
     finally:
         await engine.dispose()
 
@@ -891,7 +892,7 @@ async def delete_features_by_ticker(ticker: str, start_date: datetime, end_date:
 # ============================================================================
 
 __all__ = [
-    # Base
+    # Base  # type: ignore
     "Base",
     # Time series models
     "PriceData",

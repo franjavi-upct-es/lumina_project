@@ -271,7 +271,7 @@ class Portfolio:
         returns = equity_series.pct_change().dropna()
 
         # Calculate metrics
-        total_return = (self.get_equity() - self.initial_capital) / self.initial_capital
+        total_return = (self.get_equity() - self.initial_capital) / self.initial_capital  # type: ignore
 
         # Annualized metrics
         num_days = len(equity_series)
@@ -326,7 +326,7 @@ class EventDrivenBacktest:
         self.commission_rate = commission
         self.slippage_rate = slippage
 
-        self.event_queue = PriorityQueue()
+        self.event_queue = PriorityQueue()  # type: ignore
         self.portfolio = Portfolio(initial_capital)
 
         # Strategy callbacks
@@ -423,13 +423,13 @@ class EventDrivenBacktest:
     def _process_event(self, event: Event):
         """Process a single event"""
         if event.event_type == EventType.MARKET:
-            self._process_market_event(event)
+            self._process_market_event(event)  # type: ignore
         elif event.event_type == EventType.SIGNAL:
-            self._process_signal_event(event)
+            self._process_signal_event(event)  # type: ignore
         elif event.event_type == EventType.ORDER:
-            self._process_order_event(event)
+            self._process_order_event(event)  # type: ignore
         elif event.event_type == EventType.FILL:
-            self._process_fill_event(event)
+            self._process_fill_event(event)  # type: ignore
 
     def _process_market_event(self, event: MarketEvent):
         """Process market data event"""
@@ -517,7 +517,7 @@ def simple_momentum_strategy(event: MarketEvent, portfolio: Portfolio) -> list[S
     Example momentum strategy
     Buy when price crosses above 20-day MA, sell when crosses below
     """
-    signals = []
+    signals = []  # type: ignore
 
     # This is simplified - in practice, maintain state with historical prices
     # and calculate indicators properly

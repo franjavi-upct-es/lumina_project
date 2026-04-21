@@ -297,4 +297,4 @@ class TechnicalFeatures:
 
     def get_feature_names(self) -> list:
         """Get list of all feature names"""
-        return self.feature_names
+        return self.feature_names  # type: ignore

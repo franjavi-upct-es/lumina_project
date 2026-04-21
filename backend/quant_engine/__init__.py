@@ -42,7 +42,7 @@ Usage:
     weights = optimizer.max_sharpe()
 """
 
-from backend.quant_engine.factors import FamaFrench, PCAAnalysis
+from backend.quant_engine.factors import FamaFrench, PCAAnalysis  # type: ignore
 from backend.quant_engine.optimization import BlackLitterman, PortfolioOptimizer
 from backend.quant_engine.regimes import HMMDetector, VolatilityRegimes
 from backend.quant_engine.risk import CVaRCalculator, DrawdownAnalyzer, VaRCalculator

@@ -59,7 +59,7 @@ class VectorizedBacktest:
         self.positions: pd.DataFrame | None = None
         self.trades: pd.DataFrame | None = None
 
-    def run(self, prices: pd.DataFrame, signals: pd.DataFrame, **kwargs) -> dict[str, Any]:
+    def run(self, prices: pd.DataFrame, signals: pd.DataFrame, **kwargs) -> dict[str, Any]:  # type: ignore
         """
         Run vectorized backtest
 

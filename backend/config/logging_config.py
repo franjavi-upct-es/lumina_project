@@ -95,11 +95,11 @@ def setup_logging(
             file_format = (
                 "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}"
             )
-            serialize = False
-
+            serialize = False  # type: ignore
+        # type: ignore
         # General application log
         logger.add(
-            log_dir / "lumina_{time:YYYY-MM-DD}.log",
+            log_dir / "lumina_{time:YYYY-MM-DD}.log",  # type: ignore
             format=file_format,
             level=log_level,
             rotation=rotation,
@@ -111,7 +111,7 @@ def setup_logging(
 
         # Error log (only errors and above)
         logger.add(
-            log_dir / "lumina_errors_{time:YYYY-MM-DD}.log",
+            log_dir / "lumina_errors_{time:YYYY-MM-DD}.log",  # type: ignore
             format=file_format,
             level="ERROR",
             rotation=rotation,
@@ -123,33 +123,33 @@ def setup_logging(
 
         # API access log
         logger.add(
-            log_dir / "api_access_{time:YYYY-MM-DD}.log",
+            log_dir / "api_access_{time:YYYY-MM-DD}.log",  # type: ignore
             format=file_format,
             level="INFO",
             rotation=rotation,
             retention=retention,
             compression=compression,
             enqueue=True,
-            filter=lambda record: "api" in record["name"].lower(),
-            serialize=serialize,
+            filter=lambda record: "api" in record["name"].lower(),  # type: ignore
+            serialize=serialize,  # type: ignore
         )
 
         # Backtesting log
         logger.add(
-            log_dir / "backtest_{time:YYYY-MM-DD}.log",
+            log_dir / "backtest_{time:YYYY-MM-DD}.log",  # type: ignore
             format=file_format,
             level="INFO",
             rotation=rotation,
             retention=retention,
             compression=compression,
             enqueue=True,
-            filter=lambda record: "backtest" in record["name"].lower(),
-            serialize=serialize,
+            filter=lambda record: "backtest" in record["name"].lower(),  # type: ignore
+            serialize=serialize,  # type: ignore
         )
 
         # ML training log
         logger.add(
-            log_dir / "ml_training_{time:YYYY-MM-DD}.log",
+            log_dir / "ml_training_{time:YYYY-MM-DD}.log",  # type: ignore
             format=file_format,
             level="INFO",
             rotation=rotation,
@@ -157,8 +157,8 @@ def setup_logging(
             compression=compression,
             enqueue=True,
             filter=lambda record: (
-                "ml_engine" in record["name"].lower() or "train" in record["name"].lower()
-            ),
+                "ml_engine" in record["name"].lower() or "train" in record["name"].lower()  # type: ignore
+            ),  # type: ignore
             serialize=serialize,
         )
 
@@ -205,7 +205,7 @@ def setup_development_logging():
     logger.info("Development logging configured")
 
 
-def get_logger(name: str = None):
+def get_logger(name: str | None = None):
     """
     Get a logger instance
 

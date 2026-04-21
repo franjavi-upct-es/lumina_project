@@ -90,3 +90,5 @@ migrations/versions/*.pyc
 backend/celerybeat-schedule
 .coverage
 .claude/
+models/
+!backend/models/

@@ -251,21 +251,21 @@ class CombinatorialPurgedKFold:
         indices = np.arange(n_samples)
 
         # Divide into groups
-        group_size = n_samples // self.n_splits
+        group_size = n_samples // self.n_splits  # type: ignore
         groups = []
 
-        for i in range(self.n_splits):
+        for i in range(self.n_splits):  # type: ignore
             start = i * group_size
-            end = start + group_size if i < self.n_splits - 1 else n_samples
+            end = start + group_size if i < self.n_splits - 1 else n_samples  # type: ignore
             groups.append(indices[start:end])
 
         # Generate all combinations of test groups
-        for test_group_indices in combinations(range(self.n_splits), self.n_test_groups):
+        for test_group_indices in combinations(range(self.n_splits), self.n_test_groups):  # type: ignore
             # Combine selected groups as test set
             test_indices = np.concatenate([groups[i] for i in test_group_indices])
 
             # Rest are training candidates
-            train_group_indices = [i for i in range(self.n_splits) if i not in test_group_indices]
+            train_group_indices = [i for i in range(self.n_splits) if i not in test_group_indices]  # type: ignore
             train_candidates = np.concatenate([groups[i] for i in train_group_indices])
 
             if sample_times is not None and pred_times is not None:

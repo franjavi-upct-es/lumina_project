@@ -295,7 +295,7 @@ class PCAAnalyzer:
         elif method == SelectionMethod.KAISER:
             # Kaiser criterion: eigenvalue > 1 (for standardized data)
             n = np.sum(eigenvalues > 1)
-            return max(1, n)
+            return max(1, n)  # type: ignore
 
         elif method == SelectionMethod.SCREE:
             return self._select_by_scree(eigenvalues)
@@ -323,7 +323,7 @@ class PCAAnalyzer:
 
         cumsum = np.cumsum(variance_ratios)
         n = np.argmax(cumsum >= threshold) + 1
-        return max(1, n)
+        return max(1, n)  # type: ignore
 
     def _select_by_scree(self, eigenvalues: np.ndarray) -> int:
         """
@@ -342,7 +342,7 @@ class PCAAnalyzer:
         # This is where second derivative changes most
         elbow = np.argmax(np.abs(second_diff)) + 1
 
-        return max(1, elbow)
+        return max(1, elbow)  # type: ignore
 
     def _select_by_parallel_analysis(
         self,
@@ -372,7 +372,7 @@ class PCAAnalyzer:
         # Count components where real > random
         n = np.sum(real_eigenvalues > threshold)
 
-        return max(1, n)
+        return max(1, n)  # type: ignore
 
     def _build_results(
         self,
@@ -385,34 +385,34 @@ class PCAAnalyzer:
         """
         # Create loadings DataFrame
         loadings_df = pd.DataFrame(
-            self._pca.components_.T,
+            self._pca.components_.T,  # type: ignore
             index=self._feature_names,
-            columns=[f"PC{i + 1}" for i in range(self._pca.n_components_)],
+            columns=[f"PC{i + 1}" for i in range(self._pca.n_components_)],  # type: ignore
         )
 
         # Create scores DataFrame
         if isinstance(scores, np.ndarray):
             scores_df = pd.DataFrame(
                 scores,
-                columns=[f"PC{i + 1}" for i in range(self._pca.n_components_)],
+                columns=[f"PC{i + 1}" for i in range(self._pca.n_components_)],  # type: ignore
             )
         else:
             scores_df = None
 
         # Calculate reconstruction error
-        reconstructed = self._pca.inverse_transform(scores)
+        reconstructed = self._pca.inverse_transform(scores)  # type: ignore
         reconstruction_error = np.mean((X - reconstructed) ** 2)
 
         return PCAResults(
-            n_components=self._pca.n_components_,
+            n_components=self._pca.n_components_,  # type: ignore
             n_features=X.shape[1],
             n_samples=X.shape[0],
-            explained_variance=self._pca.explained_variance_,
-            explained_variance_ratio=self._pca.explained_variance_ratio_,
-            cumulative_variance_ratio=np.cumsum(self._pca.explained_variance_ratio_),
-            components=self._pca.components_,
+            explained_variance=self._pca.explained_variance_,  # type: ignore
+            explained_variance_ratio=self._pca.explained_variance_ratio_,  # type: ignore
+            cumulative_variance_ratio=np.cumsum(self._pca.explained_variance_ratio_),  # type: ignore
+            components=self._pca.components_,  # type: ignore
             loadings=loadings_df,
-            eigenvalues=self._pca.explained_variance_,
+            eigenvalues=self._pca.explained_variance_,  # type: ignore
             scores=scores,
             scores_df=scores_df,
             feature_names=self._feature_names,
@@ -454,7 +454,7 @@ class PCAAnalyzer:
             X = self._scaler.transform(X)
 
         # Transform
-        return self._pca.transform(X)
+        return self._pca.transform(X)  # type: ignore
 
     def inverse_transform(
         self,
@@ -473,13 +473,13 @@ class PCAAnalyzer:
             raise ValueError("PCA not fitted. Call fit() first.")
 
         # Inverse transform
-        X_reconstructed = self._pca.inverse_transform(scores)
+        X_reconstructed = self._pca.inverse_transform(scores)  # type: ignore
 
         # Inverse scale
         if self._scaler is not None:
             X_reconstructed = self._scaler.inverse_transform(X_reconstructed)
 
-        return X_reconstructed
+        return X_reconstructed  # type: ignore
 
     # ========================================================================
     # INTERPRETATION

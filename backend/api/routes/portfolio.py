@@ -388,7 +388,7 @@ def _generate_efficient_frontier(mean_returns, cov_matrix, risk_free_rate, num_p
 @router.get("/metrics", response_model=PortfolioMetricsResponse)
 async def get_portfolio_metrics(
     user_id: Annotated[str, Query(description="User ID")] = "default",
-    db: Annotated[AsyncSession, Depends(get_async_session)] = "default",
+    db: Annotated[AsyncSession, Depends(get_async_session)] = "default",  # type: ignore
 ):
     """
     Get current portfolio metrics and performance
@@ -441,7 +441,7 @@ async def check_rebalance(request: RebalanceRequest):
                 )
 
         # Estimate transaction costs
-        estimated_cost = sum(trade["value"] for trade in trades) * settings.DEFAULT_COMMISSION
+        estimated_cost = sum(trade["value"] for trade in trades) * settings.DEFAULT_COMMISSION  # type: ignore
 
         return RebalanceResponse(
             trades_needed=needs_rebalance,

@@ -164,7 +164,7 @@ def create_model(
         raise ValueError(f"Unknown model type: {model_type}")
 
 
-def get_feature_list(category: str = None):
+def get_feature_list(category: str | None = None):
     """
     Get list of available features.
 

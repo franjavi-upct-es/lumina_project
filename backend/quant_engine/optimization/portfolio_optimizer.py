@@ -140,7 +140,7 @@ class PortfolioOptimizer:
 
         elif method == "efficient_frontier":
             n_points = kwargs.get("n_points", 50)
-            return self._generate_efficient_frontier(n_points, min_weight, max_weight)
+            return self._generate_efficient_frontier(n_points, min_weight, max_weight)  # type: ignore
 
         elif method == "target_return":
             if target_return is None:
@@ -442,7 +442,7 @@ class PortfolioOptimizer:
 
     def _optimize_scipy(
         self,
-        objective_func: callable,
+        objective_func: callable,  # type: ignore
         min_weight: float,
         max_weight: float,
         additional_constraints: list | None = None,
@@ -485,7 +485,7 @@ class PortfolioOptimizer:
         if not result.success:
             logger.warning(f"Optimization warning: {result.message}")
 
-        return result.x
+        return result.x  # type: ignore
 
     def _calculate_portfolio_metrics(
         self,
@@ -587,7 +587,7 @@ class PortfolioOptimizer:
         items = list(range(returns.shape[1]))
         _recursive_split(items)
 
-        return weights
+        return weights  # type: ignore
 
 
 def optimize_portfolio(

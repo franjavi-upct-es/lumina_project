@@ -254,7 +254,7 @@ class HMMRegimeDetector:
         X_scaled = self.scaler.transform(X)
 
         # Predict most likely sequence of states (Viterbi algorithm)
-        regimes = self.model.predict(X_scaled)
+        regimes = self.model.predict(X_scaled)  # type: ignore
 
         # Order regimes by mean return
         regimes = self._order_regimes(data, regimes, features)
@@ -273,7 +273,7 @@ class HMMRegimeDetector:
         # Add probabilities if requested
         if return_probabilities:
             # Predict probabilities for each regime
-            probs = self.model.predict_proba(X_scaled)
+            probs = self.model.predict_proba(X_scaled)  # type: ignore
 
             for i in range(self.n_regimes):
                 prob_col = f"regime_{i}_prob"
@@ -399,7 +399,7 @@ class HMMRegimeDetector:
             # Add feature means
             for j, feature_name in enumerate(self.feature_names):
                 # Inverse transform to get original scale
-                feature_mean_scaled = self.means_[i, j]
+                feature_mean_scaled = self.means_[i, j]  # type: ignore
                 feature_mean = (feature_mean_scaled * self.scaler.scale_[j]) + self.scaler.mean_[j]
                 regime_stats[f"mean_{feature_name}"] = feature_mean
 
@@ -407,9 +407,9 @@ class HMMRegimeDetector:
             if self.covariance_type in ["diag", "spherical"]:
                 for j, feature_name in enumerate(self.feature_names):
                     if self.covariance_type == "diag":
-                        variance = self.covariances_[i, j]
+                        variance = self.covariances_[i, j]  # type: ignore
                     else:  # spherical
-                        variance = self.covariances_[i]
+                        variance = self.covariances_[i]  # type: ignore
 
                     # Scale back
                     variance_original = variance * (self.scaler.scale_[j] ** 2)
@@ -438,7 +438,7 @@ class HMMRegimeDetector:
         regimes = data.select("regime").to_series().to_numpy()
 
         # Calculate run lengths for each regime
-        regime_durations = {i: [] for i in range(self.n_regimes)}
+        regime_durations = {i: [] for i in range(self.n_regimes)}  # type: ignore
 
         current_regime = regimes[0]
         current_duration = 1
@@ -506,7 +506,7 @@ class HMMRegimeDetector:
         X = X_df.dropna().values
         X_scaled = self.scaler.transform(X)
 
-        return self.model.score(X_scaled)
+        return self.model.score(X_scaled)  # type: ignore
 
 
 def detect_regimes_hmm(

@@ -232,7 +232,8 @@ class NewsCollector(BaseDataCollector):
 
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
-                None, lambda: requests.get(url, params=params, timeout=30)
+                None,
+                lambda: requests.get(url, params=params, timeout=30),  # type: ignore
             )
 
             if response.status_code != 200:
@@ -326,7 +327,8 @@ class NewsCollector(BaseDataCollector):
 
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
-                None, lambda: requests.get(url, params=params, timeout=30)
+                None,
+                lambda: requests.get(url, params=params, timeout=30),  # type: ignore
             )
 
             if response.status_code != 200:
@@ -512,7 +514,7 @@ class NewsCollector(BaseDataCollector):
                 return None
 
             # Extract tickers from all articles
-            ticker_counts = {}
+            ticker_counts = {}  # type: ignore
 
             for row in news.iter_rows(named=True):
                 text = f"{row.get('title', '')} {row.get('description', '')}"

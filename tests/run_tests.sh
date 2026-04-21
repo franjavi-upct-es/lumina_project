@@ -25,6 +25,7 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 TESTS_DIR="$SCRIPT_DIR"
+COMPOSE_CMD=(docker compose --env-file "$PROJECT_DIR/backend/.env" -f "$PROJECT_DIR/docker/docker-compose.yml")
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE} LUMINA QUANT LAB - Test Suite${NC}"
@@ -40,12 +41,15 @@ check_docker_services() {
         return 1
     fi
     
-    # Check specific containers
-    local services=("lumina-timescaledb" "lumina-redis" "lumina-api")
+    # Check the compose-managed core services instead of relying on container names.
+    local services=("timescaledb" "redis" "api")
     local all_running=true
+    local running_services
+
+    running_services="$("${COMPOSE_CMD[@]}" ps --services --status running 2>/dev/null || true)"
     
     for service in "${services[@]}"; do
-        if docker ps --format '{{.Names}}' | grep -q "^${service}$"; then
+        if grep -qx "$service" <<< "$running_services"; then
             echo -e "  ${GREEN}✓${NC} $service is running"
         else
             echo -e "  ${RED}✗${NC} $service is NOT running"
@@ -56,7 +60,7 @@ check_docker_services() {
     if [ "$all_running" = false ]; then
         echo ""
         echo -e "${YELLOW}Start services with:${NC}"
-        echo "  cd docker && docker-compose up -d"
+        echo "  make up"
         return 1
     fi
     
@@ -67,38 +71,38 @@ check_docker_services() {
 run_quick_tests() {
     echo -e "\n${YELLOW}Running quick smoke tests...${NC}\n"
     
-    python -m pytest "$TESTS_DIR/test_docker_services.py::TestRedisService::test_redis_connection" \
-                     "$TESTS_DIR/test_docker_services.py::TestTimescaleDBService::test_postgres_connection" \
-                     "$TESTS_DIR/test_docker_services.py::TestFastAPIService::test_api_health_endpoint" \
-                     -v --tb=short 2>&1 || true
+    uv run pytest "$TESTS_DIR/test_docker_services.py::TestRedisService::test_redis_connection" \
+                  "$TESTS_DIR/test_docker_services.py::TestTimescaleDBService::test_postgres_connection" \
+                  "$TESTS_DIR/test_docker_services.py::TestFastAPIService::test_api_health_endpoint" \
+                  -v --tb=short 2>&1 || true
 }
 
 # Run Docker services tests
 run_services_tests() {
     echo -e "\n${YELLOW}Running Docker services tests...${NC}\n"
     
-    python -m pytest "$TESTS_DIR/test_docker_services.py" -v --tb=short 2>&1
+    uv run pytest "$TESTS_DIR/test_docker_services.py" -v --tb=short 2>&1
 }
 
 # Run API endpoint tests
 run_api_tests() {
     echo -e "\n${YELLOW}Running API endpoint tests...${NC}\n"
     
-    python -m pytest "$TESTS_DIR/test_api_endpoints.py" -v --tb=short 2>&1
+    uv run pytest "$TESTS_DIR/test_api_endpoints.py" -v --tb=short 2>&1
 }
 
 # Run Celery task tests
 run_celery_tests() {
     echo -e "\n${YELLOW}Running Celery task tests...${NC}\n"
     
-    python -m pytest "$TESTS_DIR/test_celery_tasks.py" -v --tb=short 2>&1
+    uv run pytest "$TESTS_DIR/test_celery_tasks.py" -v --tb=short 2>&1
 }
 
 # Run data collection tests
 run_data_tests() {
     echo -e "\n${YELLOW}Running data collection tests...${NC}\n"
     
-    python -m pytest "$TESTS_DIR/test_data_collection.py" -v --tb=short 2>&1
+    uv run pytest "$TESTS_DIR/test_data_collection.py" -v --tb=short 2>&1
 }
 
 # Run all tests
@@ -108,9 +112,9 @@ run_all_tests() {
     echo -e "\n${YELLOW}Running all tests...${NC}\n"
     
     if [ "$include_slow" = "true" ]; then
-        python -m pytest "$TESTS_DIR" -v --tb=short -m "slow or not slow" 2>&1
+        uv run pytest "$TESTS_DIR" -v --tb=short -m "slow or not slow" 2>&1
     else
-        python -m pytest "$TESTS_DIR" -v --tb=short 2>&1
+        uv run pytest "$TESTS_DIR" -v --tb=short 2>&1
     fi
 }
 
@@ -118,7 +122,7 @@ run_all_tests() {
 run_integration_tests() {
     echo -e "\n${YELLOW}Running integration tests (slow)...${NC}\n"
     
-    python -m pytest "$TESTS_DIR/test_integration_full.py" -v -s --tb=short -m slow 2>&1
+    uv run pytest "$TESTS_DIR/test_integration_full.py" -v -s --tb=short -m slow 2>&1
 }
 
 # Print usage

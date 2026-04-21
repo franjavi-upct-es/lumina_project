@@ -267,7 +267,7 @@ class FeatureStore:
                     results[ticker] = features
 
             logger.success(f"Retrieved features for {len(results)}/{len(tickers)} tickers")
-            return results
+            return results  # type: ignore
 
         except Exception as e:
             logger.error(f"Error in batch feature retrieval: {e}")
@@ -310,7 +310,7 @@ class FeatureStore:
                 result = await session.execute(query)
                 await session.commit()
 
-                count = result.rowcount
+                count = result.rowcount  # type: ignore
 
                 # Clear cache
                 cache_key = f"{ticker}_features"
@@ -319,7 +319,7 @@ class FeatureStore:
                     del self.cache_timestamps[cache_key]
 
                 logger.success(f"Deleted {count} feature records for {ticker}")
-                return count
+                return count  # type: ignore
 
         except Exception as e:
             logger.error(f"Error deleting features: {e}")
@@ -360,7 +360,7 @@ class FeatureStore:
                 rows = result.all()
 
                 # Organize results
-                features_by_ticker = {}
+                features_by_ticker = {}  # type: ignore
                 for row in rows:
                     if row.ticker not in features_by_ticker:
                         features_by_ticker[row.ticker] = []
@@ -426,7 +426,7 @@ class FeatureStore:
                         "std": float(row.std) if row.std else 0.0,
                         "min": float(row.min) if row.min else 0.0,
                         "max": float(row.max) if row.max else 0.0,
-                        "count": int(row.count),
+                        "count": int(row.count),  # type: ignore
                     }
 
                 return None

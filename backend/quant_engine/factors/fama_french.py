@@ -85,8 +85,8 @@ class FactorExposure:
     # Standard errors and p-values
     alpha_tstat: float = 0.0
     alpha_pvalue: float = 0.0
-    beta_tstats: dict[str, float] = None
-    beta_pvalues: dict[str, float] = None
+    beta_tstats: dict[str, float] = None  # type: ignore
+    beta_pvalues: dict[str, float] = None  # type: ignore
 
     # Model info
     model_type: FactorModel = FactorModel.THREE_FACTOR
@@ -789,7 +789,7 @@ class FamaFrenchAnalyzer:
         # Add risk-free rate
         rf_annual = avg_factors.get("RF", 0.0) * annualization
 
-        return expected_annual + rf_annual
+        return expected_annual + rf_annual  # type: ignore
 
 
 # ============================================================================

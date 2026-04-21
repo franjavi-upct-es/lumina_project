@@ -225,15 +225,15 @@ class VolatilityRegimeDetector:
         )  # Scale to percentage
 
         # Fit GARCH model
-        self.garch_model = arch_model(
+        self.garch_model = arch_model(  # type: ignore
             returns,
-            vol="Garch",
+            vol="Garch",  # type: ignore
             p=p,
             q=q,
             dist="normal",
         )
 
-        self.garch_fit = self.garch_model.fit(disp="off", show_warning=False)
+        self.garch_fit = self.garch_model.fit(disp="off", show_warning=False)  # type: ignore
 
         logger.success(f"GARCH model fitted: AIC={self.garch_fit.aic:.2f}")
 
@@ -281,19 +281,19 @@ class VolatilityRegimeDetector:
         vol_values = result.select(volatility_col).to_series().drop_nulls()
 
         if self.n_regimes == 2:
-            self.thresholds = [vol_values.quantile(0.5)]
+            self.thresholds = [vol_values.quantile(0.5)]  # type: ignore
         elif self.n_regimes == 3:
-            self.thresholds = [vol_values.quantile(0.33), vol_values.quantile(0.67)]
+            self.thresholds = [vol_values.quantile(0.33), vol_values.quantile(0.67)]  # type: ignore
         elif self.n_regimes == 4:
             self.thresholds = [
-                vol_values.quantile(0.25),
-                vol_values.quantile(0.50),
-                vol_values.quantile(0.75),
+                vol_values.quantile(0.25),  # type: ignore
+                vol_values.quantile(0.50),  # type: ignore
+                vol_values.quantile(0.75),  # type: ignore
             ]
         else:
             # Equal percentiles
             percentiles = [i / self.n_regimes for i in range(1, self.n_regimes)]
-            self.thresholds = [vol_values.quantile(p) for p in percentiles]
+            self.thresholds = [vol_values.quantile(p) for p in percentiles]  # type: ignore
 
         logger.info(f"Volatility thresholds: {self.thresholds}")
 
@@ -306,7 +306,7 @@ class VolatilityRegimeDetector:
                     return i
             return len(self.thresholds)
 
-        regimes = result.select(volatility_col).to_series().apply(classify_regime)
+        regimes = result.select(volatility_col).to_series().apply(classify_regime)  # type: ignore
         regime_labels = regimes.apply(
             lambda r: self.regime_labels.get(r, f"regime_{r}") if r is not None else None
         )
@@ -368,11 +368,11 @@ class VolatilityRegimeDetector:
         vol_values = result.select(volatility_col).to_series()
         threshold_arrays = [thresholds_df.select(col).to_series() for col in thresholds_df.columns]
 
-        regimes = []
+        regimes = []  # type: ignore
         for i in range(len(vol_values)):
             vol = vol_values[i]
             if vol is None:
-                regimes.append(None)
+                regimes.append(None)  # type: ignore
                 continue
 
             regime = self.n_regimes - 1  # Default to highest regime
@@ -510,7 +510,7 @@ class VolatilityRegimeDetector:
                     {
                         "mean_return": returns.mean(),
                         "std_return": returns.std(),
-                        "sharpe": returns.mean() / returns.std() if returns.std() > 0 else 0,
+                        "sharpe": returns.mean() / returns.std() if returns.std() > 0 else 0,  # type: ignore
                         "skewness": returns.skew(),
                         "kurtosis": returns.kurtosis(),
                     }

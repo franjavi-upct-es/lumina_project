@@ -13,29 +13,78 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
+from dotenv import dotenv_values
 
 # Add backend to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT))
 
 pytestmark = [pytest.mark.integration, pytest.mark.docker]
 
+BACKEND_ENV = {
+    key: value
+    for key, value in dotenv_values(REPO_ROOT / "backend" / ".env").items()
+    if value is not None
+}
+
+
+def _env(name: str, default: str) -> str:
+    return os.getenv(name, BACKEND_ENV.get(name, default))
+
+
+def _build_http_url(base_var: str, host_var: str, port_var: str, default_port: int) -> str:
+    explicit = os.getenv(base_var, BACKEND_ENV.get(base_var))
+    if explicit:
+        return explicit.rstrip("/")
+
+    host = _env(host_var, "localhost")
+    port = _env(port_var, str(default_port))
+    return f"http://{host}:{port}"
+
+
+def _parse_url(url: str, default_port: int) -> tuple[str, int]:
+    parsed = urlparse(url)
+    return parsed.hostname or "localhost", parsed.port or default_port
+
+
+DATABASE_URL = _env(
+    "DATABASE_URL",
+    "postgresql://lumina:lumina_password@localhost:5435/lumina_db",
+)
+REDIS_URL = _env("REDIS_URL", "redis://:lumina_password@localhost:6379/0")
+API_BASE_URL = _build_http_url("API_BASE_URL", "API_HOST", "API_PORT", 8000)
+MLFLOW_URL = _build_http_url("MLFLOW_TRACKING_URI", "MLFLOW_HOST", "MLFLOW_PORT", 5000)
+STREAMLIT_URL = _build_http_url("STREAMLIT_URL", "STREAMLIT_HOST", "STREAMLIT_PORT", 8501)
+
+db_host, db_port = _parse_url(DATABASE_URL, 5432)
+redis_host, redis_port = _parse_url(REDIS_URL, 6379)
+api_host, api_port = _parse_url(API_BASE_URL, 8000)
+mlflow_host, mlflow_port = _parse_url(MLFLOW_URL, 5000)
+streamlit_host, streamlit_port = _parse_url(STREAMLIT_URL, 8501)
+
 # Service URLs (Docker internal network)
 DOCKER_CONFIG = {
-    "POSTGRES_HOST": os.getenv("POSTGRES_HOST", "localhost"),
-    "POSTGRES_PORT": int(os.getenv("POSTGRES_PORT", "5435")),
-    "POSTGRES_USER": os.getenv("POSTGRES_USER", "lumina"),
-    "POSTGRES_PASSWORD": os.getenv("POSTGRES_PASSWORD", "lumina_password"),
-    "POSTGRES_DB": os.getenv("POSTGRES_DB", "lumina_db"),
-    "REDIS_HOST": os.getenv("REDIS_HOST", "localhost"),
-    "REDIS_PORT": int(os.getenv("REDIS_PORT", "6379")),
-    "API_HOST": os.getenv("API_HOST", "localhost"),
-    "API_PORT": int(os.getenv("API_PORT", "8000")),
-    "MLFLOW_HOST": os.getenv("MLFLOW_HOST", "localhost"),
-    "MLFLOW_PORT": int(os.getenv("MLFLOW_PORT", "5000")),
-    "STREAMLIT_HOST": os.getenv("STREAMLIT_HOST", "localhost"),
-    "STREAMLIT_PORT": int(os.getenv("STREAMLIT_PORT", "8501")),
+    "DATABASE_URL": DATABASE_URL,
+    "POSTGRES_HOST": db_host,
+    "POSTGRES_PORT": db_port,
+    "POSTGRES_USER": _env("POSTGRES_USER", "lumina"),
+    "POSTGRES_PASSWORD": _env("POSTGRES_PASSWORD", "lumina_password"),
+    "POSTGRES_DB": _env("POSTGRES_DB", "lumina_db"),
+    "REDIS_URL": REDIS_URL,
+    "REDIS_HOST": redis_host,
+    "REDIS_PORT": redis_port,
+    "API_BASE_URL": API_BASE_URL,
+    "API_HOST": api_host,
+    "API_PORT": api_port,
+    "MLFLOW_URL": MLFLOW_URL,
+    "MLFLOW_HOST": mlflow_host,
+    "MLFLOW_PORT": mlflow_port,
+    "STREAMLIT_URL": STREAMLIT_URL,
+    "STREAMLIT_HOST": streamlit_host,
+    "STREAMLIT_PORT": streamlit_port,
 }
 
 
@@ -45,15 +94,7 @@ class TestTimescaleDBService:
     @pytest.fixture
     def db_connection_string(self):
         """Build PostgreSQL connection string"""
-        password = DOCKER_CONFIG["POSTGRES_PASSWORD"]
-        user = DOCKER_CONFIG["POSTGRES_USER"]
-        userinfo = f"{user}:{password}" if password else user
-        return (
-            f"postgresql://{userinfo}@"
-            f"{DOCKER_CONFIG['POSTGRES_HOST']}:"
-            f"{DOCKER_CONFIG['POSTGRES_PORT']}/"
-            f"{DOCKER_CONFIG['POSTGRES_DB']}"
-        )
+        return DOCKER_CONFIG["DATABASE_URL"]
 
     def test_postgres_connection(self, db_connection_string):
         """Test PostgreSQL is accessible"""
@@ -98,7 +139,14 @@ class TestTimescaleDBService:
         """Test required tables exist"""
         import psycopg2
 
-        expected_tables = ["market_data", "features", "predictions", "models", "backtests"]
+        expected_tables = [
+            "price_data",
+            "features",
+            "predictions",
+            "models",
+            "backtest_results",
+            "backtest_trades",
+        ]
 
         try:
             conn = psycopg2.connect(db_connection_string)
@@ -184,9 +232,8 @@ class TestRedisService:
         """Create Redis client"""
         from redis import Redis
 
-        return Redis(
-            host=DOCKER_CONFIG["REDIS_HOST"],
-            port=DOCKER_CONFIG["REDIS_PORT"],
+        return Redis.from_url(
+            DOCKER_CONFIG["REDIS_URL"],
             decode_responses=True,
         )
 
@@ -276,7 +323,7 @@ class TestFastAPIService:
     @pytest.fixture
     def api_base_url(self):
         """Build API base URL"""
-        return f"http://{DOCKER_CONFIG['API_HOST']}:{DOCKER_CONFIG['API_PORT']}"
+        return DOCKER_CONFIG["API_BASE_URL"]
 
     def test_api_health_endpoint(self, api_base_url):
         """Test API health endpoint"""
@@ -287,7 +334,7 @@ class TestFastAPIService:
 
             assert response.status_code == 200
             data = response.json()
-            assert data.get("status") == "healthy"
+            assert data.get("status") == "ok"
             print(f"✓ API health check passed: {data}")
         except requests.ConnectionError as e:
             pytest.fail(f"API connection failed: {e}")
@@ -365,14 +412,12 @@ class TestCeleryWorkers:
     def celery_app(self):
         """Get Celery app instance"""
         # Set environment for Docker
-        os.environ["REDIS_URL"] = (
-            f"redis://{DOCKER_CONFIG['REDIS_HOST']}:{DOCKER_CONFIG['REDIS_PORT']}/0"
-        )
-        os.environ["CELERY_BROKER_URL"] = (
-            f"redis://{DOCKER_CONFIG['REDIS_HOST']}:{DOCKER_CONFIG['REDIS_PORT']}/1"
-        )
-        os.environ["CELERY_RESULT_BACKEND"] = (
-            f"redis://{DOCKER_CONFIG['REDIS_HOST']}:{DOCKER_CONFIG['REDIS_PORT']}/2"
+        redis_base = DOCKER_CONFIG["REDIS_URL"].rsplit("/", 1)[0]
+        os.environ["REDIS_URL"] = DOCKER_CONFIG["REDIS_URL"]
+        os.environ["CELERY_BROKER_URL"] = _env("CELERY_BROKER_URL", f"{redis_base}/1")
+        os.environ["CELERY_RESULT_BACKEND"] = _env(
+            "CELERY_RESULT_BACKEND",
+            f"{redis_base}/2",
         )
 
         from backend.workers.celery_app import celery_app
@@ -460,7 +505,7 @@ class TestMLflowService:
     @pytest.fixture
     def mlflow_url(self):
         """Build MLflow URL"""
-        return f"http://{DOCKER_CONFIG['MLFLOW_HOST']}:{DOCKER_CONFIG['MLFLOW_PORT']}"
+        return DOCKER_CONFIG["MLFLOW_URL"]
 
     def test_mlflow_health(self, mlflow_url):
         """Test MLflow server is accessible"""
@@ -486,7 +531,11 @@ class TestMLflowService:
         import requests
 
         try:
-            response = requests.get(f"{mlflow_url}/api/2.0/mlflow/experiments/search", timeout=10)
+            response = requests.post(
+                f"{mlflow_url}/api/2.0/mlflow/experiments/search",
+                json={"max_results": 100},
+                timeout=10,
+            )
 
             assert response.status_code == 200
             data = response.json()
@@ -531,7 +580,7 @@ class TestStreamlitService:
     @pytest.fixture
     def streamlit_url(self):
         """Build Streamlit URL"""
-        return f"http://{DOCKER_CONFIG['STREAMLIT_HOST']}:{DOCKER_CONFIG['STREAMLIT_PORT']}"
+        return DOCKER_CONFIG["STREAMLIT_URL"]
 
     def test_streamlit_accessible(self, streamlit_url):
         """Test Streamlit is accessible"""
@@ -573,7 +622,7 @@ class TestServiceIntegration:
         """Test API can communicate with database"""
         import requests
 
-        api_url = f"http://{DOCKER_CONFIG['API_HOST']}:{DOCKER_CONFIG['API_PORT']}"
+        api_url = DOCKER_CONFIG["API_BASE_URL"]
 
         try:
             response = requests.get(f"{api_url}/health", timeout=10)
@@ -591,7 +640,7 @@ class TestServiceIntegration:
         """Test API can communicate with Redis"""
         import requests
 
-        api_url = f"http://{DOCKER_CONFIG['API_HOST']}:{DOCKER_CONFIG['API_PORT']}"
+        api_url = DOCKER_CONFIG["API_BASE_URL"]
 
         try:
             response = requests.get(f"{api_url}/health", timeout=10)

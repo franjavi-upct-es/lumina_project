@@ -316,7 +316,8 @@ class FredCollector(BaseDataCollector):
 
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
-                None, lambda: requests.get(url, params=params, timeout=30)
+                None,
+                lambda: requests.get(url, params=params, timeout=30),  # type: ignore
             )
 
             if response.status_code != 200:

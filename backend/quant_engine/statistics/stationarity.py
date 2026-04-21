@@ -194,7 +194,7 @@ class StationarityTester:
         series = series.dropna()
 
         # Perform PP test
-        pp = PhillipsPerron(series, trend=regression, lags=lags)
+        pp = PhillipsPerron(series, trend=regression, lags=lags)  # type: ignore
 
         pp_stat = pp.stat
         p_value = pp.pvalue
@@ -250,7 +250,7 @@ class StationarityTester:
             lags = [lags]
 
         # Perform VR test
-        vr = VarianceRatio(series, lags=lags, robust=robust)
+        vr = VarianceRatio(series, lags=lags, robust=robust)  # type: ignore
 
         vr_stat = vr.stat
         p_value = vr.pvalue

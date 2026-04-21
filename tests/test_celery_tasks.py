@@ -22,11 +22,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 pytestmark = pytest.mark.integration
 
 # Configure environment for tests
-os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
-os.environ.setdefault("CELERY_BROKER_URL", "redis://localhost:6379/1")
-os.environ.setdefault("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
+os.environ.setdefault("REDIS_URL", "redis://:lumina_password@localhost:6379/0")
+os.environ.setdefault("CELERY_BROKER_URL", "redis://:lumina_password@localhost:6379/1")
+os.environ.setdefault("CELERY_RESULT_BACKEND", "redis://:lumina_password@localhost:6379/2")
 os.environ.setdefault(
-    "DATABASE_URL", "postgresql://localhost:5435/lumina_db"
+    "DATABASE_URL", "postgresql://lumina:lumina_password@localhost:5435/lumina_db"
 )
 
 
@@ -189,9 +189,17 @@ class TestMLTasks:
         print(f"✓ Training task submitted: {task.id}")
         print(f"  Job ID: {job_id}")
 
-        # Check task state after a moment
-        time.sleep(2)
+        deadline = time.time() + 60
+        terminal_states = {"SUCCESS", "FAILURE", "REVOKED"}
+
+        while time.time() < deadline:
+            if task.state in terminal_states:
+                break
+            time.sleep(1)
+
         print(f"  Task state: {task.state}")
+        assert task.state != "FAILURE", f"Training task failed early: {task.result}"
+        assert task.state != "REVOKED", "Training task was unexpectedly revoked"
 
     def test_predict_task(self):
         """Test prediction task"""

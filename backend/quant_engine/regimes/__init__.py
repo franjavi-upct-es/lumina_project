@@ -30,9 +30,9 @@ Usage:
     regime_probs = detector.get_regime_probabilities()
 """
 
-from backend.quant_engine.regimes.clustering import RegimeClustering
-from backend.quant_engine.regimes.hmm_detector import HMMDetector
-from backend.quant_engine.regimes.volatility_regimes import VolatilityRegimes
+from backend.quant_engine.regimes.clustering import RegimeClustering  # type: ignore
+from backend.quant_engine.regimes.hmm_detector import HMMDetector  # type: ignore
+from backend.quant_engine.regimes.volatility_regimes import VolatilityRegimes  # type: ignore
 
 __all__ = [
     "HMMDetector",

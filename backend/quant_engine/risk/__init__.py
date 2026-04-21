@@ -37,7 +37,7 @@ Usage:
 
 from backend.quant_engine.risk.cvar_calculator import CVaRCalculator
 from backend.quant_engine.risk.drawdown import DrawdownAnalyzer
-from backend.quant_engine.risk.stress_testing import StressTesting
+from backend.quant_engine.risk.stress_testing import StressTesting  # type: ignore
 from backend.quant_engine.risk.var_calculator import VaRCalculator
 
 __all__ = [

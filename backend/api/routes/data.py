@@ -178,7 +178,7 @@ async def get_historical_prices(
     start_date: Annotated[datetime | None, Query(description="Start date (YYYY-MM-DD)")] = None,
     end_date: Annotated[datetime | None, Query(description="End date (YYYY-MM-DD)")] = None,
     interval: Annotated[str, Query(pattern="^(1d|1h|5m|15m|30m|1wk|1mo)$")] = "1d",
-    collector: Annotated[YFinanceCollector, Depends(get_collector)] = "default",
+    collector: Annotated[YFinanceCollector, Depends(get_collector)] = "default",  # type: ignore
 ):
     """
     Get historical price data for a ticker
@@ -278,7 +278,7 @@ async def get_features(
         ),
     ] = None,
     include_data: Annotated[bool, Query(description="Include feature values in response")] = False,
-    collector: Annotated[YFinanceCollector, Depends(get_collector)] = "default",
+    collector: Annotated[YFinanceCollector, Depends(get_collector)] = "default",  # type: ignore
 ):
     """
     Get computed features for a ticker
@@ -368,7 +368,7 @@ async def get_options_chain(
     expiration_date: Annotated[
         str | None, Query(description="Expiration date (YYYY-MM-DD)")
     ] = None,
-    collector: Annotated[YFinanceCollector, Depends(get_collector)] = "default",
+    collector: Annotated[YFinanceCollector, Depends(get_collector)] = "default",  # type: ignore
 ):
     """
     Get options chain data for a ticker

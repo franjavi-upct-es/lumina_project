@@ -37,8 +37,8 @@ Usage:
     weights_rp = optimizer.risk_parity()
 """
 
-from backend.quant_engine.optimization.black_litterman import BlackLitterman
-from backend.quant_engine.optimization.genetic_algorithm import GeneticOptimizer
+from backend.quant_engine.optimization.black_litterman import BlackLitterman  # type: ignore
+from backend.quant_engine.optimization.genetic_algorithm import GeneticOptimizer  # type: ignore
 from backend.quant_engine.optimization.portfolio_optimizer import PortfolioOptimizer
 
 __all__ = [

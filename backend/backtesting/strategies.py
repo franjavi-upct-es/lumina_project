@@ -477,7 +477,7 @@ def get_strategy(strategy_name: str, **params) -> BaseStrategy:
         raise ValueError(f"Unknown strategy: {strategy_name}. Available: {list(STRATEGIES.keys())}")
 
     strategy_class = STRATEGIES[strategy_name]
-    return strategy_class(**params)
+    return strategy_class(**params)  # type: ignore
 
 
 def list_strategies() -> dict[str, str]:

@@ -292,7 +292,7 @@ class FinancialMetrics:
             "avg_interval_width": float(avg_width),
             "calibration_error": float(calibration_error),
             "sharpness": float(sharpness),
-            "is_well_calibrated": calibration_error < 0.05,
+            "is_well_calibrated": calibration_error < 0.05,  # type: ignore
         }
 
     @staticmethod
@@ -339,7 +339,7 @@ class FinancialMetrics:
         return {
             "theil_u": float(theil_u),
             "forecast_bias": float(forecast_bias),
-            "mase": float(mase) if not np.isnan(mase) else None,
+            "mase": float(mase) if not np.isnan(mase) else None,  # type: ignore
         }
 
 
@@ -492,7 +492,7 @@ def statistical_significance_test(
     is_significant = pvalue < 0.05
 
     return {
-        "test": test,
+        "test": test,  # type: ignore
         "statistic": float(statistic),
         "pvalue": float(pvalue),
         "is_significant": bool(is_significant),

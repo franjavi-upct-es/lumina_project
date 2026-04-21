@@ -153,19 +153,19 @@ class RiskFactor:
     @property
     def mean(self) -> float:
         """Average factor value"""
-        return float(self.values.mean())
+        return float(self.values.mean())  # type: ignore
 
     @property
     def std(self) -> float:
         """Standard deviation of factor values"""
-        return float(self.values.std())
+        return float(self.values.std())  # type: ignore
 
     @property
     def sharpe(self) -> float:
         """Sharpe ratio of factor (assuming zero risk-free rate)"""
         if self.std == 0:
             return 0.0
-        return self.mean / self.std * np.sqrt(252)
+        return self.mean / self.std * np.sqrt(252)  # type: ignore
 
 
 @dataclass
@@ -911,7 +911,7 @@ class RiskFactorAnalyzer:
         if annualize:
             cov = cov * 252
 
-        return cov
+        return cov  # type: ignore
 
     def decompose_risk(
         self,
@@ -1086,7 +1086,7 @@ class RiskFactorAnalyzer:
         expected_return = np.mean(portfolio_returns) * 252
         correlation = np.corrcoef(portfolio_returns, factor_valid)[0, 1]
 
-        info_ratio = expected_return / tracking_error if tracking_error > 0 else 0
+        info_ratio = expected_return / tracking_error if tracking_error > 0 else 0  # type: ignore
 
         weights_dict = {name: float(w) for name, w in zip(asset_names, weights)}
 
@@ -1094,7 +1094,7 @@ class RiskFactorAnalyzer:
             factor_name=target_factor.name,
             weights=weights_dict,
             expected_return=float(expected_return),
-            tracking_error=float(tracking_error),
+            tracking_error=float(tracking_error),  # type: ignore
             information_ratio=float(info_ratio),
             correlation=float(correlation),
         )
@@ -1266,7 +1266,8 @@ async def analyze_factor_exposures_async(
     for asset_name, returns in asset_returns.items():
         try:
             exposure = await loop.run_in_executor(
-                None, lambda r=returns: analyzer.estimate_factor_exposure(r, factors)
+                None,
+                lambda r=returns: analyzer.estimate_factor_exposure(r, factors),  # type: ignore
             )
             exposure.asset_id = asset_name
             exposures[asset_name] = exposure

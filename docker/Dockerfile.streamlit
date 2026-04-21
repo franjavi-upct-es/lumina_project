@@ -3,6 +3,9 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
+ENV UV_HTTP_TIMEOUT=600 \
+    UV_CONCURRENT_DOWNLOADS=4
+
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
@@ -10,7 +13,11 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock ./
 
 # Install Streamlit + DB + Data dependencies
-RUN uv sync --frozen --no-cache --no-install-project --group streamlit --group db --group data
+RUN uv sync --frozen --no-cache --no-install-project \
+    --only-group streamlit \
+    --only-group db \
+    --only-group data \
+    --only-group backtest
 
 # Production stage
 FROM python:3.11-slim

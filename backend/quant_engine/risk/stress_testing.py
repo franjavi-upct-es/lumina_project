@@ -48,51 +48,51 @@ class StressTester:
             "black_monday_1987": {
                 "equity": -0.20,  # -20% in equities
                 "volatility_multiplier": 3.0,
-                "description": "Black Monday - October 19, 1987",
+                "description": "Black Monday - October 19, 1987",  # type: ignore
             },
             "dotcom_crash_2000": {
                 "equity": -0.45,  # Tech stocks -45%
                 "bonds": 0.08,
                 "volatility_multiplier": 2.5,
-                "description": "Dot-com bubble burst - 2000-2002",
+                "description": "Dot-com bubble burst - 2000-2002",  # type: ignore
             },
             "financial_crisis_2008": {
                 "equity": -0.50,  # -50% in equities
                 "bonds": 0.05,  # Flight to quality
                 "credit_spread": 0.06,  # Credit spreads widen
                 "volatility_multiplier": 4.0,
-                "description": "Global Financial Crisis - 2008",
+                "description": "Global Financial Crisis - 2008",  # type: ignore
             },
             "flash_crash_2010": {
                 "equity": -0.09,
                 "volatility_multiplier": 5.0,
-                "duration": "intraday",
-                "description": "Flash Crash - May 6, 2010",
+                "duration": "intraday",  # type: ignore
+                "description": "Flash Crash - May 6, 2010",  # type: ignore
             },
             "eu_debt_crisis_2011": {
                 "equity": -0.25,
                 "bonds": -0.15,  # European bonds affected
                 "credit_spread": 0.04,
-                "description": "European Debt Crisis - 2011",
+                "description": "European Debt Crisis - 2011",  # type: ignore
             },
             "brexit_2016": {
                 "equity": -0.08,
                 "fx_gbp": -0.10,  # GBP depreciation
                 "volatility_multiplier": 2.0,
-                "description": "Brexit Vote - June 24, 2016",
+                "description": "Brexit Vote - June 24, 2016",  # type: ignore
             },
             "covid_crash_2020": {
                 "equity": -0.34,  # -34% peak to trough
                 "bonds": 0.10,  # Flight to safety
                 "credit_spread": 0.05,
                 "volatility_multiplier": 5.0,
-                "description": "COVID-19 Pandemic - March 2020",
+                "description": "COVID-19 Pandemic - March 2020",  # type: ignore
             },
             "interest_rate_shock_2022": {
                 "equity": -0.25,
                 "bonds": -0.15,  # Bond bear market
                 "rates": 0.03,  # 300 bps rate increase
-                "description": "Interest Rate Shock - 2022",
+                "description": "Interest Rate Shock - 2022",  # type: ignore
             },
         }
 

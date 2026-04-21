@@ -103,7 +103,7 @@ class GeneticPortfolioOptimizer:
         population = population / population.sum(axis=1, keepdims=True)
 
         logger.debug(f"Initialized population of {self.population_size} individuals")
-        return population
+        return population  # type: ignore
 
     def calculate_fitness(
         self,
@@ -279,7 +279,7 @@ class GeneticPortfolioOptimizer:
         Returns:
             New population
         """
-        new_population = []
+        new_population = []  # type: ignore
 
         # Elitism - preserve best individuals
         elite_idx = np.argsort(fitness_scores)[-self.n_elites :]
@@ -377,7 +377,7 @@ class GeneticPortfolioOptimizer:
 
         logger.success(f"Genetic algorithm complete: Best fitness = {best_fitness:.6f}")
 
-        return best_individual, results
+        return best_individual, results  # type: ignore
 
 
 def create_sharpe_fitness(
@@ -405,7 +405,7 @@ def create_sharpe_fitness(
             return -np.inf
 
         sharpe = (portfolio_return - risk_free_rate) / portfolio_vol
-        return sharpe
+        return sharpe  # type: ignore
 
     return fitness
 
@@ -434,9 +434,9 @@ def create_return_fitness(
         # Penalty for exceeding volatility constraint
         if portfolio_vol > max_volatility:
             penalty = 1000 * (portfolio_vol - max_volatility)
-            return portfolio_return - penalty
+            return portfolio_return - penalty  # type: ignore
 
-        return portfolio_return
+        return portfolio_return  # type: ignore
 
     return fitness
 
@@ -466,7 +466,7 @@ def create_multiobjective_fitness(
 
         # Mean-variance utility
         utility = portfolio_return - 0.5 * risk_aversion * portfolio_variance
-        return utility
+        return utility  # type: ignore
 
     return fitness
 

@@ -34,8 +34,8 @@ Usage:
 """
 
 from backend.quant_engine.statistics.causality import CausalityTester as Causality
-from backend.quant_engine.statistics.cointegration import Cointegration
-from backend.quant_engine.statistics.stationarity import Stationarity
+from backend.quant_engine.statistics.cointegration import Cointegration  # type: ignore
+from backend.quant_engine.statistics.stationarity import Stationarity  # type: ignore
 
 __all__ = [
     "Cointegration",

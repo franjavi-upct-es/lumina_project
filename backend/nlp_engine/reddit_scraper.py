@@ -570,7 +570,7 @@ class RedditScraper:
         posts: list[RedditPost] = []
 
         try:
-            subreddit = self.reddit.subreddit(subreddit_name)
+            subreddit = self.reddit.subreddit(subreddit_name)  # type: ignore
 
             # Get posts based on sort method
             if sort == SortMethod.HOT:
@@ -708,7 +708,7 @@ class RedditScraper:
         posts: list[RedditPost] = []
 
         try:
-            subreddit = self.reddit.subreddit(subreddit_name)
+            subreddit = self.reddit.subreddit(subreddit_name)  # type: ignore
 
             submissions = subreddit.search(
                 query=query,
@@ -870,7 +870,7 @@ class RedditScraper:
         comments: list[RedditComment] = []
 
         try:
-            submission = self.reddit.submission(id=post_id)
+            submission = self.reddit.submission(id=post_id)  # type: ignore
             submission.comments.replace_more(limit=depth)
 
             for comment in submission.comments.list()[:limit]:
@@ -885,9 +885,7 @@ class RedditScraper:
                             text=comment.body,
                             author=str(comment.author) if comment.author else "[deleted]",
                             score=comment.score,
-                            created_utc=datetime.fromtimestamp(
-                                comment.created_utc, tz=UTC
-                            ),
+                            created_utc=datetime.fromtimestamp(comment.created_utc, tz=UTC),
                             parent_id=comment.parent_id,
                             is_top_level=comment.parent_id.startswith("t3_"),
                             tickers_mentioned=tickers,

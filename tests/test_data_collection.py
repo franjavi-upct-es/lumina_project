@@ -163,9 +163,7 @@ class TestFeatureEngineer:
     @pytest.mark.asyncio
     async def test_create_all_features(self, engineer, sample_data):
         """Test creating all features"""
-        enriched = engineer.create_all_features(
-            sample_data, add_lags=True, add_rolling=True
-        )
+        enriched = engineer.create_all_features(sample_data, add_lags=True, add_rolling=True)
 
         assert enriched is not None
         assert enriched.height == sample_data.height

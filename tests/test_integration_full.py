@@ -22,11 +22,11 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Configure environment
-os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
-os.environ.setdefault("CELERY_BROKER_URL", "redis://localhost:6379/1")
-os.environ.setdefault("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
+os.environ.setdefault("REDIS_URL", "redis://:lumina_password@localhost:6379/0")
+os.environ.setdefault("CELERY_BROKER_URL", "redis://:lumina_password@localhost:6379/1")
+os.environ.setdefault("CELERY_RESULT_BACKEND", "redis://:lumina_password@localhost:6379/2")
 os.environ.setdefault(
-    "DATABASE_URL", "postgresql://localhost:5435/lumina_db"
+    "DATABASE_URL", "postgresql://lumina:lumina_password@localhost:5435/lumina_db"
 )
 
 
@@ -130,7 +130,9 @@ class TestFullMLPipeline:
             while not task.ready() and (time.time() - start_time) < timeout:
                 if task.state == "PROGRESS":
                     meta = task.info or {}
-                    logger.info(f"  Progress: {meta.get('step', 'unknown')} - {meta.get('progress', 0)}%")
+                    logger.info(
+                        f"  Progress: {meta.get('step', 'unknown')} - {meta.get('progress', 0)}%"
+                    )
                 time.sleep(5)
 
             if not task.ready():
@@ -184,7 +186,9 @@ class TestFullMLPipeline:
             logger.info(f"  Summary: {prediction.get('summary', {})}")
 
             for pred in prediction["predictions"]:
-                logger.info(f"  Day {pred['day']}: ${pred['predicted_price']} ({pred['change_percent']:+.2f}%)")
+                logger.info(
+                    f"  Day {pred['day']}: ${pred['predicted_price']} ({pred['change_percent']:+.2f}%)"
+                )
 
         except Exception as e:
             pytest.fail(f"Prediction failed: {e}")
@@ -450,7 +454,9 @@ class TestAPIIntegration:
 
 # Pytest configuration
 def pytest_configure(config):
-    config.addinivalue_line("markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')")
+    config.addinivalue_line(
+        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+    )
 
 
 if __name__ == "__main__":

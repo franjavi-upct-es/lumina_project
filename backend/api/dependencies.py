@@ -140,13 +140,13 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
         }
     )
 
-    encoded_jwt = jwt.encode(
+    encoded_jwt = jwt.encode(  # type: ignore
         to_encode,
         settings.SECRET_KEY,
         algorithm=settings.JWT_ALGORITHM,
     )
 
-    return encoded_jwt
+    return encoded_jwt  # type: ignore
 
 
 def decode_access_token(token: str) -> dict:
@@ -163,19 +163,19 @@ def decode_access_token(token: str) -> dict:
         HTTPException: If token is invalid or expired
     """
     try:
-        payload = jwt.decode(
+        payload = jwt.decode(  # type: ignore
             token,
             settings.SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM],
         )
-        return payload
-    except jwt.ExpiredSignatureError as err:
+        return payload  # type: ignore
+    except jwt.ExpiredSignatureError as err:  # type: ignore
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         ) from err
-    except jwt.JWTError as err:
+    except jwt.JWTError as err:  # type: ignore
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",

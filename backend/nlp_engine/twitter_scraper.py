@@ -558,7 +558,7 @@ class TwitterScraper:
                 # Calculate how many to fetch this iteration
                 batch_size = min(100, max_results - collected)
 
-                response = self.client.search_recent_tweets(
+                response = self.client.search_recent_tweets(  # type: ignore
                     query=query,
                     max_results=batch_size,
                     start_time=start_time,
@@ -733,7 +733,7 @@ class TwitterScraper:
 
         try:
             # Get user ID from username
-            user_response = self.client.get_user(
+            user_response = self.client.get_user(  # type: ignore
                 username=username,
                 user_fields=["id", "username", "name", "verified", "public_metrics"],
             )
@@ -764,7 +764,7 @@ class TwitterScraper:
                 "source",
             ]
 
-            response = self.client.get_users_tweets(
+            response = self.client.get_users_tweets(  # type: ignore
                 id=user_id,
                 max_results=min(max_results, 100),
                 tweet_fields=tweet_fields,
@@ -847,7 +847,7 @@ class TwitterScraper:
         Get user synchronously
         """
         try:
-            response = self.client.get_user(
+            response = self.client.get_user(  # type: ignore
                 username=username,
                 user_fields=[
                     "id",
