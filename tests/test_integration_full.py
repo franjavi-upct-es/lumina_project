@@ -83,7 +83,7 @@ class TestFullMLPipeline:
             from backend.data_engine.transformers.feature_engineering import FeatureEngineer
 
             fe = FeatureEngineer()
-            enriched_data = fe.create_all_features(data, add_lags=True, add_rolling=True)
+            fe.create_all_features(data, add_lags=True, add_rolling=True)
             feature_names = fe.get_all_feature_names()
 
             assert len(feature_names) > 0, "No features generated"
@@ -327,7 +327,7 @@ class TestBacktestIntegration:
             }
 
             task = run_backtest_task.delay(backtest_id=backtest_id, config=config)
-            result = task.get(timeout=300)
+            task.get(timeout=300)
 
             logger.success("✓ Mean reversion backtest completed")
         except Exception as e:
@@ -374,7 +374,7 @@ class TestRiskAnalysisIntegration:
         try:
             from backend.quant_engine.risk.var_calculator import VaRCalculator
 
-            var_calc = VaRCalculator()
+            VaRCalculator()
             # This depends on actual implementation
             logger.success("✓ VaR calculator initialized")
         except ImportError:
@@ -384,7 +384,7 @@ class TestRiskAnalysisIntegration:
         try:
             from backend.quant_engine.risk.cvar_calculator import CVaRCalculator
 
-            cvar_calc = CVaRCalculator()
+            CVaRCalculator()
             logger.success("✓ CVaR calculator initialized")
         except ImportError:
             logger.warning("CVaRCalculator not available")

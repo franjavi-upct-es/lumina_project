@@ -252,10 +252,11 @@ include = '\.pyi?$'
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = ["notebooks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "C4"]
-ignore = ["E501"]
+ignore = ["E501", "B008", "B905"]
 
 [tool.isort]
 profile = "black"

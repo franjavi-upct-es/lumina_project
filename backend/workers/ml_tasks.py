@@ -115,7 +115,6 @@ def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparam
     Train a machine learning model asynchronously.
     """
     try:
-        import mlflow
         import torch
         from torch.utils.data import DataLoader, random_split
 
@@ -347,7 +346,6 @@ def train_xgboost_task(
 ):
     """Train an XGBoost model and log to MLflow + DB."""
     try:
-        import mlflow
         import xgboost as xgb
         from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
@@ -527,7 +525,7 @@ def train_xgboost_task(
 
     except Exception as exc:
         logger.error(f"XGBoost training failed for {ticker}: {exc}", exc_info=True)
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc
 
 
 # ---------------------------------------------------------------------------

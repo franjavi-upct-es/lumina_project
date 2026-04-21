@@ -461,7 +461,7 @@ class ClassificationErrorAnalyzer:
             tp = cm[i, i]
             fp = cm[:, i].sum() - tp
             fn = cm[i, :].sum() - tp
-            tn = cm.sum() - tp - fp - fn
+            cm.sum() - tp - fp - fn
 
             precision = tp / (tp + fp) if (tp + fp) > 0 else 0
             recall = tp / (tp + fn) if (tp + fn) > 0 else 0

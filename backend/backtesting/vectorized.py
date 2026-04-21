@@ -181,7 +181,7 @@ class VectorizedBacktest:
             col_prices = prices[col]
 
             # Find position changes
-            position_changes = col_signals.diff()
+            col_signals.diff()
 
             # Track open position
             entry_time = None

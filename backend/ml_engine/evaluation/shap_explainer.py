@@ -4,8 +4,8 @@ SHAP (SHapley Additive exPlanations) for model interpretability
 Provides feature importance and individual prediction explanations
 """
 
-import enum
 from typing import Any
+
 import numpy as np
 import pandas as pd
 import shap

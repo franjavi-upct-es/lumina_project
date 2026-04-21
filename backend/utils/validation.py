@@ -100,13 +100,13 @@ def validate_date_range(
         try:
             start_date = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
         except ValueError as e:
-            raise ValidationError(f"Invalid start_date format: {e}")
+            raise ValidationError(f"Invalid start_date format: {e}") from e
 
     if isinstance(end_date, str):
         try:
             end_date = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
         except ValueError as e:
-            raise ValidationError(f"Invalid end_date format: {e}")
+            raise ValidationError(f"Invalid end_date format: {e}") from e
 
     # Validate order
     if start_date >= end_date:

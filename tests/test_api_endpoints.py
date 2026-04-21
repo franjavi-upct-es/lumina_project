@@ -17,6 +17,8 @@ import pytest
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+pytestmark = pytest.mark.integration
+
 # Configuration
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
@@ -326,7 +328,7 @@ class TestPortfolioEndpoints:
             response = requests.post(f"{api_url}/efficient-frontier", json=payload, timeout=120)
 
             if response.status_code in [200, 202]:
-                data = response.json()
+                response.json()
                 print("✓ Efficient frontier calculated")
             else:
                 print(f"⚠ Efficient frontier endpoint: {response.status_code}")

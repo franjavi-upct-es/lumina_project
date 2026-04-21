@@ -97,7 +97,7 @@ class TestYFinanceCollector:
         assert len(results) > 0
         assert len(results) <= len(tickers)
 
-        for ticker, data in results.items():
+        for _ticker, data in results.items():
             assert data.height > 0
             assert "close" in data.columns
 
@@ -227,7 +227,7 @@ class TestFeatureEngineer:
     @pytest.mark.asyncio
     async def test_get_feature_names_by_category(self, engineer, sample_data):
         """Test getting features by category"""
-        enriched = engineer.create_all_features(sample_data)
+        engineer.create_all_features(sample_data)
 
         # Get features by category
         price_features = engineer.get_feature_names_by_category("price")
@@ -240,7 +240,7 @@ class TestFeatureEngineer:
     @pytest.mark.asyncio
     async def test_get_all_feature_names(self, engineer, sample_data):
         """Test getting all feature names"""
-        enriched = engineer.create_all_features(sample_data)
+        engineer.create_all_features(sample_data)
 
         all_features = engineer.get_all_feature_names()
 
@@ -288,9 +288,13 @@ def event_loop():
 def test_import_modules():
     """Test that all modules can be imported"""
     try:
-        from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
-        from backend.data_engine.transformers.feature_engineering import FeatureEngineer
-        from backend.db.models import bulk_insert_price_data, init_db
+        from backend.data_engine.collectors.yfinance_collector import (
+            YFinanceCollector,  # noqa: F401
+        )
+        from backend.data_engine.transformers.feature_engineering import (
+            FeatureEngineer,  # noqa: F401
+        )
+        from backend.db.models import bulk_insert_price_data, init_db  # noqa: F401
 
         assert True
     except ImportError as e:

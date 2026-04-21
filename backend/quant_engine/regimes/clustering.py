@@ -233,7 +233,7 @@ class ClusteringRegimeDetector:
             raise ValueError(f"Unknown clustering method: {self.method}")
 
         self.is_fitted = True
-        logger.success(f"Clustering model fitted successfully")
+        logger.success("Clustering model fitted successfully")
 
         return self
 

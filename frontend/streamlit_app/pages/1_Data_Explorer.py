@@ -204,7 +204,7 @@ try:
                     y=df["close"],
                     mode="lines",
                     name="Close",
-                    line=dict(color="#1f77b4", width=2)
+                    line={"color": "#1f77b4", "width": 2}
                 ),
                 row=1,
                 col=1,
@@ -216,7 +216,7 @@ try:
                     y=df["close"],
                     fill="tozeroy",
                     name="Close",
-                    line=dict(color="#1f77b4")
+                    line={"color": "#1f77b4"}
                 ),
                 row=1,
                 col=1,
@@ -365,7 +365,7 @@ try:
                 st.markdown("#### Feature Categories")
 
                 cols = st.columns(len(feature_categories))
-                for idx, (col, cat) in enumerate(zip(cols, feature_categories)):
+                for _idx, (col, cat) in enumerate(zip(cols, feature_categories)):
                     with col:
                         count = len(feature_data["categories"].get(cat, []))
                         st.metric(cat.title(), count)

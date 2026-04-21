@@ -29,7 +29,7 @@ Version: 2.0.0
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import numpy as np
@@ -66,7 +66,7 @@ except ImportError:
 # =============================================================================
 
 
-class RiskFactorType(str, Enum):
+class RiskFactorType(StrEnum):
     """Types of risk factors available in the system"""
 
     # Market factors
@@ -103,7 +103,7 @@ class RiskFactorType(str, Enum):
     CUSTOM = "custom"
 
 
-class CovarianceMethod(str, Enum):
+class CovarianceMethod(StrEnum):
     """Methods for covariance estimation"""
 
     SAMPLE = "sample"
@@ -113,7 +113,7 @@ class CovarianceMethod(str, Enum):
     FACTOR_MODEL = "factor_model"
 
 
-class RiskMeasure(str, Enum):
+class RiskMeasure(StrEnum):
     """Risk measurement methods"""
 
     VOLATILITY = "volatility"

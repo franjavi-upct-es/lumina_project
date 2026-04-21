@@ -280,7 +280,7 @@ async def check_feature_engineering() -> dict[str, Any]:
         )
 
         fe = FeatureEngineer()
-        enriched = fe.create_all_features(data)
+        fe.create_all_features(data)
         feature_count = len(fe.get_all_feature_names())
 
         return {
@@ -317,7 +317,7 @@ async def check_ml_models() -> dict[str, Any]:
         # Check forward pass
         test_input = torch.randn(1, 5, 10)
         with torch.no_grad():
-            output = model(test_input)
+            model(test_input)
 
         return {
             "status": "healthy",

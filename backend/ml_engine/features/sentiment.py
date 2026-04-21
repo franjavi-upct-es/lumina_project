@@ -26,7 +26,7 @@ class SentimentFeatures:
     def create_sentiment_features(
         self,
         sentiment_data: pd.DataFrame,
-        aggregation_windows: list[int] = [1, 3, 7, 14, 30],
+        aggregation_windows: list[int] = None,
     ) -> pd.DataFrame:
         """
         Create sentiment features from raw sentiment data
@@ -38,6 +38,8 @@ class SentimentFeatures:
         Returns:
             DataFrame with sentiment features
         """
+        if aggregation_windows is None:
+            aggregation_windows = [1, 3, 7, 14, 30]
         df = sentiment_data.copy()
 
         if df.empty:

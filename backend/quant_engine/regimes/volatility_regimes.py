@@ -463,7 +463,7 @@ class VolatilityRegimeDetector:
         else:
             raise ValueError(f"Unknown method: {self.method}")
 
-        logger.success(f"Volatility regime detection complete")
+        logger.success("Volatility regime detection complete")
 
         return result
 

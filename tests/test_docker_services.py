@@ -19,6 +19,8 @@ import pytest
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+pytestmark = [pytest.mark.integration, pytest.mark.docker]
+
 # Service URLs (Docker internal network)
 DOCKER_CONFIG = {
     "POSTGRES_HOST": os.getenv("POSTGRES_HOST", "localhost"),
@@ -104,8 +106,8 @@ class TestTimescaleDBService:
 
             cursor.execute(
                 """
-                SELECT table_name 
-                FROM information_schema.tables 
+                SELECT table_name
+                FROM information_schema.tables
                 WHERE table_schema = 'public';
             """
             )

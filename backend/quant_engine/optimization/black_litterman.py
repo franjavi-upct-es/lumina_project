@@ -127,7 +127,7 @@ class BlackLittermanModel:
         P = np.zeros((n_views, n_assets))
         Q = np.zeros(n_views)
 
-        for i, (view_name, view_data) in enumerate(views.items()):
+        for i, (_view_name, view_data) in enumerate(views.items()):
             view_type = view_data.get("type", "absolute")
             assets = view_data["assets"]
             expected_return = view_data["return"]
@@ -246,7 +246,7 @@ class BlackLittermanModel:
         Returns:
             Tuple of (optimal_weights, metrics_dict)
         """
-        n_assets = len(asset_names)
+        len(asset_names)
         self.market_weights = market_weights
         self.cov_matrix = cov_matrix
 

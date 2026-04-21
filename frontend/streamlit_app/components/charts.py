@@ -133,7 +133,7 @@ def create_candlestick_chart(
         template=DEFAULT_TEMPLATE,
         height=height,
         hovermode="x unified",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1},
     )
 
     return fig
@@ -183,7 +183,7 @@ def create_line_chart(
                 y=y_data,
                 name=col,
                 mode="lines",
-                line=dict(color=color_cycle[idx % len(color_cycle)]),
+                line={"color": color_cycle[idx % len(color_cycle)]},
             )
         )
 
@@ -197,7 +197,7 @@ def create_line_chart(
         height=height,
         hovermode="x unified",
         showlegend=show_legend,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1},
     )
 
     return fig
@@ -233,7 +233,7 @@ def create_ohlc_with_indicators(
                     y=series,
                     name=name,
                     mode="lines",
-                    line=dict(color=color_cycle[idx % len(color_cycle)], width=1),
+                    line={"color": color_cycle[idx % len(color_cycle)], "width": 1},
                 ),
                 row=1,
                 col=1,
@@ -276,7 +276,7 @@ def create_drawdown_chart(
             y=drawdown_series * 100,
             fill="tozeroy",
             name="Drawdown",
-            line=dict(color=COLORS["danger"]),
+            line={"color": COLORS["danger"]},
             fillcolor="rgba(214, 39, 40, 0.3)",
         )
     )
@@ -394,7 +394,7 @@ def create_correlation_heatmap(
             texttemplate="%{text}",
             textfont={"size": 10},
             hoverongaps=False,
-            colorbar=dict(title="Correlation"),
+            colorbar={"title": "Correlation"},
         )
     )
 
@@ -402,7 +402,7 @@ def create_correlation_heatmap(
         title=title,
         template=DEFAULT_TEMPLATE,
         height=height,
-        xaxis=dict(side="bottom"),
+        xaxis={"side": "bottom"},
     )
 
     return fig
@@ -563,7 +563,7 @@ def create_sentiment_timeline(
                     y=source_df[sentiment_col],
                     name=source.title(),
                     mode="lines+markers",
-                    marker=dict(size=4),
+                    marker={"size": 4},
                 )
             )
     else:
@@ -573,8 +573,8 @@ def create_sentiment_timeline(
                 y=df[sentiment_col],
                 name="Sentiment",
                 mode="lines+markers",
-                line=dict(color=COLORS["primary"]),
-                marker=dict(size=4),
+                line={"color": COLORS["primary"]},
+                marker={"size": 4},
             )
         )
 
@@ -602,11 +602,11 @@ def create_sentiment_timeline(
         title=title,
         xaxis_title="Date",
         yaxis_title="Sentiment Score",
-        yaxis=dict(range=[-1.1, 1.1]),
+        yaxis={"range": [-1.1, 1.1]},
         template=DEFAULT_TEMPLATE,
         height=height,
         hovermode="x unified",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1},
     )
 
     return fig
@@ -651,7 +651,7 @@ def create_sentiment_by_source_chart(
         title=title,
         xaxis_title="Source",
         yaxis_title="Sentiment Score",
-        yaxis=dict(range=[-1.1, 1.1]),
+        yaxis={"range": [-1.1, 1.1]},
         template=DEFAULT_TEMPLATE,
         height=height,
     )
@@ -690,7 +690,7 @@ def create_equity_curve(
             y=equity.values,
             name="Portfolio",
             mode="lines",
-            line=dict(color=COLORS["primary"], width=2),
+            line={"color": COLORS["primary"], "width": 2},
             fill="tozeroy",
             fillcolor="rgba(31, 119, 180, 0.2)",
         )
@@ -703,7 +703,7 @@ def create_equity_curve(
                 y=benchmark.values,
                 name="Benchmark",
                 mode="lines",
-                line=dict(color=COLORS["secondary"], width=2, dash="dash"),
+                line={"color": COLORS["secondary"], "width": 2, "dash": "dash"},
             )
         )
 
@@ -714,7 +714,7 @@ def create_equity_curve(
         template=DEFAULT_TEMPLATE,
         height=height,
         hovermode="x unified",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1},
     )
 
     return fig
@@ -816,7 +816,7 @@ def create_rolling_metrics_chart(
                 y=df[metric],
                 name=metric,
                 mode="lines",
-                line=dict(color=color_cycle[(idx - 1) % len(color_cycle)]),
+                line={"color": color_cycle[(idx - 1) % len(color_cycle)]},
             ),
             row=idx,
             col=1,

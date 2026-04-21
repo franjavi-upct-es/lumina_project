@@ -262,7 +262,7 @@ class TransformerFinancialModel(BaseModel):
 
         val_loader = None
         if X_val is not None and y_val is not None:
-            X_val_np = X_val.values if isinstance(X_val, pd.DataFrame) else X_val
+            X_val.values if isinstance(X_val, pd.DataFrame) else X_val
             y_val_np = y_val.values if isinstance(y_val, pd.Series) else y_val
 
             val_dataset = TransformerDataset(
@@ -315,7 +315,7 @@ class TransformerFinancialModel(BaseModel):
                     # Save best model
                     self.save_checkpoint(kwargs.get("checkpoint_path", "best_transformer.pt"))
                 else:
-                    patiente_counter += 1
+                    patience_counter += 1
                     if patience_counter >= early_stopping_patience:
                         logger.info(f"Early stopping at epoch {epoch + 1}")
                         break
@@ -376,7 +376,7 @@ class TransformerFinancialModel(BaseModel):
 
             total_loss += loss.item()
 
-        return total_loss / len(val_loader)
+        return total_loss / len(train_loader)
 
     def predict(self, X: np.ndarray | pd.DataFrame, **kwargs) -> np.ndarray | dict[str, np.ndarray]:
         """

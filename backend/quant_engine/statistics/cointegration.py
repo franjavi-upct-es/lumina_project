@@ -160,7 +160,7 @@ class CointegrationTester:
         # Run Johansen test
         johansen_result = coint_johansen(data, det_order=det_order, k_ar_diff=k_ar_diff)
 
-        n_vars = data.shape[1]
+        data.shape[1]
 
         # Extract trace statistics
         trace_stats = johansen_result.lr1  # Trace statistic

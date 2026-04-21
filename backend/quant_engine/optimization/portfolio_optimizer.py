@@ -276,7 +276,7 @@ class PortfolioOptimizer:
         max_weight: float,
     ) -> tuple[dict[str, float], dict[str, Any]]:
         """Hierarchical Risk Parity"""
-        from scipy.cluster.hierarchy import dendrogram, linkage
+        from scipy.cluster.hierarchy import linkage
         from scipy.spatial.distance import squareform
 
         # Calculate correlation matrix

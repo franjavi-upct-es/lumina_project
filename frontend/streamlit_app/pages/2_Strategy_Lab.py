@@ -3,16 +3,13 @@
 Strategy Lab - Build, test, and optimize trading strategies
 """
 
-import streamlit as st
-import requests
+import os
+from datetime import datetime, timedelta
+
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import plotly.express as px
-from datetime import datetime, timedelta
-import json
-import time
-import os
+import requests
+import streamlit as st
 
 # Page config
 st.set_page_config(
@@ -225,13 +222,13 @@ if strategy_mode == "Pre-built Strategies":
 def strategy(data, features):
     signals = []
     rsi_col = 'rsi_{strategy_params.get('rsi_period', 14)}'
-    
+
     for i in range(len(data)):
         if i < {strategy_params.get('rsi_period', 14)}:
             signals.append('HOLD')
         else:
             rsi = features[rsi_col].iloc[i] if rsi_col in features.columns else None
-            
+
             if rsi is None or pd.isna(rsi):
                 signals.append('HOLD')
             elif rsi < {strategy_params.get('oversold', 30)}:
@@ -240,7 +237,7 @@ def strategy(data, features):
                 signals.append('SELL')
             else:
                 signals.append('HOLD')
-    
+
     return signals
 """
     elif selected_strategy == "MACD Strategy":
@@ -249,11 +246,11 @@ def strategy(data, features):
     signals = []
     prev_macd = None
     prev_signal = None
-    
+
     for i in range(len(data)):
         macd = features['macd'].iloc[i] if 'macd' in features.columns else None
         signal = features['macd_signal'].iloc[i] if 'macd_signal' in features.columns else None
-        
+
         if macd is None or signal is None or pd.isna(macd) or pd.isna(signal) or prev_macd is None:
             signals.append('HOLD')
         else:
@@ -263,10 +260,10 @@ def strategy(data, features):
                 signals.append('SELL')
             else:
                 signals.append('HOLD')
-        
+
         prev_macd = macd
         prev_signal = signal
-    
+
     return signals
 """
     elif selected_strategy == "Moving Average Crossover":
@@ -277,11 +274,11 @@ def strategy(data, features):
     slow_col = 'sma_{strategy_params.get('slow_period', 200)}'
     prev_fast = None
     prev_slow = None
-    
+
     for i in range(len(data)):
         fast = features[fast_col].iloc[i] if fast_col in features.columns else None
         slow = features[slow_col].iloc[i] if slow_col in features.columns else None
-        
+
         if fast is None or slow is None or pd.isna(fast) or pd.isna(slow) or prev_fast is None:
             signals.append('HOLD')
         else:
@@ -291,22 +288,22 @@ def strategy(data, features):
                 signals.append('SELL')
             else:
                 signals.append('HOLD')
-        
+
         prev_fast = fast
         prev_slow = slow
-    
+
     return signals
 """
     elif selected_strategy == "Bollinger Bands":
         strategy_code = """
 def strategy(data, features):
     signals = []
-    
+
     for i in range(len(data)):
         close = data['close'].iloc[i]
         bb_upper = features['bb_upper'].iloc[i] if 'bb_upper' in features.columns else None
         bb_lower = features['bb_lower'].iloc[i] if 'bb_lower' in features.columns else None
-        
+
         if bb_upper is None or bb_lower is None or pd.isna(bb_upper) or pd.isna(bb_lower):
             signals.append('HOLD')
         elif close <= bb_lower:
@@ -315,7 +312,7 @@ def strategy(data, features):
             signals.append('SELL')
         else:
             signals.append('HOLD')
-    
+
     return signals
 """
     elif selected_strategy == "Mean Reversion":
@@ -325,26 +322,26 @@ def strategy(data, features):
     signals = []
     closes = data['close'].values
     lookback = {strategy_params.get('lookback', 20)}
-    
+
     for i in range(len(data)):
         if i < lookback:
             signals.append('HOLD')
             continue
-        
+
         recent = closes[i-lookback:i]
         mean = np.mean(recent)
         std = np.std(recent)
         current = closes[i]
-        
+
         z_score = (current - mean) / std if std > 0 else 0
-        
+
         if z_score < -{strategy_params.get('std_threshold', 2.0)}:
             signals.append('BUY')
         elif z_score > {strategy_params.get('std_threshold', 2.0)}:
             signals.append('SELL')
         else:
             signals.append('HOLD')
-    
+
     return signals
 """
     elif selected_strategy == "Momentum":
@@ -353,36 +350,36 @@ def strategy(data, features):
     signals = []
     closes = data['close'].values
     lookback = {strategy_params.get('lookback', 20)}
-    
+
     for i in range(len(data)):
         if i < lookback:
             signals.append('HOLD')
             continue
-        
+
         momentum = (closes[i] - closes[i-lookback]) / closes[i-lookback]
-        
+
         if momentum > {strategy_params.get('threshold', 0.02)}:
             signals.append('BUY')
         elif momentum < -{strategy_params.get('threshold', 0.02)}:
             signals.append('SELL')
         else:
             signals.append('HOLD')
-    
+
     return signals
 """
     else:  # Combo
         strategy_code = f"""
 def strategy(data, features):
     signals = []
-    
+
     for i in range(len(data)):
         if i < 20:
             signals.append('HOLD')
             continue
-        
+
         buy_votes = 0
         sell_votes = 0
-        
+
         # RSI vote
         if 'rsi_14' in features.columns:
             rsi = features['rsi_14'].iloc[i]
@@ -391,7 +388,7 @@ def strategy(data, features):
                     buy_votes += 1
                 elif rsi > 70:
                     sell_votes += 1
-        
+
         # MACD vote
         if 'macd' in features.columns and 'macd_signal' in features.columns:
             macd = features['macd'].iloc[i]
@@ -401,19 +398,19 @@ def strategy(data, features):
                     buy_votes += 1
                 else:
                     sell_votes += 1
-        
+
         # Bollinger Bands vote
         if 'bb_upper' in features.columns and 'bb_lower' in features.columns:
             close = data['close'].iloc[i]
             bb_upper = features['bb_upper'].iloc[i]
             bb_lower = features['bb_lower'].iloc[i]
-            
+
             if not pd.isna(bb_upper) and not pd.isna(bb_lower):
                 if close <= bb_lower:
                     buy_votes += 1
                 elif close >= bb_upper:
                     sell_votes += 1
-        
+
         # Decision
         if buy_votes >= {strategy_params.get('min_votes', 2)}:
             signals.append('BUY')
@@ -421,7 +418,7 @@ def strategy(data, features):
             signals.append('SELL')
         else:
             signals.append('HOLD')
-    
+
     return signals
 """
 
@@ -447,16 +444,16 @@ elif strategy_mode == "Custom Code":
 def strategy(data, features):
     '''
     Custom trading strategy
-    
+
     Args:
         data: DataFrame with OHLCV columns
         features: DataFrame with engineered features
-    
+
     Returns:
         List of signals: 'BUY', 'SELL', 'HOLD'
     '''
     signals = []
-    
+
     for i in range(len(data)):
         # Your strategy logic here
         if i < 20:
@@ -464,14 +461,14 @@ def strategy(data, features):
         else:
             # Example: Simple RSI strategy
             rsi = features['rsi_14'].iloc[i] if 'rsi_14' in features.columns else 50
-            
+
             if rsi < 30:
                 signals.append('BUY')
             elif rsi > 70:
                 signals.append('SELL')
             else:
                 signals.append('HOLD')
-    
+
     return signals
 """
 
@@ -669,7 +666,7 @@ if st.session_state.active_job:
                                 y=equity_data["equity"],
                                 mode="lines",
                                 name="Portfolio Value",
-                                line=dict(color="#4CAF50", width=2),
+                                line={"color": "#4CAF50", "width": 2},
                                 fill="tozeroy",
                             )
                         )

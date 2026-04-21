@@ -19,6 +19,8 @@ import pytest
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+pytestmark = pytest.mark.integration
+
 # Configure environment for tests
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("CELERY_BROKER_URL", "redis://localhost:6379/1")
@@ -310,12 +312,11 @@ class TestTaskChains:
 
         try:
             from backend.workers.data_tasks import collect_market_data_task
-            from backend.workers.ml_tasks import train_model_task
+            from backend.workers.ml_tasks import train_model_task  # noqa: F401
         except ImportError as e:
             pytest.skip(f"Cannot import tasks: {e}")
 
         ticker = "AAPL"
-        job_id = f"chain_test_{int(time.time())}"
 
         # Create chain: collect data -> train model
         workflow = chain(

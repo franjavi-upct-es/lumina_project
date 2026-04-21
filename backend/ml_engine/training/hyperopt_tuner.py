@@ -173,10 +173,11 @@ class HyperparameterTuner:
             Dictionary with score and metrics
         """
         # Create model with these parameters
+        model = self.model_class(model_name="trial_model", hyperparameters=params)
         model.build(input_shape=X_train.shape)
 
         # Train model
-        history = model.fit(X_train, y_train, X_val, y_val, verbose=0, **model_kwargs)
+        history = model.fit(X_train, y_train, X_val, y_val, verbose=0)
 
         # Extract metric
         if self.metric in history.get("val_metrics", {}):
@@ -200,6 +201,7 @@ class HyperparameterTuner:
         y_train: np.ndarray,
         X_val: np.ndarray | None = None,
         y_val: np.ndarray | None = None,
+        **model_kwargs,
     ) -> BaseModel:
         """
         Train and return model with best parameters
@@ -256,7 +258,7 @@ class HyperparameterTuner:
             # Add scatter of all trials
             fig.add_trace(
                 go.Scatter(
-                    y=scores, mode="markets", name="Trial Score", marker=dict(size=8, opacity=0.6)
+                    y=scores, mode="markets", name="Trial Score", marker={"size": 8, "opacity": 0.6}
                 )
             )
 
@@ -266,7 +268,7 @@ class HyperparameterTuner:
                     y=running_best,
                     mode="lines",
                     name="Running Best",
-                    line=dict(color="red", width=2),
+                    line={"color": "red", "width": 2},
                 )
             )
 
@@ -348,7 +350,7 @@ class HyperparameterTuner:
         """
         import json
 
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             results = json.load(f)
 
         self.best_params = results["best_params"]
@@ -399,7 +401,7 @@ def get_search_space(model_type: str) -> dict[str, Any]:
     """
     if model_type not in SEARCH_SPACES:
         raise ValueError(
-            f"Unknown model type: {model.type}. Available: {list(SEARCH_SPACES.keys())}"
+            f"Unknown model type: {model_type}. Available: {list(SEARCH_SPACES.keys())}"
         )
 
     return SEARCH_SPACES[model_type]

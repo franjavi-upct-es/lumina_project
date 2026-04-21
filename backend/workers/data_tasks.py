@@ -4,7 +4,6 @@ Celery tasks for data collection and processing.
 Scheduled tasks for updating market data, features, and maintenance.
 """
 
-import asyncio
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -17,6 +16,8 @@ from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
 from backend.data_engine.transformers.feature_engineering import FeatureEngineer
 from backend.db.models import (
     _execute_raw_sql_internal as execute_raw_sql,
+)
+from backend.db.models import (
     bulk_insert_features,
     bulk_insert_price_data,
     check_db_connection,

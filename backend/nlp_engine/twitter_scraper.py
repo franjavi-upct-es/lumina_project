@@ -20,7 +20,7 @@ import asyncio
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
 
@@ -343,7 +343,7 @@ class TwitterScraper:
         # Filter by valid length
         tickers = {t for t in tickers if 1 <= len(t) <= 5}
 
-        return sorted(list(tickers))
+        return sorted(tickers)
 
     def extract_hashtags(self, text: str) -> list[str]:
         """
@@ -480,7 +480,7 @@ class TwitterScraper:
             return []
 
         if end_time is None:
-            end_time = datetime.now(tz=timezone.utc)
+            end_time = datetime.now(tz=UTC)
         if start_time is None:
             start_time = end_time - timedelta(days=7)
 

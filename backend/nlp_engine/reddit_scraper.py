@@ -17,8 +17,9 @@ Key Features:
 import asyncio
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 
 import polars as pl
 import praw
@@ -445,7 +446,7 @@ class RedditScraper:
         # Filter by valid length (1-5 characters)
         tickers = {t for t in tickers if 1 <= len(t) <= 5}
 
-        return sorted(list(tickers))
+        return sorted(tickers)
 
     def _is_likely_ticker(self, candidate: str, context: str) -> bool:
         """
@@ -610,7 +611,7 @@ class RedditScraper:
             score=submission.score,
             upvote_ratio=submission.upvote_ratio,
             num_comments=submission.num_comments,
-            created_utc=datetime.fromtimestamp(submission.created_utc, tz=timezone.utc),
+            created_utc=datetime.fromtimestamp(submission.created_utc, tz=UTC),
             url=submission.url,
             permalink=f"https://reddit.com{submission.permalink}",
             flair=submission.link_flair_text,
@@ -885,7 +886,7 @@ class RedditScraper:
                             author=str(comment.author) if comment.author else "[deleted]",
                             score=comment.score,
                             created_utc=datetime.fromtimestamp(
-                                comment.created_utc, tz=timezone.utc
+                                comment.created_utc, tz=UTC
                             ),
                             parent_id=comment.parent_id,
                             is_top_level=comment.parent_id.startswith("t3_"),

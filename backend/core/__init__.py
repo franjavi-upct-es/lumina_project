@@ -87,8 +87,8 @@ from backend.ml_engine import (
 # TYPE CHECKING ONLY IMPORTS
 # ============================================================================
 if TYPE_CHECKING:
-    from backend.db import BacktestResult, Feature, Model, PriceData
-    from backend.workers import celery_app
+    from backend.db import BacktestResult, Feature, Model, PriceData  # noqa: F401
+    from backend.workers import celery_app  # noqa: F401
 
 
 # ============================================================================
@@ -183,7 +183,7 @@ def get_feature_list(category: str = None):
 # ============================================================================
 # VERSION INFO
 # ============================================================================
-from backend import __version__
+from backend import __version__  # noqa: E402
 
 __all__ = [
     # Version

@@ -253,15 +253,15 @@ def create_var_gauge(
     fig.update_layout(
         height=250,
         template="plotly_dark",
-        margin=dict(t=50, b=0, l=20, r=20),
+        margin={"t": 50, "b": 0, "l": 20, "r": 20},
         annotations=[
-            dict(
-                x=0.5,
-                y=-0.1,
-                text=f"${dollar_var:,.0f} at risk",
-                showarrow=False,
-                font=dict(size=14, color="#808080"),
-            )
+            {
+                "x": 0.5,
+                "y": -0.1,
+                "text": f"${dollar_var:,.0f} at risk",
+                "showarrow": False,
+                "font": {"size": 14, "color": "#808080"},
+            }
         ],
     )
 
@@ -290,7 +290,7 @@ def create_drawdown_chart(
             y=drawdown_series * 100,
             fill="tozeroy",
             name="Drawdown",
-            line=dict(color="#d62728"),
+            line={"color": "#d62728"},
             fillcolor="rgba(214, 39, 40, 0.3)",
         )
     )
@@ -347,7 +347,7 @@ def create_correlation_heatmap(
             text=np.round(correlation_matrix.values, 2),
             texttemplate="%{text}",
             textfont={"size": 12},
-            colorbar=dict(title="Correlation"),
+            colorbar={"title": "Correlation"},
         )
     )
 
@@ -590,7 +590,7 @@ with col2:
         hole=0.4,
         template="plotly_dark",
     )
-    fig_weights.update_layout(height=300, margin=dict(t=40, b=0, l=0, r=0))
+    fig_weights.update_layout(height=300, margin={"t": 40, "b": 0, "l": 0, "r": 0})
     st.plotly_chart(fig_weights, width="stretch")
 
 st.markdown("---")
@@ -794,7 +794,7 @@ scenario_names = list(stress_scenarios.keys())
 scenario_losses = [s.get("estimated_loss", 0) * 100 for s in stress_scenarios.values()]
 
 colors = [
-    "#d62728" if abs(l) > 20 else "#ff7f0e" if abs(l) > 10 else "#2ca02c" for l in scenario_losses
+    "#d62728" if abs(loss) > 20 else "#ff7f0e" if abs(loss) > 10 else "#2ca02c" for loss in scenario_losses
 ]
 
 fig_stress.add_trace(
@@ -803,7 +803,7 @@ fig_stress.add_trace(
         x=scenario_losses,
         orientation="h",
         marker_color=colors,
-        text=[f"{l:.1f}%" for l in scenario_losses],
+        text=[f"{loss:.1f}%" for loss in scenario_losses],
         textposition="outside",
     )
 )
@@ -814,7 +814,7 @@ fig_stress.update_layout(
     yaxis_title="",
     template="plotly_dark",
     height=350,
-    xaxis=dict(range=[min(scenario_losses) * 1.2, 5]),
+    xaxis={"range": [min(scenario_losses) * 1.2, 5]},
 )
 
 st.plotly_chart(fig_stress, width="stretch")

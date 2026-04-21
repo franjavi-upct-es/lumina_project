@@ -43,6 +43,17 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "gpu: marks tests requiring GPU")
 
 
+def _is_service_reachable(host: str, port: int, timeout: float = 1.0) -> bool:
+    """Check if a TCP service is reachable."""
+    import socket
+
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
 def pytest_collection_modifyitems(config, items):
     """Modify test collection based on markers"""
     # Skip slow tests by default unless explicitly requested
@@ -51,6 +62,18 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             if "slow" in item.keywords:
                 item.add_marker(skip_slow)
+
+    # Auto-skip integration/docker tests when services are not reachable
+    api_up = _is_service_reachable("localhost", 8000)
+    redis_up = _is_service_reachable("localhost", 6379)
+    db_up = _is_service_reachable("localhost", 5435)
+
+    for item in items:
+        if "integration" in item.keywords or "docker" in item.keywords:
+            if not (api_up and redis_up and db_up):
+                item.add_marker(
+                    pytest.mark.skip(reason="integration services not running (API/Redis/DB)")
+                )
 
 
 # ============================================================================

@@ -65,8 +65,7 @@ class PurgedKFold:
         if sample_times is None or pred_times is None:
             logger.warning("No time information provided, using standard K-Fold")
             kfold = KFold(n_splits=self.n_splits)
-            for train_idx, test_idx in kfold.split(X):
-                yield train_idx, test_idx
+            yield from kfold.split(X)
             return
 
         n_samples = len(X)
@@ -130,7 +129,7 @@ class PurgedKFold:
 
         for i, idx in enumerate(train_candidates):
             pred_time = pred_times.iloc[idx]
-            sample_time = sample_times.iloc[idx]
+            sample_times.iloc[idx]
 
             # Check if prediction time is during test period
             if test_start_time <= pred_time <= test_end_time:

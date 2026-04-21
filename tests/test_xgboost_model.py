@@ -164,7 +164,7 @@ class TestXGBoostModel:
 
         # Save to temp directory
         with tempfile.TemporaryDirectory() as tmpdir:
-            save_path = model.save(tmpdir)
+            model.save(tmpdir)
 
             # Create new model and load
             new_model = XGBoostFinancialModel(model_name="test_xgboost")

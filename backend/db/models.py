@@ -8,7 +8,6 @@ from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from uuid import uuid4
 
-import pandas as pd
 from loguru import logger
 from sqlalchemy import (
     ARRAY,
@@ -577,8 +576,8 @@ def reset_db_engine():
     _async_session_factory = None
 
 
-import asyncio as _asyncio
-from typing import TypeVar as _TypeVar
+import asyncio as _asyncio  # noqa: E402
+from typing import TypeVar as _TypeVar  # noqa: E402
 
 _T = _TypeVar("_T")
 

@@ -287,7 +287,7 @@ class GeneticPortfolioOptimizer:
         new_population.extend(elites)
 
         # Generate offspring to fill remaining population
-        n_offspring = self.population_size - self.n_elites
+        self.population_size - self.n_elites
 
         while len(new_population) < self.population_size:
             # Select parents

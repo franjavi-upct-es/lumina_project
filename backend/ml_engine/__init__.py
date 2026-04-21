@@ -73,6 +73,9 @@ __all__ = [
     "WalkForwardValidator",
     "PurgedKFold",
     "HyperoptTuner",
+    # Features
+    "TechnicalFeatures",
+    "SentimentFeatures",
     # Evaluation
     "ModelMetrics",
     "SHAPExplainer",

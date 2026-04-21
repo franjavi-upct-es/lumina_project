@@ -471,7 +471,7 @@ def run_portfolio_monte_carlo(
     simulator = MonteCarloSimulator(config)
 
     # Use GBM with portfolio parameters
-    paths = simulator.simulate_gbm(
+    simulator.simulate_gbm(
         mean_return=float(portfolio_return), volatility=float(portfolio_vol)
     )
 

@@ -466,7 +466,7 @@ class EnsembleModel(BaseModel):
         metrics = self.compute_metrics(y, predictions)
 
         # Add individual model metrics
-        for i, model in enumerate(self.base_models):
+        for _i, model in enumerate(self.base_models):
             model_pred = model.predict(X)
             if model_pred.ndim > 1:
                 model_pred = model_pred[:, 0]

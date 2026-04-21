@@ -438,7 +438,7 @@ class ModelTrainer:
             Results dictionary
         """
         try:
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 results = json.load(f)
 
             logger.info(f"Results loaded from {filepath}")

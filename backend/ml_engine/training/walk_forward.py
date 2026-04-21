@@ -220,7 +220,7 @@ class WalkForwardOptimizer:
                 for params, future in futures:
                     try:
                         score = future.result()
-                        opt_reuslts.append({"params": params, "score": score})
+                        opt_results.append({"params": params, "score": score})
                     except Exception as e:
                         logger.error(f"Error evaluating {params}: {e}")
 
@@ -236,9 +236,9 @@ class WalkForwardOptimizer:
 
         # Find best params
         if metric in ["mae", "rmse", "mse"]:
-            best_result = min(opt_results, key=lambda x: x["score"])
+            min(opt_results, key=lambda x: x["score"])
         else:  # Higher is better (sharpe, r2, etc.)
-            best_result = max(opt_results, key=lambda x: x["score"])
+            max(opt_results, key=lambda x: x["score"])
 
     def _evaluate_params(
         self,

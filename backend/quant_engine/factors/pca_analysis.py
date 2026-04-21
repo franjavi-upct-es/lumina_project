@@ -508,7 +508,7 @@ class PCAAnalyzer:
             loadings = results.loadings.iloc[:, i]
 
             # Sort by absolute value
-            abs_loadings = loadings.abs().sort_values(ascending=False)
+            loadings.abs().sort_values(ascending=False)
 
             # Get top positive loadings
             positive_loadings = loadings[loadings > 0].sort_values(ascending=False)
@@ -848,7 +848,7 @@ def get_factor_scores(
     Returns:
         DataFrame with factor scores
     """
-    analyzer = PCAAnalyzer()
+    PCAAnalyzer()
 
     # Fit synchronously for simple usage
     scaler = StandardScaler()
