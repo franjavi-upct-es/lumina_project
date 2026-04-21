@@ -5,7 +5,6 @@ Financial calculation utilities for Lumina Quant Lab
 Provides common financial calculations used across modules.
 """
 
-
 import numpy as np
 import pandas as pd
 

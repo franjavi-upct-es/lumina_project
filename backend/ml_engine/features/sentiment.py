@@ -4,7 +4,6 @@ Sentiment analysis features from news and social media
 Market sentiment indicators for ML models
 """
 
-
 import numpy as np
 import pandas as pd
 from loguru import logger
