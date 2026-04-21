@@ -147,7 +147,7 @@ pydantic-core==2.41.5
 pygments==2.19.2
 pyparsing==3.3.1
 python-dateutil==2.9.0.post0
-python-dotenv==1.2.1
+python-dotenv==1.2.2
 pytz==2025.2
 pywavelets==1.9.0
 pyyaml==6.0.3
