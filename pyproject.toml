@@ -10,7 +10,7 @@ dependencies = [
     # Data Validation & Settings
     "pydantic>=2.7.0",
     "pydantic-settings>=2.2.0",
-    "python-dotenv>=1.0.1",
+    "python-dotenv>=1.2.2",
     # Logging
     "loguru>=0.7.2",
     # Date/Time handling
