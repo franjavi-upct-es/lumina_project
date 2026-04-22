@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import check_rate_limit, get_redis, verify_api_key
-from backend.api.job_store import JobStore
+from backend.api.job_store import JobStore, format_job_timestamp
 from backend.config.settings import get_settings
 from backend.db.models import get_async_session
 from backend.workers.backtest_tasks import run_backtest_task
@@ -378,7 +378,7 @@ async def get_backtest_job_status(
             "job_id": job_id,
             "strategy_name": job["strategy_name"],
             "status": job.get("status", "unknown"),
-            "created_at": job["created_at"].isoformat(),
+            "created_at": format_job_timestamp(job.get("created_at")),
             "error": f"Could not read task result: {e}",
         }
 
@@ -386,7 +386,7 @@ async def get_backtest_job_status(
         "job_id": job_id,
         "strategy_name": job["strategy_name"],
         "status": task_state,
-        "created_at": job["created_at"].isoformat(),
+        "created_at": format_job_timestamp(job.get("created_at")),
     }
 
     if task_state == "PROGRESS":

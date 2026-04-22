@@ -5,6 +5,7 @@ import pandas as pd
 import polars as pl
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from backend.config.settings import Settings
 
@@ -88,6 +89,61 @@ def test_async_engine_kwargs_skip_pool_size_for_null_pool():
     assert "pool_size" not in kwargs
     assert "max_overflow" not in kwargs
     assert "pool_timeout" not in kwargs
+
+
+@pytest.mark.unit
+def test_xgboost_training_request_accepts_model_specific_hyperparameters():
+    from backend.api.routes.ml import (
+        TrainModelRequest,
+        _build_training_hyperparams,
+        _resolve_xgboost_lookback_days,
+    )
+
+    start_date = datetime(2024, 1, 1)
+    end_date = datetime(2024, 7, 1)
+    request = TrainModelRequest(
+        ticker="AAPL",
+        model_type="xgboost",
+        start_date=start_date,
+        end_date=end_date,
+        learning_rate=0.05,
+        n_estimators=150,
+        max_depth=4,
+        prediction_horizon=7,
+    )
+
+    hyperparams = _build_training_hyperparams(request)
+
+    assert hyperparams["learning_rate"] == pytest.approx(0.05)
+    assert hyperparams["n_estimators"] == 150
+    assert hyperparams["max_depth"] == 4
+    assert "hidden_dim" not in hyperparams
+    assert "start_date" not in hyperparams
+    assert "end_date" not in hyperparams
+    assert "prediction_horizon" not in hyperparams
+    assert _resolve_xgboost_lookback_days(request) == 182
+
+
+@pytest.mark.unit
+def test_neural_training_request_rejects_xgboost_learning_rate():
+    from backend.api.routes.ml import TrainModelRequest
+
+    with pytest.raises(ValidationError):
+        TrainModelRequest(
+            ticker="AAPL",
+            model_type="lstm",
+            learning_rate=0.05,
+        )
+
+
+@pytest.mark.unit
+def test_format_job_timestamp_preserves_redis_serialized_datetimes():
+    from backend.api.job_store import format_job_timestamp
+
+    serialized = "2026-04-22T07:35:12.271000"
+
+    assert format_job_timestamp(serialized) == serialized
+    assert format_job_timestamp(datetime(2026, 4, 22, 7, 35, 12)) == "2026-04-22T07:35:12"
 
 
 @pytest.mark.unit

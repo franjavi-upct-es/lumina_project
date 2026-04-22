@@ -1,6 +1,6 @@
 DOCKER_COMPOSE = docker compose --env-file ../backend/.env
 
-.PHONY: help build up up-gpu down restart logs clean build-ml test lint format setup-gpu check-gpu
+.PHONY: help build up up-gpu down restart log logs clean build-ml test lint format setup-gpu check-gpu
 
 help:
 	@echo "Lumina Quant Platform - Make Commands"
@@ -11,6 +11,7 @@ help:
 	@echo "up-gpu         - Start all services with GPU support"
 	@echo "down           - Stop all services"
 	@echo "restart        - Restart all services"
+	@echo "log            - Alias for logs"
 	@echo "logs           - Show logs"
 	@echo "logs-ml        - Show ML worker logs"
 	@echo "clean          - Remove all containers and volumes"
@@ -42,6 +43,8 @@ down:
 
 restart:
 	cd docker && $(DOCKER_COMPOSE) restart
+
+log: logs
 
 logs:
 	cd docker && $(DOCKER_COMPOSE) logs -f

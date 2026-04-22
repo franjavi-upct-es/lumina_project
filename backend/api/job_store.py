@@ -15,6 +15,17 @@ from backend.config.settings import get_settings
 settings = get_settings()
 
 
+def format_job_timestamp(value: Any) -> str:
+    """Return a stable ISO-like timestamp string for Redis-backed job payloads."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, str):
+        return value
+    if hasattr(value, "isoformat"):
+        return str(value.isoformat())
+    return str(value)
+
+
 class JobStore:
     """Redis-backed store for async job state."""
 

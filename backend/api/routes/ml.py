@@ -12,14 +12,14 @@ from uuid import UUID, uuid4
 import torch
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from redis import Redis
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import check_rate_limit, get_redis, verify_api_key
-from backend.api.job_store import JobStore
+from backend.api.job_store import JobStore, format_job_timestamp
 from backend.config.settings import get_settings
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
 from backend.data_engine.transformers.feature_engineering import FeatureEngineer
@@ -70,16 +70,33 @@ class TrainModelRequest(BaseModel):
     # Training parameters
     batch_size: int = Field(32, ge=8, le=128)
     num_epochs: int = Field(50, ge=5, le=200)
-    learning_rate: float = Field(0.001, ge=0.0001, le=0.01)
+    learning_rate: float = Field(0.001, ge=0.0001, le=1.0)
     early_stopping_patience: int = Field(10, ge=3, le=30)
 
     # Feature selection
     max_features: int = Field(50, ge=10, le=200)
     feature_categories: list[str] | None = None
 
+    # XGBoost hyperparameters
+    n_estimators: int | None = Field(None, ge=10, le=5000)
+    max_depth: int | None = Field(None, ge=1, le=15)
+    subsample: float | None = Field(None, gt=0.0, le=1.0)
+    colsample_bytree: float | None = Field(None, gt=0.0, le=1.0)
+    reg_alpha: float | None = Field(None, ge=0.0)
+    reg_lambda: float | None = Field(None, ge=0.0)
+    min_child_weight: float | None = Field(None, ge=0.0)
+    random_state: int | None = None
+    n_jobs: int | None = None
+
     # Options
     async_training: bool = True
     save_model: bool = True
+
+    @model_validator(mode="after")
+    def validate_model_specific_fields(self) -> "TrainModelRequest":
+        if self.model_type != "xgboost" and self.learning_rate > 0.01:
+            raise ValueError("learning_rate must be less than or equal to 0.01 for neural models")
+        return self
 
 
 class PredictRequest(BaseModel):
@@ -136,6 +153,62 @@ class ModelDetailsResponse(BaseModel):
     is_active: bool
 
 
+def _build_training_hyperparams(request: TrainModelRequest) -> dict[str, Any]:
+    if request.model_type == "xgboost":
+        hyperparams: dict[str, Any] = {}
+        for field_name in (
+            "n_estimators",
+            "max_depth",
+            "learning_rate",
+            "subsample",
+            "colsample_bytree",
+            "reg_alpha",
+            "reg_lambda",
+            "min_child_weight",
+            "random_state",
+            "n_jobs",
+        ):
+            value = getattr(request, field_name)
+            if value is not None:
+                hyperparams[field_name] = value
+        return hyperparams
+
+    return {
+        "start_date": request.start_date,
+        "end_date": request.end_date,
+        "hidden_dim": request.hidden_dim,
+        "num_layers": request.num_layers,
+        "dropout": request.dropout,
+        "sequence_length": request.sequence_length,
+        "prediction_horizon": request.prediction_horizon,
+        "batch_size": request.batch_size,
+        "num_epochs": request.num_epochs,
+        "learning_rate": request.learning_rate,
+        "early_stopping_patience": request.early_stopping_patience,
+        "max_features": request.max_features,
+    }
+
+
+def _resolve_xgboost_lookback_days(request: TrainModelRequest) -> int:
+    if request.start_date is None and request.end_date is None:
+        return 500
+
+    end_date = request.end_date or datetime.now()
+    start_date = request.start_date or (end_date - timedelta(days=500))
+    delta_days = int((end_date - start_date).total_seconds() // 86400)
+    return max(delta_days, 30)
+
+
+def _extract_completed_model_id(task_result: Any) -> str | None:
+    if not isinstance(task_result, dict):
+        return None
+    for key in ("db_model_id", "model_id"):
+        value = task_result.get(key)
+        if value:
+            return str(value)
+    return None
+
+
 @router.post("/train", response_model=TrainJobResponse)
 async def train_model(
     request: TrainModelRequest,
@@ -165,14 +238,16 @@ async def train_model(
             if request.model_type == "xgboost":
                 task = train_xgboost_task.delay(
                     ticker=request.ticker,
-                    hyperparams=request.model_dump(),
+                    hyperparams=_build_training_hyperparams(request),
+                    lookback_days=_resolve_xgboost_lookback_days(request),
+                    prediction_horizon=request.prediction_horizon,
                 )
             else:
                 task = train_model_task.delay(
                     job_id=job_id,
                     ticker=request.ticker,
                     model_type=request.model_type,
-                    hyperparams=request.model_dump(),
+                    hyperparams=_build_training_hyperparams(request),
                 )
 
             job_store.set(
@@ -279,7 +354,7 @@ async def get_training_job_status(
             "ticker": job["ticker"],
             "model_type": job["model_type"],
             "status": job.get("status", "unknown"),
-            "created_at": job["created_at"].isoformat(),
+            "created_at": format_job_timestamp(job.get("created_at")),
             "error": f"Could not read task result: {e}",
         }
 
@@ -288,7 +363,7 @@ async def get_training_job_status(
         "ticker": job["ticker"],
         "model_type": job["model_type"],
         "status": task_state,
-        "created_at": job["created_at"].isoformat(),
+        "created_at": format_job_timestamp(job.get("created_at")),
     }
 
     # Add progress if available
@@ -296,7 +371,9 @@ async def get_training_job_status(
         status["progress"] = task_info
     elif task_state == "SUCCESS":
         status["result"] = task.result
-        status["model_id"] = f"{job['ticker']}_{job['model_type']}_{job_id}"
+        model_id = _extract_completed_model_id(task.result)
+        if model_id is not None:
+            status["model_id"] = model_id
     elif task_state == "FAILURE":
         status["error"] = str(task_info)
 
@@ -627,6 +704,23 @@ async def _train_model_sync(job_id: str, request: TrainModelRequest):
     bg_job_store = JobStore(redis_client, prefix="training")
     try:
         bg_job_store.update(job_id, {"status": "training"})
+
+        if request.model_type == "xgboost":
+            result = train_xgboost_task.run(
+                ticker=request.ticker,
+                hyperparams=_build_training_hyperparams(request),
+                lookback_days=_resolve_xgboost_lookback_days(request),
+                prediction_horizon=request.prediction_horizon,
+            )
+            bg_job_store.update(
+                job_id,
+                {
+                    "status": "completed",
+                    "model_id": _extract_completed_model_id(result),
+                    "result": result,
+                },
+            )
+            return
 
         # Collect data
         collector = YFinanceCollector()
