@@ -6,6 +6,7 @@ Uses async SQLAlchemy with asyncpg for PostgreSQL/TimescaleDB
 
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 from loguru import logger
@@ -451,25 +452,34 @@ _engine: AsyncEngine | None = None
 _async_session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
+def _build_async_engine_kwargs(database_url: str, use_null_pool: bool) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "echo": settings.DB_ECHO,
+        "pool_recycle": settings.DB_POOL_RECYCLE,
+        "pool_pre_ping": True,
+        "connect_args": {"server_settings": {"jit": "off"}, "ssl": False}
+        if "localhost" in database_url
+        else {},
+    }
+
+    if use_null_pool:
+        kwargs["poolclass"] = NullPool
+    else:
+        kwargs["pool_size"] = settings.DB_POOL_SIZE
+        kwargs["max_overflow"] = settings.DB_MAX_OVERFLOW
+        kwargs["pool_timeout"] = settings.DB_POOL_TIMEOUT
+
+    return kwargs
+
+
 def _create_fresh_engine() -> AsyncEngine:
     """
     Create a brand-new async engine (not cached).
     Used by standalone DB operations in Celery workers.
     """
     database_url = settings.get_database_url(async_driver=True)
-    return create_async_engine(
-        database_url,
-        echo=settings.DB_ECHO,
-        pool_size=5,
-        max_overflow=5,
-        pool_timeout=settings.DB_POOL_TIMEOUT,
-        pool_recycle=settings.DB_POOL_RECYCLE,
-        pool_pre_ping=True,
-        poolclass=NullPool,
-        connect_args={"server_settings": {"jit": "off"}, "ssl": False}
-        if "localhost" in database_url
-        else {},
-    )
+    kwargs = _build_async_engine_kwargs(database_url, use_null_pool=True)
+    return create_async_engine(database_url, **kwargs)
 
 
 def get_async_engine() -> AsyncEngine:
@@ -482,19 +492,8 @@ def get_async_engine() -> AsyncEngine:
 
     if _engine is None:
         database_url = settings.get_database_url(async_driver=True)
-        _engine = create_async_engine(
-            database_url,
-            echo=settings.DB_ECHO,
-            pool_size=settings.DB_POOL_SIZE,
-            max_overflow=settings.DB_MAX_OVERFLOW,
-            pool_timeout=settings.DB_POOL_TIMEOUT,
-            pool_recycle=settings.DB_POOL_RECYCLE,
-            pool_pre_ping=True,
-            poolclass=NullPool if settings.is_production else None,
-            connect_args={"server_settings": {"jit": "off"}, "ssl": False}
-            if "localhost" in database_url
-            else {},
-        )
+        kwargs = _build_async_engine_kwargs(database_url, use_null_pool=settings.is_production)
+        _engine = create_async_engine(database_url, **kwargs)
         logger.info(f"Created async database engine: {database_url.split('@')[1]}")
 
     return _engine
@@ -910,6 +909,7 @@ __all__ = [
     "PortfolioBalance",
     # Engine and session
     "get_async_engine",
+    "_build_async_engine_kwargs",
     "get_async_session_factory",
     "get_async_session",
     "init_db",

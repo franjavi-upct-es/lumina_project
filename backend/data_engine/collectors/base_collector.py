@@ -31,6 +31,14 @@ class BaseDataCollector(ABC):
         self._request_timestamps: list[datetime] = []
         logger.info(f"Initialized {name} collector with rate limit {rate_limit}/min")
 
+    @staticmethod
+    def _coerce_datetime(value: datetime | str | None) -> datetime | None:
+        if value is None or isinstance(value, datetime):
+            return value
+        if isinstance(value, str):
+            return datetime.fromisoformat(value)
+        raise TypeError(f"Unsupported datetime value: {type(value)!r}")
+
     @abstractmethod
     async def collect(
         self,
@@ -101,6 +109,9 @@ class BaseDataCollector(ABC):
         """
         try:
             await self._check_rate_limit()
+
+            start_date = self._coerce_datetime(start_date)
+            end_date = self._coerce_datetime(end_date)
 
             logger.info(f"Collecting data for {ticker} from {self.name}")
             data = await self.collect(ticker, start_date, end_date, **kwargs)

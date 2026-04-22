@@ -5,7 +5,7 @@ Backtesting endpoints for strategy testing and optimization
 
 from datetime import datetime
 from typing import Annotated, Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import numpy as np
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -27,6 +27,14 @@ settings = get_settings()
 
 def _get_backtest_job_store(redis: Redis = Depends(get_redis)) -> JobStore:
     return JobStore(redis, prefix="backtest")
+
+
+def _is_valid_uuid(value: str) -> bool:
+    try:
+        UUID(str(value))
+        return True
+    except ValueError:
+        return False
 
 
 # Request Models
@@ -405,6 +413,9 @@ async def get_backtest_results(
     """
     try:
         from backend.db.models import BacktestResult, BacktestTrade
+
+        if not _is_valid_uuid(backtest_id):
+            raise HTTPException(status_code=404, detail="Backtest not found")
 
         # type: ignore
         # Query backtest results

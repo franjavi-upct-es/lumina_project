@@ -135,6 +135,75 @@ def test_lstm_trainer_train_handles_current_torch_scheduler_signature(monkeypatc
     assert history["val_loss"] == [0.5]
 
 
+@pytest.mark.unit
+def test_time_series_dataset_scales_features_and_uses_relative_return_targets():
+    import torch
+
+    from backend.ml_engine.models.lstm_advanced import TimeSeriesDataset
+
+    data = pl.DataFrame(
+        {
+            "feature_a": [1.0, 2.0, 3.0, 4.0],
+            "feature_b": [10.0, None, 30.0, 40.0],
+            "close": [100.0, 102.0, 104.0, 106.0],
+        }
+    )
+
+    scaler = TimeSeriesDataset.build_feature_scaler(data, ["feature_a", "feature_b"])
+    dataset = TimeSeriesDataset(
+        data=data,
+        feature_columns=["feature_a", "feature_b"],
+        sequence_length=2,
+        prediction_horizon=1,
+        feature_scaler=scaler,
+        target_mode="relative_returns",
+    )
+
+    features, targets = dataset[0]
+
+    assert torch.isfinite(features).all()
+    assert targets["last_close"].item() == pytest.approx(102.0)
+    assert targets["future_prices"][0].item() == pytest.approx(104.0)
+    assert targets["price"][0].item() == pytest.approx((104.0 / 102.0) - 1.0, rel=1e-5)
+
+
+@pytest.mark.unit
+def test_lstm_trainer_predict_decodes_relative_returns_to_price_levels():
+    import torch
+
+    from backend.ml_engine.models.lstm_advanced import LSTMTrainer
+
+    class DummyModel(torch.nn.Module):
+        def forward(self, x):
+            batch_size = x.shape[0]
+            return {
+                "price": torch.tensor([[0.02, -0.01]], dtype=torch.float32).repeat(batch_size, 1),
+                "volatility": torch.tensor([[0.1]], dtype=torch.float32).repeat(batch_size, 1),
+                "regime_logits": torch.tensor([[0.0, 0.0, 1.0]], dtype=torch.float32).repeat(
+                    batch_size, 1
+                ),
+                "regime_probs": torch.tensor([[0.2, 0.3, 0.5]], dtype=torch.float32).repeat(
+                    batch_size, 1
+                ),
+                "uncertainty": torch.tensor([[0.01, 0.02]], dtype=torch.float32).repeat(
+                    batch_size, 1
+                ),
+                "attention_weights": torch.ones((batch_size, x.shape[1]), dtype=torch.float32),
+            }
+
+    trainer = LSTMTrainer(DummyModel(), device="cpu", target_mode="relative_returns")
+    trainer.prediction_context = {"last_close": 100.0, "target_mode": "relative_returns"}
+
+    predictions = trainer.predict(torch.zeros((1, 3, 2), dtype=torch.float32))
+
+    assert predictions["price"][0][0] == pytest.approx(102.0)
+    assert predictions["price"][0][1] == pytest.approx(99.0)
+    assert predictions["uncertainty"][0][0] == pytest.approx(1.0)
+    assert predictions["uncertainty"][0][1] == pytest.approx(2.0)
+    assert predictions["price_lower"][0][0] == pytest.approx(100.04)
+    assert predictions["price_upper"][0][0] == pytest.approx(103.96)
+
+
 @pytest.mark.asyncio
 async def test_yfinance_collector_accepts_isoformat_date_strings(monkeypatch):
     from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
