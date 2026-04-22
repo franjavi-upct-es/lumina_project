@@ -4,7 +4,7 @@ Monte Carlo simulation for portfolio analysis and risk assessment
 Generates thousands of possible future scenarios based on historical statistics
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
@@ -19,7 +19,7 @@ class MonteCarloConfig:
     num_simulations: int = 10000
     time_horizon_days: int = 252  # 1 year
     initial_value: float = 100000.0
-    confidence_levels: list[float] = []
+    confidence_levels: list[float] = field(default_factory=lambda: [0.95, 0.99])
     seed: int | None = 42
 
     def __post_init__(self):

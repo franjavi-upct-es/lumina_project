@@ -6,8 +6,8 @@ Machine Learning endpoints for model training, prediction, and evaluation
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Annotated, Any
-from uuid import uuid4
+from typing import Annotated, Any, cast
+from uuid import UUID, uuid4
 
 import torch
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -36,6 +36,21 @@ settings = get_settings()
 
 def _get_training_job_store(redis: Redis = Depends(get_redis)) -> JobStore:
     return JobStore(redis, prefix="training")
+
+
+def _is_valid_uuid(value: str) -> bool:
+    try:
+        UUID(str(value))
+        return True
+    except ValueError:
+        return False
+
+
+def _sort_market_data(data):
+    for candidate in ("time", "date", "datetime"):
+        if candidate in data.columns:
+            return data.sort(candidate)
+    return data
 
 
 # Request Models
@@ -321,26 +336,45 @@ async def predict_prices(request: PredictRequest):
                 status_code=404, detail=f"Could not fetch data for {request.ticker}"
             )
 
+        data = _sort_market_data(data)
+
         # Engineer features
         fe = FeatureEngineer()
         enriched_data = fe.create_all_features(data)
 
         # Load model and predict
         model, trainer = _load_model(model_id)
+        metadata = _load_model_metadata(model_id)
 
         # Prepare input sequence
         feature_columns = _get_feature_columns(model_id)
-        features = enriched_data.select(feature_columns).to_numpy()
+        features = TimeSeriesDataset.transform_features(
+            enriched_data,
+            feature_columns,
+            feature_scaler=metadata.get("feature_scaler"),
+        )
 
         # Take last sequence_length points
-        sequence_length = model.sequence_length if hasattr(model, "sequence_length") else 60
+        sequence_length = metadata.get(
+            "sequence_length",
+            model.sequence_length if hasattr(model, "sequence_length") else 60,
+        )
+        if len(features) < sequence_length:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Not enough data for prediction. Need {sequence_length}, got {len(features)}",
+            )
         input_sequence = torch.FloatTensor(features[-sequence_length:])
 
         # Predict
+        current_price = float(data["close"].tail(1).item())
+        trainer.prediction_context = {
+            "last_close": current_price,
+            "target_mode": metadata.get("target_mode", "price"),
+        }
         predictions = trainer.predict(input_sequence)
 
         # Format predictions
-        current_price = float(data["close"].tail(1).item())
         pred_prices = predictions["price"][0].tolist()
 
         formatted_predictions = []
@@ -385,6 +419,8 @@ async def predict_prices(request: PredictRequest):
 
         return response
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in prediction: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -478,6 +514,9 @@ async def get_model_details(model_id: str):
     try:
         from backend.db.models import Model, get_async_engine
 
+        if not _is_valid_uuid(model_id):
+            raise HTTPException(status_code=404, detail="Model not found")
+
         engine = get_async_engine()
         async with AsyncSession(engine) as db:
             # Query from database
@@ -530,6 +569,9 @@ async def delete_model(  # type: ignore
     """
     try:
         from backend.db.models import Model
+
+        if not _is_valid_uuid(model_id):
+            raise HTTPException(status_code=404, detail="Model not found")
 
         # Query model
         query = select(Model).where(Model.model_id == model_id)
@@ -593,26 +635,43 @@ async def _train_model_sync(job_id: str, request: TrainModelRequest):
             start_date=request.start_date,
             end_date=request.end_date,
         )
+        data = _sort_market_data(data)
 
         # Engineer features
         fe = FeatureEngineer()
         enriched_data = fe.create_all_features(data)  # type: ignore
 
         # Prepare dataset
-        feature_columns = fe.get_all_feature_names()[: request.max_features]
+        feature_columns = [
+            column
+            for column in fe.get_all_feature_names()[: request.max_features]
+            if column in enriched_data.columns
+        ]
+        if not feature_columns:
+            raise ValueError("No valid feature columns generated for LSTM training")
+        target_mode = "relative_returns"
+        feature_scaler = TimeSeriesDataset.build_feature_scaler(enriched_data, feature_columns)
         dataset = TimeSeriesDataset(
             data=enriched_data,
             feature_columns=feature_columns,
             sequence_length=request.sequence_length,
             prediction_horizon=request.prediction_horizon,
+            feature_scaler=feature_scaler,
+            target_mode=target_mode,
         )
 
         # Split dataset
-        from torch.utils.data import DataLoader, random_split
+        from torch.utils.data import DataLoader, Subset
+
+        if len(dataset) < 2:
+            raise ValueError(
+                f"Not enough sequences for LSTM training. Need at least 2, got {len(dataset)}."
+            )
 
         train_size = int(0.8 * len(dataset))
-        val_size = len(dataset) - train_size
-        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+        train_size = min(max(train_size, 1), len(dataset) - 1)
+        train_dataset = Subset(dataset, range(0, train_size))
+        val_dataset = Subset(dataset, range(train_size, len(dataset)))
 
         train_loader = DataLoader(train_dataset, batch_size=request.batch_size, shuffle=True)
         val_loader = DataLoader(val_dataset, batch_size=request.batch_size)
@@ -627,6 +686,7 @@ async def _train_model_sync(job_id: str, request: TrainModelRequest):
         )
 
         trainer = LSTMTrainer(model)
+        trainer.target_mode = target_mode
 
         history = trainer.train(
             train_loader=train_loader,
@@ -641,15 +701,31 @@ async def _train_model_sync(job_id: str, request: TrainModelRequest):
         model_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}.pt"
 
         Path(settings.MODEL_STORAGE_PATH).mkdir(parents=True, exist_ok=True)
-        trainer.save_checkpoint(model_path)
 
         # Save meta_data
         metadata = {
             "model_id": model_id,
+            "input_dim": len(feature_columns),
+            "hidden_dim": request.hidden_dim,
+            "num_layers": request.num_layers,
+            "dropout": request.dropout,
             "feature_columns": feature_columns,
+            "feature_scaler": feature_scaler,
             "sequence_length": request.sequence_length,
             "prediction_horizon": request.prediction_horizon,
+            "target_mode": target_mode,
+            "ticker": request.ticker,
+            "trained_at": datetime.now().isoformat(),
         }
+
+        torch.save(
+            {
+                "model_state_dict": model.state_dict(),
+                "meta_data": metadata,
+                "history": history,
+            },
+            model_path,
+        )
 
         metadata_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}_metadata.json"
         with open(metadata_path, "w") as f:
@@ -697,33 +773,51 @@ def _get_active_model(ticker: str, model_type: str) -> str | None:
         return None
 
 
+def _load_model_metadata(model_id: str) -> dict[str, Any]:
+    model_path = Path(settings.MODEL_STORAGE_PATH) / f"{model_id}.pt"
+    metadata_path = Path(settings.MODEL_STORAGE_PATH) / f"{model_id}_metadata.json"
+
+    if metadata_path.exists():
+        with open(metadata_path) as f:
+            loaded_metadata = json.load(f)
+            if isinstance(loaded_metadata, dict):
+                return cast(dict[str, Any], loaded_metadata)
+
+    if model_path.exists():
+        checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
+        metadata = checkpoint.get("meta_data", {})
+        if isinstance(metadata, dict) and metadata:
+            return cast(dict[str, Any], metadata)
+
+    raise FileNotFoundError(f"Metadata not found for model {model_id}")
+
+
 def _load_model(model_id: str):
     """Load model from storage"""
     try:
         model_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}.pt"
-        metadata_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}_metadata.json"
-
-        # Load meta_data
-        with open(metadata_path) as f:
-            metadata = json.load(f)
+        metadata = _load_model_metadata(model_id)
 
         # Load model
-        checkpoint = torch.load(model_path, map_location="cpu")
+        checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
+        feature_columns = metadata.get("feature_columns", [])
+        input_dim = metadata.get("input_dim", len(feature_columns) or 50)
 
         # Reconstruct model
         model = AdvancedLSTM(
-            input_dim=len(metadata["feature_columns"]),
-            hidden_dim=128,  # Default, should be in meta_data
-            num_layers=3,
-            dropout=0.3,
-            output_horizon=metadata["prediction_horizon"],
+            input_dim=input_dim,
+            hidden_dim=metadata.get("hidden_dim", 128),
+            num_layers=metadata.get("num_layers", 3),
+            dropout=metadata.get("dropout", 0.3),
+            output_horizon=metadata.get("prediction_horizon", 5),
         )
 
         model.load_state_dict(checkpoint["model_state_dict"])
         model.eval()
-        model.sequence_length = metadata["sequence_length"]
+        model.sequence_length = metadata.get("sequence_length", 60)
 
         trainer = LSTMTrainer(model)
+        trainer.target_mode = metadata.get("target_mode", "price")
 
         logger.info(f"Loaded model {model_id}")
         return model, trainer
@@ -736,15 +830,14 @@ def _load_model(model_id: str):
 def _get_feature_columns(model_id: str) -> list[str]:
     """Get feature columns used by model"""
     try:
-        metadata_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}_metadata.json"
-
-        with open(metadata_path) as f:
-            metadata = json.load(f)
-
-        return metadata["feature_columns"]  # type: ignore
+        metadata = _load_model_metadata(model_id)
+        feature_columns = metadata.get("feature_columns")
+        if isinstance(feature_columns, list):
+            return [str(column) for column in feature_columns]
 
     except Exception as e:
         logger.error(f"Error loading feature columns: {e}")
-        # Return default features
-        fe = FeatureEngineer()
-        return fe.get_all_feature_names()[:50]
+
+    # Return default features
+    fe = FeatureEngineer()
+    return fe.get_all_feature_names()[:50]

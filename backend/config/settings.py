@@ -129,6 +129,19 @@ class Settings(BaseSettings):
     LOG_MAX_BYTES: int = 10485760
     LOG_BACKUP_COUNT: int = 5
 
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def parse_debug_value(cls, v):
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, str):
+            normalized = v.strip().strip("\"'").lower()
+            if normalized in {"1", "true", "yes", "on", "debug", "development"}:
+                return True
+            if normalized in {"0", "false", "no", "off", "release", "production"}:
+                return False
+        return v
+
     @field_validator("API_KEYS", mode="after")
     @classmethod
     def warn_plaintext_keys(cls, v):
@@ -173,6 +186,8 @@ class Settings(BaseSettings):
             return v
         if isinstance(v, str):
             v = v.strip()
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in {"'", '"'}:
+                v = v[1:-1].strip()
             if not v or v == "[]":
                 return []
             # Try JSON first

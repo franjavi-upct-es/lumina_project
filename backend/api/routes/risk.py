@@ -100,7 +100,7 @@ class VaRResponse(BaseModel):
     holding_period: int
     var_metrics: dict[str, dict[str, float]]  # {confidence_level: {var, cvar, etc}}
     portfolio_value: float | None = None
-    var_amount: dict[str, float]  # Dollar amounts
+    var_amount: dict[str, dict[str, float]]  # Dollar amounts by confidence level
     summary: str
 
 
@@ -108,8 +108,8 @@ class StressTestResponse(BaseModel):
     """Stress test response"""
 
     scenarios: dict[str, dict[str, Any]]
-    worst_case: dict[str, float]
-    best_case: dict[str, float]
+    worst_case: dict[str, Any]
+    best_case: dict[str, Any]
     current_exposure: dict[str, float]
     recommendations: list[str]
 
@@ -185,7 +185,7 @@ async def calculate_var(request: VaRCalculationRequest):
             data = await collector.collect_with_retry(
                 ticker=ticker, start_date=request.start_date, end_date=request.end_date
             )
-            if data and data.height > 0:
+            if data is not None and data.height > 0:
                 returns_data[ticker] = data.select("close").to_series().to_numpy()
 
         if not returns_data:
@@ -327,7 +327,7 @@ async def stress_test(request: StressTestRequest):
                 start_date=datetime.now() - timedelta(days=365),
                 end_date=datetime.now(),
             )
-            if data and data.height > 0:
+            if data is not None and data.height > 0:
                 returns_data[ticker] = data.select("close").to_series().to_numpy()
 
         returns_df = pd.DataFrame(returns_data)
@@ -460,7 +460,7 @@ async def analyze_drawdown(request: DrawdownAnalysisRequest):
             data = await collector.collect_with_retry(
                 ticker=ticker, start_date=request.start_date, end_date=request.end_date
             )
-            if data and data.height > 0:
+            if data is not None and data.height > 0:
                 returns_data[ticker] = data.select("close").to_series().to_numpy()
 
         returns_df = pd.DataFrame(returns_data)
@@ -597,7 +597,7 @@ async def analyze_correlation(request: CorrelationBreakdownRequest):
             data = await collector.collect_with_retry(
                 ticker=ticker, start_date=request.start_date, end_date=request.end_date
             )
-            if data and data.height > 0:
+            if data is not None and data.height > 0:
                 returns_data[ticker] = data.select("close").to_series().to_numpy()
 
         returns_df = pd.DataFrame(returns_data)
@@ -696,7 +696,7 @@ async def analyze_tail_risk(request: TailRiskRequest):
             data = await collector.collect_with_retry(
                 ticker=ticker, start_date=request.start_date, end_date=request.end_date
             )
-            if data and data.height > 0:
+            if data is not None and data.height > 0:
                 returns_data[ticker] = data.select("close").to_series().to_numpy()
 
         returns_df = pd.DataFrame(returns_data)
@@ -798,7 +798,7 @@ async def analyze_risk_contribution(
             data = await collector.collect_with_retry(
                 ticker=ticker, start_date=start_date, end_date=end_date
             )
-            if data and data.height > 0:
+            if data is not None and data.height > 0:
                 returns_data[ticker] = data.select("close").to_series().to_numpy()
 
         returns_df = pd.DataFrame(returns_data)
@@ -891,7 +891,7 @@ async def analyze_liquidity_risk(
             ticker=ticker, start_date=start_date, end_date=end_date
         )
 
-        if not data or data.height == 0:
+        if data is None or data.height == 0:
             raise HTTPException(status_code=404, detail=f"No data for {ticker}")
 
         data_pd = data.to_pandas()
@@ -971,7 +971,7 @@ async def scenario_analysis(
                 start_date=datetime.now() - timedelta(days=365),
                 end_date=datetime.now(),
             )
-            if data and data.height > 0:
+            if data is not None and data.height > 0:
                 returns_data[ticker] = data.select("close").to_series().to_numpy()
 
         returns_df = pd.DataFrame(returns_data)
@@ -1062,7 +1062,7 @@ async def risk_dashboard(
             data = await collector.collect_with_retry(
                 ticker=ticker, start_date=start_date, end_date=end_date
             )
-            if data and data.height > 0:
+            if data is not None and data.height > 0:
                 returns_data[ticker] = data.select("close").to_series().to_numpy()
 
         returns_df = pd.DataFrame(returns_data)

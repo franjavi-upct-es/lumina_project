@@ -21,14 +21,37 @@ from backend.db.models import run_async
 settings = get_settings()
 
 
+def _resolve_strategy(
+    strategy_name: str,
+    strategy_code: str | None = None,
+    strategy_params: dict[str, Any] | None = None,
+):
+    if strategy_code:
+        namespace: dict[str, Any] = {}
+        exec(strategy_code, namespace)
+        strategy_func = namespace.get("strategy")
+        if callable(strategy_func):
+            return strategy_func
+        raise ValueError("Strategy function not found")
+
+    raise ValueError(f"Strategy '{strategy_name}' requires strategy_code")
+
+
 @shared_task(bind=True, name="workers.backtest_tasks.run_backtest_task")
 def run_backtest_task(
-    self, job_id: str, strategy_name: str, strategy_code: str, config: dict[str, Any]
+    self,
+    job_id: str,
+    strategy_name: str,
+    strategy_code: str | None = None,
+    config: dict[str, Any] | None = None,
 ):
     """
     Execute a backtest asynchronously
     """
     try:
+        if config is None:
+            raise ValueError("Backtest config is required")
+
         logger.info(f"Starting backtest job {job_id}: {strategy_name}")
 
         # Update progress
@@ -57,36 +80,84 @@ def run_backtest_task(
 
         self.update_state(state="PROGRESS", meta={"step": "strategy_execution", "progress": 40})
 
-        # Compile strategy
-        namespace = {}  # type: ignore
-        exec(strategy_code, namespace)
-        strategy_func = namespace.get("strategy")
-
-        if not strategy_func:
-            raise ValueError("Strategy function not found")
+        strategy_func = _resolve_strategy(
+            strategy_name=strategy_name,
+            strategy_code=strategy_code,
+            strategy_params=config.get("strategy_params"),
+        )
 
         # Initialize backtest
         equity = config["initial_capital"]
-        positions = {}  # type: ignore
-        trades = []
-        equity_curve = []
+        positions: dict[str, dict[str, Any]] = {}
+        latest_prices: dict[str, float] = {}
+        trades: list[dict[str, Any]] = []
+        equity_curve: list[dict[str, Any]] = []
+
+        def _portfolio_equity() -> float:
+            total_equity = float(equity)
+            for position_ticker, position in positions.items():
+                mark_price = latest_prices.get(position_ticker, position["entry_price"])
+                total_equity += position["shares"] * mark_price
+            return total_equity
+
+        def _close_position(
+            ticker: str,
+            exit_price: float,
+            exit_time,
+            exit_reason: str,
+        ) -> None:
+            nonlocal equity
+
+            position = positions.pop(ticker)
+            proceeds = position["shares"] * exit_price
+            commission = proceeds * config["commission"]
+            slippage = proceeds * config["slippage"]
+            net_proceeds = proceeds - commission - slippage
+
+            entry_value = position["shares"] * position["entry_price"]
+            pnl = net_proceeds - entry_value
+            pnl_percent = (pnl / entry_value) * 100 if entry_value else 0.0
+
+            equity += net_proceeds
+
+            trades.append(
+                {
+                    "ticker": ticker,
+                    "direction": "long",
+                    "entry_time": position["entry_time"],
+                    "exit_time": exit_time,
+                    "entry_price": position["entry_price"],
+                    "exit_price": exit_price,
+                    "quantity": position["shares"],
+                    "pnl": pnl,
+                    "pnl_percent": pnl_percent,
+                    "commission": commission,
+                    "slippage": slippage,
+                    "exit_reason": exit_reason,
+                }
+            )
 
         # Execute backtest
         for ticker, data in all_data.items():
             data_pd = data.to_pandas()
+            time_column = next(
+                (col for col in ("time", "date", "datetime") if col in data_pd.columns), None
+            )
+            if time_column is not None:
+                data_pd[time_column] = pd.to_datetime(data_pd[time_column])
+                data_pd = data_pd.set_index(time_column)
+            data_pd = data_pd.sort_index()
 
             try:
-                signals = strategy_func(data_pd, data_pd)
+                signals = list(strategy_func(data_pd, data_pd))
             except Exception as e:
                 logger.error(f"Strategy error for {ticker}: {e}")
                 continue
 
-            for i, signal in enumerate(signals):
-                if i == 0:
-                    continue
-
-                current_price = data_pd.iloc[i]["close"]
+            for i, signal in enumerate(signals[: len(data_pd)]):
+                current_price = float(data_pd.iloc[i]["close"])
                 current_time = data_pd.index[i]
+                latest_prices[ticker] = current_price
 
                 # BUY signal
                 if signal == "BUY" and ticker not in positions:
@@ -102,108 +173,43 @@ def run_backtest_task(
                             "shares": shares,
                             "entry_price": current_price,
                             "entry_time": current_time,
+                            "last_price": current_price,
                         }
                         equity -= cost
 
                 # SELL signal
                 elif signal == "SELL" and ticker in positions:
-                    position = positions[ticker]
-                    proceeds = position["shares"] * current_price
+                    _close_position(ticker, current_price, current_time, "signal")
 
-                    commission = proceeds * config["commission"]
-                    slippage = proceeds * config["slippage"]
-                    net_proceeds = proceeds - commission - slippage
+                if ticker in positions:
+                    positions[ticker]["last_price"] = current_price
 
-                    pnl = net_proceeds - (position["shares"] * position["entry_price"])
-                    pnl_percent = pnl / (position["shares"] * position["entry_price"]) * 100
-
-                    equity += net_proceeds
-
-                    trades.append(
-                        {
-                            "ticker": ticker,
-                            "direction": "long",
-                            "entry_time": position["entry_time"],
-                            "exit_time": current_time,
-                            "entry_price": position["entry_price"],
-                            "exit_price": current_price,
-                            "quantity": position["shares"],
-                            "pnl": pnl,
-                            "pnl_percent": pnl_percent,
-                            "commission": commission,
-                            "slippage": slippage,
-                        }
-                    )
-
-                    del positions[ticker]
-
-                # Check stop loss / take profit
-                for tick, pos in list(positions.items()):
-                    current_return = (current_price - pos["entry_price"]) / pos["entry_price"]
+                    current_return = (current_price - positions[ticker]["entry_price"]) / positions[
+                        ticker
+                    ]["entry_price"]
 
                     if config.get("stop_loss") and current_return <= -config["stop_loss"]:
-                        # Stop loss triggered
-                        proceeds = pos["shares"] * current_price
-                        commission = proceeds * config["commission"]
-                        slippage = proceeds * config["slippage"]
-                        net_proceeds = proceeds - commission - slippage
-
-                        pnl = net_proceeds - (pos["shares"] * pos["entry_price"])
-                        equity += net_proceeds
-
-                        trades.append(
-                            {
-                                "ticker": tick,
-                                "direction": "long",
-                                "entry_time": pos["entry_time"],
-                                "exit_time": current_time,
-                                "entry_price": pos["entry_price"],
-                                "exit_price": current_price,
-                                "quantity": pos["shares"],
-                                "pnl": pnl,
-                                "pnl_percent": (pnl / (pos["shares"] * pos["entry_price"])) * 100,
-                                "commission": commission,
-                                "slippage": slippage,  # type: ignore
-                                "exit_reason": "stop_loss",
-                            }
-                        )
-
-                        del positions[tick]  # type: ignore
-
+                        _close_position(ticker, current_price, current_time, "stop_loss")
                     elif config.get("take_profit") and current_return >= config["take_profit"]:
-                        # Take profit triggered
-                        proceeds = pos["shares"] * current_price
-                        commission = proceeds * config["commission"]
-                        slippage = proceeds * config["slippage"]
-                        net_proceeds = proceeds - commission - slippage
-
-                        pnl = net_proceeds - (pos["shares"] * pos["entry_price"])
-                        equity += net_proceeds
-
-                        trades.append(
-                            {
-                                "ticker": tick,
-                                "direction": "long",
-                                "entry_time": pos["entry_time"],
-                                "exit_time": current_time,
-                                "entry_price": pos["entry_price"],
-                                "exit_price": current_price,
-                                "quantity": pos["shares"],
-                                "pnl": pnl,
-                                "pnl_percent": (pnl / (pos["shares"] * pos["entry_price"])) * 100,
-                                "commission": commission,
-                                "slippage": slippage,
-                                "exit_reason": "take_profit",
-                            }
-                        )
-
-                        del positions[tick]
+                        _close_position(ticker, current_price, current_time, "take_profit")
 
                 # Record equity
                 equity_curve.append(
                     {
                         "date": current_time.isoformat(),
-                        "equity": equity,
+                        "equity": _portfolio_equity(),
+                    }
+                )
+
+            if ticker in positions:
+                final_price = float(data_pd.iloc[-1]["close"])
+                final_time = data_pd.index[-1]
+                latest_prices[ticker] = final_price
+                _close_position(ticker, final_price, final_time, "end_of_backtest")
+                equity_curve.append(
+                    {
+                        "date": final_time.isoformat(),
+                        "equity": _portfolio_equity(),
                     }
                 )
 

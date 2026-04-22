@@ -49,8 +49,14 @@ celery_app.conf.update(
     broker_connection_retry_on_startup=True,
     broker_connection_retry=True,
     broker_connection_max_retries=10,
+    task_default_queue="default",
+    task_default_exchange="default",
+    task_default_routing_key="default",
     # Task routing
     task_routes={
+        "workers.data_tasks.*": {"queue": "data"},
+        "workers.ml_tasks.*": {"queue": "ml"},
+        "workers.backtest_tasks.*": {"queue": "backtest"},
         "backend.workers.data_tasks.*": {"queue": "data"},
         "backend.workers.ml_tasks.*": {"queue": "ml"},
         "backend.workers.backtest_tasks.*": {"queue": "backtest"},

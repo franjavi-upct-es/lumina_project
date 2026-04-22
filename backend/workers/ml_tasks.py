@@ -11,11 +11,12 @@ Fixed:
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any
 from uuid import uuid4
 
 import numpy as np
+import pandas as pd
 from celery import shared_task
 from loguru import logger
 
@@ -99,6 +100,65 @@ def _collect_data(ticker: str, start_date, end_date):
     )
 
 
+def _resolve_market_time_column(data) -> str | None:
+    for candidate in ("time", "date", "datetime"):
+        if candidate in data.columns:
+            return candidate
+    return None
+
+
+def _sort_market_data(data):
+    time_column = _resolve_market_time_column(data)
+    if time_column is None:
+        return data
+    return data.sort(time_column)
+
+
+def _coerce_market_timestamp(value) -> datetime:
+    if hasattr(value, "to_pydatetime"):
+        value = value.to_pydatetime()
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return datetime.combine(value, time.min)
+    raise TypeError(f"Unsupported timestamp type: {type(value)!r}")
+
+
+def _get_last_market_timestamp(data) -> datetime:
+    time_column = _resolve_market_time_column(data)
+    if time_column is None:
+        raise ValueError("Market data is missing a time/date column")
+    return _coerce_market_timestamp(data[time_column].tail(1).item())
+
+
+def _select_xgboost_feature_columns(enriched_pd: pd.DataFrame) -> list[str]:
+    excluded_columns = {
+        "time",
+        "date",
+        "datetime",
+        "ticker",
+        "source",
+        "collected_at",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "adjusted_close",
+        "dividends",
+        "stock_splits",
+    }
+
+    feature_columns = []
+    for column in enriched_pd.columns:
+        if column in excluded_columns:
+            continue
+        series = enriched_pd[column]
+        if pd.api.types.is_numeric_dtype(series) or pd.api.types.is_bool_dtype(series):
+            feature_columns.append(column)
+    return feature_columns
+
+
 # ---------------------------------------------------------------------------
 #  LSTM training task
 # ---------------------------------------------------------------------------
@@ -116,7 +176,7 @@ def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparam
     """
     try:
         import torch
-        from torch.utils.data import DataLoader, random_split
+        from torch.utils.data import DataLoader, Subset
 
         from backend.ml_engine.models.lstm_advanced import (
             AdvancedLSTM,
@@ -144,6 +204,7 @@ def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparam
         if data is None or data.height == 0:
             raise ValueError(f"No data collected for {ticker}")
 
+        data = _sort_market_data(data)
         logger.info(f"Collected {data.height} data points for {ticker}")
 
         self.update_state(state="PROGRESS", meta={"step": "feature_engineering", "progress": 20})
@@ -153,7 +214,13 @@ def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparam
         enriched_data = fe.create_all_features(data, add_lags=True, add_rolling=True)
 
         max_features = hyperparams.get("max_features", 50)
-        feature_columns = fe.get_all_feature_names()[:max_features]
+        feature_columns = [
+            column
+            for column in fe.get_all_feature_names()[:max_features]
+            if column in enriched_data.columns
+        ]
+        if not feature_columns:
+            raise ValueError("No valid feature columns generated for LSTM training")
 
         logger.info(f"Engineered {len(feature_columns)} features")
 
@@ -162,6 +229,8 @@ def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparam
         # 3. Prepare dataset ------------------------------------------------
         sequence_length = hyperparams.get("sequence_length", 60)
         prediction_horizon = hyperparams.get("prediction_horizon", 5)
+        target_mode = "relative_returns"
+        feature_scaler = TimeSeriesDataset.build_feature_scaler(enriched_data, feature_columns)
 
         dataset = TimeSeriesDataset(
             data=enriched_data,
@@ -169,11 +238,20 @@ def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparam
             sequence_length=sequence_length,
             prediction_horizon=prediction_horizon,
             stride=1,
+            feature_scaler=feature_scaler,
+            target_mode=target_mode,
         )
 
+        if len(dataset) < 2:
+            raise ValueError(
+                f"Not enough sequences for LSTM training. Need at least 2, got {len(dataset)}."
+            )
+
         train_size = int(0.8 * len(dataset))
+        train_size = min(max(train_size, 1), len(dataset) - 1)
         val_size = len(dataset) - train_size
-        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+        train_dataset = Subset(dataset, range(0, train_size))
+        val_dataset = Subset(dataset, range(train_size, len(dataset)))
 
         batch_size = hyperparams.get("batch_size", 32)
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
@@ -204,6 +282,7 @@ def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparam
         model = model.to(device)
 
         trainer = LSTMTrainer(model, device=device)
+        trainer.target_mode = target_mode
 
         self.update_state(state="PROGRESS", meta={"step": "training", "progress": 60})
 
@@ -261,6 +340,8 @@ def train_model_task(self, job_id: str, ticker: str, model_type: str, hyperparam
                     "sequence_length": sequence_length,
                     "prediction_horizon": prediction_horizon,
                     "feature_columns": feature_columns,
+                    "feature_scaler": feature_scaler,
+                    "target_mode": target_mode,
                     "ticker": ticker,
                     "trained_at": datetime.now().isoformat(),
                 },
@@ -362,6 +443,8 @@ def train_xgboost_task(
         if data is None or data.height == 0:
             raise ValueError(f"No data collected for {ticker}")
 
+        data = _sort_market_data(data)
+
         self.update_state(state="PROGRESS", meta={"step": "feature_engineering", "progress": 30})
 
         # 2. Feature engineering  # type: ignore
@@ -369,23 +452,7 @@ def train_xgboost_task(
         enriched = fe.create_all_features(data, add_lags=True, add_rolling=True)
         enriched_pd = enriched.to_pandas()
 
-        feature_cols = [
-            c
-            for c in enriched_pd.columns
-            if c
-            not in (
-                "time",
-                "ticker",
-                "open",
-                "high",
-                "low",
-                "close",
-                "volume",
-                "adjusted_close",
-                "dividends",
-                "stock_splits",
-            )
-        ]
+        feature_cols = _select_xgboost_feature_columns(enriched_pd)
         if not feature_cols:
             raise ValueError("No feature columns generated")
 
@@ -544,7 +611,11 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
     try:
         import torch
 
-        from backend.ml_engine.models.lstm_advanced import AdvancedLSTM, LSTMTrainer
+        from backend.ml_engine.models.lstm_advanced import (
+            AdvancedLSTM,
+            LSTMTrainer,
+            TimeSeriesDataset,
+        )
 
         logger.info(f"Prediction task for {ticker} using model {model_id}")
 
@@ -565,19 +636,23 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
         dropout = meta_data.get("dropout", 0.3)
         sequence_length = meta_data.get("sequence_length", 60)
         feature_columns = meta_data.get("feature_columns", None)
+        feature_scaler = meta_data.get("feature_scaler")
+        target_mode = meta_data.get("target_mode", "price")
+        trained_horizon = meta_data.get("prediction_horizon", days_ahead)
 
         model = AdvancedLSTM(
             input_dim=input_dim,
             hidden_dim=hidden_dim,
             num_layers=num_layers,
             dropout=dropout,
-            output_horizon=days_ahead,
+            output_horizon=trained_horizon,
             bidirectional=True,
         )
         model.load_state_dict(checkpoint["model_state_dict"])
         model.eval()
 
         trainer = LSTMTrainer(model)
+        trainer.target_mode = target_mode
 
         self.update_state(state="PROGRESS", meta={"step": "collecting_data", "progress": 30})
 
@@ -592,6 +667,7 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
         if data is None or data.height == 0:
             raise ValueError(f"No data available for {ticker}")
 
+        data = _sort_market_data(data)
         logger.info(f"Collected {data.height} data points")
 
         self.update_state(state="PROGRESS", meta={"step": "feature_engineering", "progress": 50})
@@ -604,8 +680,13 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
             feature_columns = fe.get_all_feature_names()[:input_dim]
             logger.warning(f"Using default feature columns: {len(feature_columns)} features")
 
-        feature_columns = [f for f in feature_columns if f in enriched_data.columns]
-        features = enriched_data.select(feature_columns).to_numpy()
+        if not feature_columns:
+            raise ValueError("No valid feature columns available for prediction")
+        features = TimeSeriesDataset.transform_features(
+            enriched_data,
+            feature_columns,
+            feature_scaler=feature_scaler,
+        )
 
         self.update_state(state="PROGRESS", meta={"step": "generating_predictions", "progress": 80})
 
@@ -614,27 +695,32 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
             raise ValueError(f"Not enough data. Need {sequence_length}, got {len(features)}")
 
         input_sequence = torch.FloatTensor(features[-sequence_length:]).unsqueeze(0)
+        current_price = float(data["close"].tail(1).item())
+        trainer.prediction_context = {"last_close": current_price, "target_mode": target_mode}
 
         with torch.no_grad():
             predictions = trainer.predict(input_sequence)
 
         # 5. Format results
-        current_price = float(data["close"].tail(1).item())
-        last_date = data["date"].tail(1).item()
+        last_date = _get_last_market_timestamp(data)
+        forecast_horizon = min(days_ahead, int(predictions["price"].shape[1]))
 
         formatted_predictions = []
-        for i in range(days_ahead):
+        predicted_price_values: list[float] = []
+        for i in range(forecast_horizon):
             pred_price = float(predictions["price"][0][i])
             pred_date = last_date + timedelta(days=i + 1)
 
             while pred_date.weekday() >= 5:
                 pred_date += timedelta(days=1)
 
+            rounded_pred_price = round(pred_price, 2)
+            predicted_price_values.append(rounded_pred_price)
             formatted_predictions.append(
                 {
                     "day": i + 1,
                     "date": pred_date.isoformat(),
-                    "predicted_price": round(pred_price, 2),
+                    "predicted_price": rounded_pred_price,
                     "change": round(pred_price - current_price, 2),
                     "change_percent": round(
                         ((pred_price - current_price) / current_price) * 100, 2
@@ -645,10 +731,8 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
                 }
             )
 
-        avg_predicted_price = np.mean([p["predicted_price"] for p in formatted_predictions])
-        total_change_percent = (
-            (formatted_predictions[-1]["predicted_price"] - current_price) / current_price * 100
-        )
+        avg_predicted_price = float(np.mean(np.asarray(predicted_price_values, dtype=float)))
+        total_change_percent = ((predicted_price_values[-1] - current_price) / current_price * 100)
 
         self.update_state(state="PROGRESS", meta={"step": "completed", "progress": 100})
 
@@ -679,7 +763,9 @@ def predict_task(self, ticker: str, model_id: str, days_ahead: int):
                 "model_type": "lstm",
                 "sequence_length": sequence_length,
                 "num_features": len(feature_columns),
-                "prediction_horizon": days_ahead,
+                "prediction_horizon": forecast_horizon,
+                "trained_prediction_horizon": trained_horizon,
+                "target_mode": target_mode,
             },
             "completed_at": datetime.now().isoformat(),
         }
@@ -803,13 +889,17 @@ def evaluate_model_task(model_id: str, test_start_date: str, test_end_date: str)
         model.load_state_dict(checkpoint["model_state_dict"])
         model.eval()
 
+        target_mode = meta_data.get("target_mode", "price")
         trainer = LSTMTrainer(model)
+        trainer.target_mode = target_mode
 
         # Collect test data
         data = _collect_data(ticker, start_date, end_date)
 
         if data is None or data.height == 0:
             raise ValueError(f"No test data available for {ticker}")
+
+        data = _sort_market_data(data)
 
         # Engineer features
         fe = FeatureEngineer()
@@ -824,6 +914,8 @@ def evaluate_model_task(model_id: str, test_start_date: str, test_end_date: str)
             feature_columns=feature_columns,
             sequence_length=meta_data.get("sequence_length", 60),
             prediction_horizon=meta_data.get("prediction_horizon", 5),
+            feature_scaler=meta_data.get("feature_scaler"),
+            target_mode=target_mode,
         )
 
         test_loader = DataLoader(test_dataset, batch_size=32)
@@ -833,22 +925,27 @@ def evaluate_model_task(model_id: str, test_start_date: str, test_end_date: str)
         # Directional accuracy
         all_predictions = []
         all_targets = []
+        all_last_closes = []
 
         with torch.no_grad():
             for batch_features, batch_targets in test_loader:
                 outputs = model(batch_features)
-                all_predictions.append(outputs["price"].cpu().numpy())
-                all_targets.append(batch_targets["price"].cpu().numpy())
+                decoded_prices, _, _, _ = trainer.decode_price_outputs(
+                    outputs["price"].cpu().numpy(),
+                    outputs["uncertainty"].cpu().numpy(),
+                    last_close=batch_targets["last_close"].cpu().numpy().reshape(-1),
+                    target_mode=target_mode,
+                )
+                all_predictions.append(decoded_prices)
+                all_targets.append(batch_targets["future_prices"].cpu().numpy())
+                all_last_closes.append(batch_targets["last_close"].cpu().numpy())
 
         predictions = np.concatenate(all_predictions, axis=0)
         targets = np.concatenate(all_targets, axis=0)
+        last_closes = np.concatenate(all_last_closes, axis=0).reshape(-1)
 
-        pred_direction = np.sign(predictions[:, 0] - targets[:, 0])
-        actual_direction = (
-            np.sign(targets[:, 1] - targets[:, 0])
-            if targets.shape[1] > 1
-            else np.zeros_like(pred_direction)
-        )
+        pred_direction = np.sign(predictions[:, 0] - last_closes)
+        actual_direction = np.sign(targets[:, 0] - last_closes)
         directional_accuracy = float(np.mean(pred_direction == actual_direction))
 
         result = {
@@ -889,7 +986,7 @@ def compute_feature_importance_task(model_id: str, num_samples: int = 100):
         import shap
         import torch
 
-        from backend.ml_engine.models.lstm_advanced import AdvancedLSTM
+        from backend.ml_engine.models.lstm_advanced import AdvancedLSTM, TimeSeriesDataset
 
         logger.info(f"Computing feature importance for model {model_id}")
 
@@ -918,13 +1015,17 @@ def compute_feature_importance_task(model_id: str, num_samples: int = 100):
         )
 
         fe = FeatureEngineer()
-        enriched_data = fe.create_all_features(data)
+        enriched_data = fe.create_all_features(_sort_market_data(data))
 
         feature_columns = meta_data.get(
             "feature_columns",
             fe.get_all_feature_names()[: meta_data.get("input_dim", 50)],
         )
-        features = enriched_data.select(feature_columns).to_numpy()
+        features = TimeSeriesDataset.transform_features(
+            enriched_data,
+            feature_columns,
+            feature_scaler=meta_data.get("feature_scaler"),
+        )
 
         seq_len = meta_data.get("sequence_length", 60)
 

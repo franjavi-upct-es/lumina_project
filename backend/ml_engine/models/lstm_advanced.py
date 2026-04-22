@@ -4,7 +4,10 @@ Advanced LSTM model with attention mechanism for financial prediction
 Multi-variate, multi-task learning with uncertainty quantification
 """
 
+from typing import Any
+
 import numpy as np
+import pandas as pd
 import polars as pl
 import torch
 import torch.nn as nn
@@ -170,6 +173,8 @@ class TimeSeriesDataset(Dataset):
         sequence_length: int = 60,
         prediction_horizon: int = 5,
         stride: int = 1,
+        feature_scaler: dict[str, Any] | None = None,
+        target_mode: str = "relative_returns",
     ):
         """
         Args:
@@ -186,22 +191,97 @@ class TimeSeriesDataset(Dataset):
         self.sequence_length = sequence_length
         self.prediction_horizon = prediction_horizon
         self.stride = stride
+        self.feature_scaler = feature_scaler
+        self.target_mode = target_mode
 
         # Convert to numpy for faster indexing
-        self.features = data.select(feature_columns).to_numpy()
-        self.targets = data.select(target_column).to_numpy().squeeze()
+        self.features = self.transform_features(
+            data,
+            feature_columns,
+            feature_scaler=feature_scaler,
+        )
+        self.targets = data.select(target_column).to_numpy().squeeze().astype(np.float32)
 
         # Create indices for valid sequences
         self.indices = self._create_indices()
 
         logger.info(f"Created dataset with {len(self.indices)} sequences")
 
+    @staticmethod
+    def _prepare_feature_frame(data: pl.DataFrame, feature_columns: list[str]) -> pd.DataFrame:
+        frame = data.to_pandas().reindex(columns=feature_columns).copy()
+        frame = frame.apply(pd.to_numeric, errors="coerce")
+        frame = frame.replace([np.inf, -np.inf], np.nan)
+        return frame
+
+    @classmethod
+    def build_feature_scaler(
+        cls, data: pl.DataFrame, feature_columns: list[str]
+    ) -> dict[str, list[float]]:
+        frame = cls._prepare_feature_frame(data, feature_columns)
+        fill_values = frame.median().fillna(0.0)
+        frame = frame.fillna(fill_values)
+        means = frame.mean().fillna(0.0)
+        stds = frame.std().replace(0.0, 1.0).fillna(1.0)
+
+        return {
+            "feature_columns": list(feature_columns),
+            "fill_values": fill_values.astype(float).tolist(),
+            "means": means.astype(float).tolist(),
+            "stds": stds.astype(float).tolist(),
+        }
+
+    @classmethod
+    def transform_features(
+        cls,
+        data: pl.DataFrame,
+        feature_columns: list[str],
+        feature_scaler: dict[str, Any] | None = None,
+    ) -> np.ndarray:
+        frame = cls._prepare_feature_frame(data, feature_columns)
+
+        if feature_scaler:
+            fill_values = pd.Series(
+                feature_scaler.get("fill_values", []),
+                index=feature_scaler.get("feature_columns", feature_columns),
+                dtype=float,
+            ).reindex(feature_columns)
+            means = pd.Series(
+                feature_scaler.get("means", []),
+                index=feature_scaler.get("feature_columns", feature_columns),
+                dtype=float,
+            ).reindex(feature_columns)
+            stds = pd.Series(
+                feature_scaler.get("stds", []),
+                index=feature_scaler.get("feature_columns", feature_columns),
+                dtype=float,
+            ).reindex(feature_columns)
+
+            fill_values = fill_values.fillna(0.0)
+            means = means.fillna(0.0)
+            stds = stds.replace(0.0, 1.0).fillna(1.0)
+
+            frame = frame.fillna(fill_values)
+            frame = (frame - means) / stds
+        else:
+            frame = frame.fillna(0.0)
+
+        return np.asarray(frame.to_numpy(dtype=np.float32), dtype=np.float32)
+
+    def _encode_price_target(self, future_prices: np.ndarray, last_close: float) -> np.ndarray:
+        if self.target_mode == "relative_returns":
+            base_price = last_close if abs(last_close) > 1e-8 else 1.0
+            return ((future_prices / base_price) - 1.0).astype(np.float32)
+        return future_prices.astype(np.float32)
+
     def _create_indices(self) -> list[int]:
         """
         Create valid sequence start indices
         """
         max_start = len(self.features) - self.sequence_length - self.prediction_horizon
-        return list(range(0, max_start, self.stride))
+        if max_start < 0:
+            return []
+        return list(range(0, max_start + 1, self.stride))
 
     def __len__(self) -> int:
         return len(self.indices)
@@ -220,18 +300,21 @@ class TimeSeriesDataset(Dataset):
         # Get feature sequence
         X = self.features[start_idx:end_idx]
 
-        # Get target (future prices)
+        # Get target window
         target_start = end_idx
         target_end = target_start + self.prediction_horizon
-        y_prices = self.targets[target_start:target_end]
+        future_prices = self.targets[target_start:target_end]
+        last_close = float(self.targets[end_idx - 1])
+        y_prices = self._encode_price_target(future_prices, last_close)
 
         # Calculate additional targets
-        # Volatility (std of returns in target window)
-        returns = np.diff(y_prices) / y_prices[:-1]
+        price_path = np.concatenate([[last_close], future_prices])
+        returns = np.diff(price_path) / np.where(np.abs(price_path[:-1]) < 1e-8, 1.0, price_path[:-1])
         volatility = np.std(returns) if len(returns) > 0 else 0.0
 
         # Regime (simplified: 0=bear, 1=sideways, 2=bull based on overall trend)
-        overall_return = (y_prices[-1] - y_prices[0]) / y_prices[0]
+        base_price = last_close if abs(last_close) > 1e-8 else 1.0
+        overall_return = (future_prices[-1] - last_close) / base_price
         if overall_return < -0.02:
             regime = 0  # Bear
         elif overall_return > 0.02:
@@ -243,6 +326,8 @@ class TimeSeriesDataset(Dataset):
             "price": torch.FloatTensor(y_prices),
             "volatility": torch.FloatTensor([volatility]),
             "regime": torch.LongTensor([regime]),
+            "future_prices": torch.FloatTensor(future_prices.astype(np.float32)),
+            "last_close": torch.FloatTensor([last_close]),
         }
 
         return torch.FloatTensor(X), targets
@@ -257,9 +342,12 @@ class LSTMTrainer:
         self,
         model: AdvancedLSTM,
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
+        target_mode: str = "price",
     ):
         self.model = model.to(device)
         self.device = device
+        self.target_mode = target_mode
+        self.prediction_context: dict[str, Any] = {}
         self.history = {
             "train_loss": [],
             "val_loss": [],
@@ -299,7 +387,7 @@ class LSTMTrainer:
             # Calculate losses
             price_loss = F.mse_loss(outputs["price"], target_prices)
             vol_loss = F.mse_loss(outputs["volatility"], target_vol)
-            regime_loss = F.cross_entropy(outputs["regime_logits"], target_regime.squeeze())
+            regime_loss = F.cross_entropy(outputs["regime_logits"], target_regime.view(-1))
 
             # Combined loss
             loss = (
@@ -355,7 +443,7 @@ class LSTMTrainer:
 
             price_loss = F.mse_loss(outputs["price"], target_prices)
             vol_loss = F.mse_loss(outputs["volatility"], target_vol)
-            regime_loss = F.cross_entropy(outputs["regime_logits"], target_regime.squeeze())
+            regime_loss = F.cross_entropy(outputs["regime_logits"], target_regime.view(-1))
 
             loss = (
                 price_loss_weight * price_loss
@@ -388,9 +476,21 @@ class LSTMTrainer:
         Full training loop with early stopping
         """
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(  # type: ignore
-            optimizer, mode="min", factor=0.5, patience=5, verbose=True
-        )
+        try:
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(  # type: ignore
+                optimizer,
+                mode="min",
+                factor=0.5,
+                patience=5,
+                verbose=True,
+            )
+        except TypeError:
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(  # type: ignore
+                optimizer,
+                mode="min",
+                factor=0.5,
+                patience=5,
+            )
 
         best_val_loss = float("inf")
         patience_counter = 0
@@ -434,6 +534,40 @@ class LSTMTrainer:
         self.load_checkpoint("best_model.pt")
         return self.history
 
+    @staticmethod
+    def decode_price_outputs(
+        raw_prices: np.ndarray,
+        raw_uncertainty: np.ndarray | None = None,
+        last_close: float | np.ndarray | None = None,
+        target_mode: str = "price",
+    ) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None, np.ndarray | None]:
+        if last_close is None or target_mode != "relative_returns":
+            lower = None
+            upper = None
+            if raw_uncertainty is not None:
+                lower = raw_prices - 1.96 * raw_uncertainty
+                upper = raw_prices + 1.96 * raw_uncertainty
+            return raw_prices, lower, upper, raw_uncertainty
+
+        anchors = np.asarray(last_close, dtype=np.float32)
+        if anchors.ndim == 0:
+            anchors = anchors.reshape(1, 1)
+        elif anchors.ndim == 1:
+            anchors = anchors.reshape(-1, 1)
+
+        anchors = np.where(np.abs(anchors) < 1e-8, 1.0, anchors)
+
+        prices = anchors * (1.0 + raw_prices)
+
+        if raw_uncertainty is None:
+            return prices, None, None, None
+
+        lower = anchors * (1.0 + raw_prices - 1.96 * raw_uncertainty)
+        upper = anchors * (1.0 + raw_prices + 1.96 * raw_uncertainty)
+        price_uncertainty = np.abs(anchors * raw_uncertainty)
+
+        return prices, lower, upper, price_uncertainty
+
     @torch.no_grad()
     def predict(self, features: torch.Tensor) -> dict[str, np.ndarray]:
         """
@@ -454,13 +588,26 @@ class LSTMTrainer:
         features = features.to(self.device)
         outputs = self.model(features)
 
+        raw_prices = outputs["price"].cpu().numpy()
+        raw_uncertainty = outputs["uncertainty"].cpu().numpy()
+        target_mode = self.prediction_context.get("target_mode", self.target_mode)
+        last_close = self.prediction_context.get("last_close")
+        prices, lower, upper, uncertainty = self.decode_price_outputs(
+            raw_prices,
+            raw_uncertainty,
+            last_close=last_close,
+            target_mode=target_mode,
+        )
+
         return {
-            "price": outputs["price"].cpu().numpy(),
-            "price_lower": (outputs["price"] - 1.96 * outputs["uncertainty"]).cpu().numpy(),
-            "price_upper": (outputs["price"] + 1.96 * outputs["uncertainty"]).cpu().numpy(),
+            "price": prices,
+            "price_lower": lower if lower is not None else prices,
+            "price_upper": upper if upper is not None else prices,
             "volatility": outputs["volatility"].cpu().numpy(),
             "regime_probs": outputs["regime_probs"].cpu().numpy(),
-            "uncertainty": outputs["uncertainty"].cpu().numpy(),
+            "uncertainty": uncertainty if uncertainty is not None else raw_uncertainty,
+            "raw_price": raw_prices,
+            "raw_uncertainty": raw_uncertainty,
             "attention_weights": outputs["attention_weights"].cpu().numpy(),
         }
 
