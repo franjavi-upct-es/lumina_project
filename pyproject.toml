@@ -1,273 +1,123 @@
 [project]
 name = "lumina-project"
-version = "2.0.0"
-description = "Advanced ML-powered financial prediction platform"
+version = "3.0.0"
+description = "Lumina V3 — Chimera deep-fusion algorithmic trading system"
+readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.11"
+authors = [{ name = "Francisco Javier Mercader Martínez" }]
+
 dependencies = [
-    # Core Web Framework
-    "fastapi>=0.110.0",
-    "uvicorn[standard]>=0.29.0",
-    # Data Validation & Settings
-    "pydantic>=2.7.0",
-    "pydantic-settings>=2.2.0",
-    "python-dotenv>=1.0.1",
-    # Logging
-    "loguru>=0.7.2",
-    # Date/Time handling
-    "python-dateutil>=2.9.0",
-    "pytz>=2024.1",
-    # HTTP clients
-    "requests>=2.31.0",
-    "httpx>=0.27.0",
-    "aiohttp>=3.9.5",
-    # Retry logic
-    "tenacity>=8.3.0",
-    # Fast JSON serialization
-    "orjson>=3.9.10",
-    "ujson>=5.9.0",
-    # Core data processing (used everywhere)
-    "numpy>=1.26.4",
-    "pandas>=2.2.2",
-    "sqlalchemy>=2.0.30",
-    "asyncpg>=0.29.0",
-    "psycopg2-binary>=2.9.9",
-    "alembic>=1.13.1",
-    "redis>=5.0.4",
-    "hiredis>=2.3.2",
-    "celery>=5.4.0",
-    "flower>=2.0.1",
-    "kombu>=5.3.7",
-    "polars>=0.20.20",
-    "pyarrow>=16.0.0",
-    "yfinance>=0.2.40",
-    "curl-cffi>=0.7.0",
-    "alpha-vantage>=2.3.1",
-    "fredapi>=0.5.1",
-    "scikit-learn>=1.4.2",
-    "xgboost>=2.0.3",
-    "lightgbm>=4.3.0",
-    "optuna>=3.6.1",
-    "hyperopt>=0.2.7",
-    "mlflow>=2.12.1",
-    "shap>=0.45.1",
-    "statsmodels>=0.14.2",
-    "arch>=7.0.0",
-    "pyportfolioopt>=1.5.5",
-    "backtrader>=1.9.78.123",
-    "spacy>=3.7.4",
-    "nltk>=3.8.1",
-    "textblob>=0.17.1",
-    "beautifulsoup4>=4.12.3",
-    "praw>=7.7.1",
-    "tweepy>=4.14.0",
-    "newsapi-python>=0.2.7",
-    "python-multipart>=0.0.9",
-    "python-jose[cryptography]>=3.3.0",
-    "passlib[bcrypt]>=1.7.4",
-    "sentry-sdk>=2.1.0",
-    "prometheus-client>=0.20.0",
-    "typing-extensions>=4.11.0",
-    "scipy>=1.13.0",
-    "jwt>=1.4.0",
+  # Web / API
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+  "pydantic>=2.6",
+  "pydantic-settings>=2.2",
+  "httpx>=0.27",
+  "websockets>=12.0",
+  # DB
+  "asyncpg>=0.29",
+  "redis>=5.0",
+  "alembic>=1.13",
+  # Data
+  "polars>=0.20",
+  "numpy>=1.26",
+  "beautifulsoup4>=4.12",
+  # ML
+  "torch>=2.2",
+  "torch-geometric>=2.5",
+  "transformers>=4.38",
+  "scikit-learn>=1.4",
+  "gymnasium>=0.29",
+  # Broker
+  "alpaca-py>=0.20",
+  # MLOps / observability
+  "mlflow>=2.10",
+  "prometheus-client>=0.20",
+  "loguru>=0.7",
+  "tenacity>=8.2",
+  "tqdm>=4.66",
+  "matplotlib>=3.8",
 ]
 
-[dependency-groups]
-# API service dependencies (backend/api/*)
-api = [
-    "gunicorn>=21.2.0",
-    "python-multipart>=0.0.9",
-    "python-jose[cryptography]>=3.3.0",
-    "passlib[bcrypt]>=1.7.4",
-    "slowapi>=0.1.9",
-    "prometheus-client>=0.20.0",
-    "sentry-sdk>=2.1.0",
-]
-
-# Database dependencies (backend/db/*, backend/data_engine/storage/*)
-db = [
-    "sqlalchemy>=2.0.0",
-    "alembic>=1.12.0",
-    "psycopg2-binary>=2.9.0",
-    "asyncpg>=0.29.0",
-    "redis>=5.0.0",
-    "hiredis>=2.3.0",
-    "sqlalchemy-timescaledb>=0.4.1",
-]
-
-# Data collection dependencies (backend/data_engine/collectors/*)
-data = [
-    # Market data
-    "yfinance>=0.2.40",
-    "alpha-vantage>=2.3.1",
-
-    # Economic data
-    "fredapi>=0.5.1",
-
-    # News & Social media
-    "newsapi-python>=0.2.7",
-    "praw>=7.7.1",
-    "tweepy>=4.14.0",
-
-    # Web scraping
-    "beautifulsoup4>=4.12.3",
-    "curl-cffi>=0.6.0",
-
-    # Data formats
-    "pyarrow>=15.0.0",
-    "polars>=0.20.0",
-]
-
-# ML/Training dependencies (backend/ml_engine/*)
-ml = [
-    # Deep Learning
-    "torch>=2.9.0",
-    "torchvision>=0.24.0",
-    "torchaudio>=2.9.0",
-
-    # Gradient Boosting
-    "xgboost>=2.0.0",
-    "lightgbm>=4.0.0",
-    "catboost>=1.2.0",
-
-    # ML Core
-    "scikit-learn>=1.4.0",
-    "scipy>=1.12.0",
-
-    # Optimization & Hyperparameter Tuning
-    "optuna>=3.5.0",
-    "hyperopt>=0.2.7",
-
-    # Model Explainability (backend/ml_engine/evaluation/shap_explainer.py)
-    "shap>=0.45.0",
-    "lime>=0.2.0.1",
-
-    # Time Series
-    "statsmodels>=0.14.0",
-    "arch>=6.0.0",
-
-    # NLP & Transformers (backend/nlp_engine/*)
-    "transformers>=4.38.0",
-    "sentence-transformers>=2.5.0",
-    "tokenizers>=0.15.0",
-    "spacy>=3.7.0",
-    "nltk>=3.8.1",
-    "textblob>=0.17.1",
-
-    # Hidden Markov Models (backend/quant_engine/regimes/hmm_detector.py)
-    "hmmlearn>=0.3.0",
-
-    # Reinforcement Learning
-    "stable-baselines3>=2.5.0",
-    "gymnasium>=0.29.0",
-
-    # Utilities
-    "joblib>=1.3.0",
-    "tqdm>=4.66.0",
-    "numba>=0.60.0",
-    "cloudpickle>=3.0.0",
-    "llvmlite>=0.43.0",
-]
-
-# Backtesting dependencies (backend/backtesting/*)
-backtest = [
-    "backtrader>=1.9.78",
-    "pyportfolioopt>=1.5.5",
-    "empyrical>=0.5.5",
-    "quantstats>=0.0.62",
-]
-
-# Celery worker dependencies (backend/workers/*)
-celery = ["celery>=5.3.6", "flower>=2.0.1", "kombu>=5.3.0"]
-
-# MLflow tracking dependencies
-mlflow = ["mlflow>=2.10.0", "tensorboard>=2.15.0"]
-
-# Jupyter notebook dependencies
-jupyter = [
-    "jupyter>=1.0.0",
-    "jupyterlab>=4.1.0",
-    "notebook>=7.1.0",
-    "ipywidgets>=8.1.0",
-    "matplotlib>=3.8.0",
-    "seaborn>=0.13.0",
-    "plotly>=5.18.0",
-]
-
-# Streamlit dashboard dependencies (frontend/streamlit-app/*)
-streamlit = [
-    "streamlit>=1.31.0",
-    "streamlit-aggrid>=0.3.4",
-    "streamlit-extras>=0.3.6",
-    "streamlit-option-menu>=0.3.6",
-    "matplotlib>=3.8.0",
-    "seaborn>=0.13.0",
-    "plotly>=5.18.0",
-    "pillow>=10.2.0",
-    "altair>=5.2.0",
-]
-
-# Development & Testing dependencies
+[project.optional-dependencies]
 dev = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.23.0",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.12.0",
-    "pytest-xdist>=3.5.0",
-    "black>=24.1.0",
-    "ruff>=0.2.0",
-    "isort>=5.13.0",
-    "mypy>=1.8.0",
-    "pre-commit>=3.6.0",
-    "types-python-dateutil>=2.8.0",
-    "types-redis>=4.6.0",
-    "types-requests>=2.31.0",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
+    "ruff>=0.3",
+    "mypy>=1.9",
 ]
 
-# Documentation
-docs = ["mkdocs>=1.5.0", "mkdocs-material>=9.5.0"]
-
+# ---------------------------------------------------------------------------
+# UV configuration
+# ---------------------------------------------------------------------------
 [tool.uv]
-index-strategy = "unsafe-best-match"
-extra-index-url = [
-    "https://download.pytorch.org/whl/cu128"
-]
+# PyTorch index for CUDA builds (uncomment and adjust for your CUDA version)
 
-[tool.pytest.ini_options]
-markers = [
-    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "-v --tb=short --strict-markers"
-asyncio_mode = "auto"
+[[tool.uv.index]]
+name = "pytorch-nightly"
+url = "https://download.pytorch.org/whl/nightly/cu128"
+explicit = true
 
-[tool.black]
-line-length = 100
-target-version = ['py311']
-include = '\.pyi?$'
+# ---------------------------------------------------------------------------
+# Build system (hatchling is UV's recommended backend)
+# ---------------------------------------------------------------------------
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+# ---------------------------------------------------------------------------
+# Ruff
+# ---------------------------------------------------------------------------
 [tool.ruff]
-line-length = 100
 target-version = "py311"
+line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B", "C4"]
-ignore = ["E501"]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "N",   # pep8-naming
+  "UP",  # pyupgrade
+  "B",   # flake8-bugbear
+  "SIM", # flake8-simplify
+]
+ignore = ["N806"]
 
-[tool.isort]
-profile = "black"
-line_length = 100
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
 
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short --strict-markers"
+markers = [
+  "slow: marks tests that require significant computation (deselect with '-m \"not slow\"')",
+  "gpu: marks tests that require a GPU",
+  "integration: marks integration tests",
+]
+
+# ---------------------------------------------------------------------------
+# Bandit
+# ---------------------------------------------------------------------------
+[tool.bandit]
+skips = ["B101", "B404", "B603", "B607", "B615"]
+
+# ---------------------------------------------------------------------------
+# Mypy
+# ---------------------------------------------------------------------------
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true
-warn_unused_ignores = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+check_untyped_defs = true
 ignore_missing_imports = true
-
-[tool.pip-compile-multi]
-use_uv = true
-directory = "requirements"
-

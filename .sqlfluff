@@ -1,7 +1,0 @@
-[sqlfluff]
-dialect = postgres        # o bigquery/snowflake/etc.
-templater = dbt
-
-[sqlfluff:templater:dbt]
-project_dir = .
-profiles_dir = ~/.dbt

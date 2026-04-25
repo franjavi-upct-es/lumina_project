@@ -1,0 +1,31 @@
+# STARTER TEMPLATE — orchestrates all services
+version: "3.9"
+
+services:
+  timescale:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: lumina
+      POSTGRES_PASSWORD: lumina
+      POSTGRES_DB: lumina
+    ports: ["5432:5432"]
+    volumes: ["timescale_data:/var/lib/postgresql/data"]
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    volumes: ["redis_data:/data"]
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    env_file: [.env]
+    ports: ["8000:8000"]
+    depends_on: [timescale, redis]
+
+  # TODO: add data, perception, brain services per SPEC
+
+volumes:
+  timescale_data:
+  redis_data:

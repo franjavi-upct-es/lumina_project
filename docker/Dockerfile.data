@@ -1,0 +1,11 @@
+# STARTER TEMPLATE — data ingestion service
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir -e .
+
+COPY backend ./backend
+
+# TODO: define entrypoint for collectors + ingestion pipeline
+CMD ["python", "-m", "backend.data_engine.pipelines.ingestion"]

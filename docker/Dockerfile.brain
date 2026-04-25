@@ -1,0 +1,10 @@
+# STARTER TEMPLATE — fusion + cognition + execution loop
+FROM pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
+
+WORKDIR /app
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir -e .
+
+COPY backend ./backend
+
+CMD ["python", "-m", "backend.paper_trading.runner"]
