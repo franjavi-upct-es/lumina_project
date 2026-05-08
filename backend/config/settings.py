@@ -5,6 +5,7 @@ Configuration settings using Pydantic for type safety and validation
 
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -141,6 +142,22 @@ class Settings(BaseSettings):
             if normalized in {"0", "false", "no", "off", "release", "production"}:
                 return False
         return v
+
+    @model_validator(mode="before")
+    @classmethod
+    def populate_postgres_user(cls, values):
+        if not isinstance(values, dict) or values.get("POSTGRES_USER"):
+            return values
+
+        database_url = values.get("DATABASE_URL")
+        if not database_url:
+            return values
+
+        username = urlparse(str(database_url)).username
+        if username:
+            return {**values, "POSTGRES_USER": unquote(username)}
+
+        return values
 
     @field_validator("API_KEYS", mode="after")
     @classmethod

@@ -67,6 +67,19 @@ def test_settings_parse_release_debug_and_quoted_origins():
 
 
 @pytest.mark.unit
+def test_settings_derives_postgres_user_from_database_url(monkeypatch):
+    monkeypatch.delenv("POSTGRES_USER", raising=False)
+
+    settings = Settings(
+        _env_file=None,
+        SECRET_KEY="x" * 32,
+        DATABASE_URL="postgresql://ci_user:test_password@localhost:5435/lumina_db",
+    )
+
+    assert settings.POSTGRES_USER == "ci_user"
+
+
+@pytest.mark.unit
 def test_backtesting_package_imports_cleanly():
     import backend.backtesting as backtesting
 
@@ -148,6 +161,8 @@ def test_format_job_timestamp_preserves_redis_serialized_datetimes():
 
 @pytest.mark.unit
 def test_lstm_trainer_train_handles_current_torch_scheduler_signature(monkeypatch):
+    pytest.importorskip("torch", reason="PyTorch-dependent tests require the ml dependency group")
+
     from backend.ml_engine.models.lstm_advanced import AdvancedLSTM, LSTMTrainer
 
     trainer = LSTMTrainer(
@@ -193,7 +208,9 @@ def test_lstm_trainer_train_handles_current_torch_scheduler_signature(monkeypatc
 
 @pytest.mark.unit
 def test_time_series_dataset_scales_features_and_uses_relative_return_targets():
-    import torch
+    torch = pytest.importorskip(
+        "torch", reason="PyTorch-dependent tests require the ml dependency group"
+    )
 
     from backend.ml_engine.models.lstm_advanced import TimeSeriesDataset
 
@@ -225,7 +242,9 @@ def test_time_series_dataset_scales_features_and_uses_relative_return_targets():
 
 @pytest.mark.unit
 def test_lstm_trainer_predict_decodes_relative_returns_to_price_levels():
-    import torch
+    torch = pytest.importorskip(
+        "torch", reason="PyTorch-dependent tests require the ml dependency group"
+    )
 
     from backend.ml_engine.models.lstm_advanced import LSTMTrainer
 
@@ -364,7 +383,9 @@ def test_worker_tasks_bind_to_configured_celery_app():
 
 @pytest.mark.unit
 def test_predict_task_uses_time_column_for_prediction_dates(monkeypatch):
-    import torch
+    torch = pytest.importorskip(
+        "torch", reason="PyTorch-dependent tests require the ml dependency group"
+    )
 
     from backend.ml_engine.models import lstm_advanced
     from backend.workers import ml_tasks

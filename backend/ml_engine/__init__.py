@@ -45,18 +45,38 @@ Usage:
     history = trainer.train(train_loader, val_loader, epochs=50)
 """
 
+from importlib import import_module
+from typing import Any
+
 # Models
 from backend.ml_engine.evaluation import ModelMetrics, SHAPExplainer
 from backend.ml_engine.features import SentimentFeatures, TechnicalFeatures
 from backend.ml_engine.models import (
-    AdvancedLSTM,
     BaseModel,
-    LSTMTrainer,
+    EnsembleModel,
     ModelMetadata,
-    TimeSeriesDataset,
-    TransformerModel,
+    XGBoostModel,
 )
 from backend.ml_engine.training import PurgedKFold, WalkForwardValidator
+
+_LAZY_EXPORTS = {
+    "AdvancedLSTM": ("backend.ml_engine.models", "AdvancedLSTM"),
+    "LSTMTrainer": ("backend.ml_engine.models", "LSTMTrainer"),
+    "TimeSeriesDataset": ("backend.ml_engine.models", "TimeSeriesDataset"),
+    "TransformerModel": ("backend.ml_engine.models", "TransformerModel"),
+    "HyperoptTuner": ("backend.ml_engine.training", "HyperoptTuner"),
+}
+
+
+def __getattr__(name: str) -> Any:
+    if name not in _LAZY_EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    module_name, attribute_name = _LAZY_EXPORTS[name]
+    value = getattr(import_module(module_name), attribute_name)
+    globals()[name] = value
+    return value
+
 
 __all__ = [
     # Base

@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Annotated, Any, cast
 from uuid import UUID, uuid4
 
-import torch
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field, model_validator
@@ -24,7 +23,6 @@ from backend.config.settings import get_settings
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
 from backend.data_engine.transformers.feature_engineering import FeatureEngineer
 from backend.db.models import get_async_session
-from backend.ml_engine.models.lstm_advanced import AdvancedLSTM, LSTMTrainer, TimeSeriesDataset
 from backend.workers.ml_tasks import (
     train_model_task,
     train_xgboost_task,
@@ -51,6 +49,26 @@ def _sort_market_data(data):
         if candidate in data.columns:
             return data.sort(candidate)
     return data
+
+
+def _get_lstm_dependencies():
+    try:
+        import torch
+
+        from backend.ml_engine.models.lstm_advanced import (
+            AdvancedLSTM,
+            LSTMTrainer,
+            TimeSeriesDataset,
+        )
+    except ModuleNotFoundError as exc:
+        if exc.name == "torch":
+            raise RuntimeError(
+                "PyTorch is required for LSTM and Transformer ML operations. "
+                "Install the ml dependency group with `uv sync --group ml`."
+            ) from exc
+        raise
+
+    return torch, AdvancedLSTM, LSTMTrainer, TimeSeriesDataset
 
 
 # Request Models
@@ -422,6 +440,7 @@ async def predict_prices(request: PredictRequest):
         # Load model and predict
         model, trainer = _load_model(model_id)
         metadata = _load_model_metadata(model_id)
+        torch, _, _, TimeSeriesDataset = _get_lstm_dependencies()
 
         # Prepare input sequence
         feature_columns = _get_feature_columns(model_id)
@@ -743,6 +762,7 @@ async def _train_model_sync(job_id: str, request: TrainModelRequest):
         ]
         if not feature_columns:
             raise ValueError("No valid feature columns generated for LSTM training")
+        torch, AdvancedLSTM, LSTMTrainer, TimeSeriesDataset = _get_lstm_dependencies()
         target_mode = "relative_returns"
         feature_scaler = TimeSeriesDataset.build_feature_scaler(enriched_data, feature_columns)
         dataset = TimeSeriesDataset(
@@ -878,6 +898,7 @@ def _load_model_metadata(model_id: str) -> dict[str, Any]:
                 return cast(dict[str, Any], loaded_metadata)
 
     if model_path.exists():
+        torch, _, _, _ = _get_lstm_dependencies()
         checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
         metadata = checkpoint.get("meta_data", {})
         if isinstance(metadata, dict) and metadata:
@@ -891,6 +912,7 @@ def _load_model(model_id: str):
     try:
         model_path = f"{settings.MODEL_STORAGE_PATH}/{model_id}.pt"
         metadata = _load_model_metadata(model_id)
+        torch, AdvancedLSTM, LSTMTrainer, _ = _get_lstm_dependencies()
 
         # Load model
         checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)

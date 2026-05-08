@@ -37,9 +37,35 @@ Usage:
     feature_names = fe.get_all_feature_names()
 """
 
+from importlib import import_module
+from typing import Any
+
 from backend.data_engine.transformers.feature_engineering import FeatureEngineer
 from backend.data_engine.transformers.normalization import DataNormalizer
-from backend.data_engine.transformers.regime_detection import RegimeDetector
+
+_LAZY_EXPORTS = {
+    "RegimeDetector": ("backend.data_engine.transformers.regime_detection", "RegimeDetector"),
+}
+
+
+def __getattr__(name: str) -> Any:
+    if name not in _LAZY_EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    module_name, attribute_name = _LAZY_EXPORTS[name]
+    try:
+        value = getattr(import_module(module_name), attribute_name)
+    except ModuleNotFoundError as exc:
+        if exc.name == "hmmlearn":
+            raise ModuleNotFoundError(
+                f"{name} requires hmmlearn. Install the ml dependency group with "
+                "`uv sync --group ml`."
+            ) from exc
+        raise
+
+    globals()[name] = value
+    return value
+
 
 __all__ = [
     "FeatureEngineer",
