@@ -1,0 +1,64 @@
+# .dockerignore
+# Keep the Docker build context small and reproducible.
+#
+# Anything matched here is invisible to `docker build`. We exclude:
+#   * Editor / OS metadata (.git, .venv, .idea, ...)
+#   * Python build artefacts (__pycache__, *.egg-info, ...)
+#   * Local data and model artefacts (huge; mount as volumes instead)
+#   * Tests + notebooks (not needed in production images)
+#   * The frontend (built separately by its own image / static host)
+
+# --- VCS / editor
+.git/
+.gitignore
+.gitattributes
+.idea/
+.vscode/
+.DS_Store
+
+# --- Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+env/
+ENV/
+
+# --- Build artefacts
+build/
+dist/
+*.whl
+*.tar.gz
+
+# --- Local data + models — these MUST be mounted as volumes if needed
+data/
+logs/
+mlruns/
+models/
+reports/
+
+# --- Documentation + tests + notebooks
+docs/
+tests/
+notebooks/
+
+# --- Frontend (built separately)
+frontend/
+
+# --- Local env files
+.env
+.env.local
+.env.*.local
+
+# --- Misc
+*.swp
+*.swo

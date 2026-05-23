@@ -1,11 +1,84 @@
-# STARTER TEMPLATE — perception inference (GPU recommended)
-FROM pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
+# docker/Dockerfile.perception
+# syntax=docker/dockerfile:1.7
+#
+# Lumina V3 — perception service image.
+#
+# Audit-driven changes
+# --------------------
+# * (2.1) Installs from pyproject.toml via `pip install ".[perception]"`.
+# * (1.3) torch-geometric + companions (torch-scatter, torch-sparse,
+#   torch-cluster) are installed from the OFFICIAL PyG wheel index for
+#   the matching torch + CUDA build. Without this, the imports succeed
+#   but ops silently fall back to slow Python paths or crash at GPU
+#   forward.
+# * (2.4) Base image bumped from pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
+#   to pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime — this tag verified
+#   to ship Python 3.11 (the 2.2.0 line ships Python 3.10 in newer
+#   pushes, which conflicted with our requires-python = ">=3.11").
+# * (1.1) `accelerate` + `bitsandbytes` available via the `[gpu]` extra;
+#   pulled in by default here because the perception image runs the
+#   FinBERT teacher in some training paths.
+#
+# Service mode selected at run time via LUMINA_SERVICE_MODE:
+#     tft_inference       (default)
+#     semantic_inference
+#     graph_inference
+
+ARG CUDA_PYTORCH_TAG=2.4.0-cuda12.4-cudnn9-runtime
+ARG TORCH_VERSION=2.4.0
+ARG PYG_INDEX_URL=https://data.pyg.org/whl/torch-2.4.0+cu124.html
+
+# ----- Stage 1 — builder ----------------------------------------------------
+FROM pytorch/pytorch:${CUDA_PYTORCH_TAG} AS builder
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+ARG PYG_INDEX_URL
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY pyproject.toml ./
+RUN mkdir -p backend && touch backend/__init__.py
+
+# 1. Install the perception extras + the GPU quantisation helpers.
+# 2. Install torch-geometric and its companion C-ext wheels from the
+#    official PyG index built specifically for this torch+CUDA combo.
+#    These wheels MUST match the base image's torch version exactly;
+#    otherwise the package imports but its CUDA kernels are absent and
+#    every gather/scatter silently runs on a slow Python fallback.
+RUN pip install --prefix=/install ".[perception,gpu]" \
+    && pip install --prefix=/install \
+        torch-scatter torch-sparse torch-cluster \
+        -f "${PYG_INDEX_URL}" \
+    && pip install --prefix=/install "torch-geometric>=2.5"
+
+# ----- Stage 2 — runtime ----------------------------------------------------
+FROM pytorch/pytorch:${CUDA_PYTORCH_TAG} AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    LUMINA_SERVICE_MODE=tft_inference
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -g 1000 lumina \
+    && useradd -u 1000 -g lumina -m -s /bin/bash lumina
 
 WORKDIR /app
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e .
 
+COPY --from=builder /install /opt/conda
 COPY backend ./backend
+COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && chown -R lumina:lumina /app
 
-# TODO: select which encoder to run via env var
-CMD ["python", "-m", "backend.perception.temporal.inference"]
+USER lumina
+
+ENTRYPOINT ["docker-entrypoint.sh"]

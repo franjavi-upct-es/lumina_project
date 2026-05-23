@@ -1,0 +1,81 @@
+# docker/Dockerfile.brain.blackwell
+# syntax=docker/dockerfile:1.7
+#
+# Lumina V3 — brain image for NVIDIA Blackwell consumer GPUs.
+#
+# Audit finding 2.3 — Blackwell support
+# -------------------------------------
+# Blackwell consumer cards (RTX 5060 / 5070 / 5080 / 5090, sm_120) ship a
+# new PTX ISA that pre-12.8 CUDA toolchains do not understand. Loading
+# kernels compiled against CUDA <12.8 produces
+# `CUDA_ERROR_INVALID_PTX` at kernel launch time, which the runtime
+# surfaces as a cryptic init failure.
+#
+# This variant pins:
+#     CUDA 12.8.x base image
+#     PyTorch built with cu128 wheels (>=2.5 release branch)
+#     torch-geometric companions from the PyG cu128 index.
+#
+# We do NOT use nightly torch as the audit recommended. Nightly torch
+# breaks weekly and is unsuitable for a system meant to run unattended.
+# CUDA 12.8 reached stable in PyTorch 2.5.x; that is what we use here.
+#
+# How to build:
+#     docker build -f docker/Dockerfile.brain.blackwell \
+#         -t lumina/brain:blackwell .
+#
+# How to use from docker-compose: override the `image` field of the
+# `brain` service or set CUDA_PYTORCH_TAG via a compose override file.
+
+ARG CUDA_PYTORCH_TAG=2.5.1-cuda12.8-cudnn9-runtime
+ARG PYG_INDEX_URL=https://data.pyg.org/whl/torch-2.5.0+cu128.html
+
+# ----- Stage 1 — builder ----------------------------------------------------
+FROM pytorch/pytorch:${CUDA_PYTORCH_TAG} AS builder
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+ARG PYG_INDEX_URL
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY pyproject.toml ./
+RUN mkdir -p backend && touch backend/__init__.py
+
+RUN pip install --prefix=/install ".[brain,gpu]" \
+    && pip install --prefix=/install \
+        torch-scatter torch-sparse torch-cluster \
+        -f "${PYG_INDEX_URL}" \
+    && pip install --prefix=/install "torch-geometric>=2.5"
+
+# ----- Stage 2 — runtime ----------------------------------------------------
+FROM pytorch/pytorch:${CUDA_PYTORCH_TAG} AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    LUMINA_SERVICE_MODE=paper_trading
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -g 1000 lumina \
+    && useradd -u 1000 -g lumina -m -s /bin/bash lumina
+
+WORKDIR /app
+
+COPY --from=builder /install /opt/conda
+COPY backend ./backend
+COPY scripts ./scripts
+COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && chown -R lumina:lumina /app
+
+USER lumina
+
+ENTRYPOINT ["docker-entrypoint.sh"]

@@ -1,11 +1,12 @@
+# alembic/versions/001_phase1_schemas.py
 """Phase 1: data engine schemas (ohlcv, news, social, supply chain)
 
 Revision ID: 001_phase1_schemas
 Revises:
 Create Date: 2026-04-11
 """
-
 from alembic import op
+import sqlalchemy as sa
 
 revision = "001_phase1_schemas"
 down_revision = None
@@ -35,9 +36,7 @@ def upgrade() -> None:
             CONSTRAINT ohlcv_volume_nn  CHECK (volume >= 0)
         );
     """)
-    op.execute(
-        "SELECT create_hypertable('ohlcv_1m', 'time', chunk_time_interval => INTERVAL '7 days');"
-    )
+    op.execute("SELECT create_hypertable('ohlcv_1m', 'time', chunk_time_interval => INTERVAL '7 days');")
     op.execute("CREATE INDEX idx_ohlcv_ticker_time ON ohlcv_1m (ticker, time DESC);")
     op.execute("""
         ALTER TABLE ohlcv_1m SET (
@@ -63,9 +62,7 @@ def upgrade() -> None:
             PRIMARY KEY (event_id, time)
         );
     """)
-    op.execute(
-        "SELECT create_hypertable('news_events', 'time', chunk_time_interval => INTERVAL '30 days');"
-    )
+    op.execute("SELECT create_hypertable('news_events', 'time', chunk_time_interval => INTERVAL '30 days');")
     op.execute("CREATE INDEX idx_news_tickers ON news_events USING GIN (tickers);")
     op.execute("CREATE UNIQUE INDEX idx_news_content_hash ON news_events (content_hash, time);")
 
@@ -82,9 +79,7 @@ def upgrade() -> None:
             PRIMARY KEY (post_id, time)
         );
     """)
-    op.execute(
-        "SELECT create_hypertable('social_posts', 'time', chunk_time_interval => INTERVAL '7 days');"
-    )
+    op.execute("SELECT create_hypertable('social_posts', 'time', chunk_time_interval => INTERVAL '7 days');")
     op.execute("CREATE INDEX idx_social_ticker_time ON social_posts (ticker, time DESC);")
 
     # ---------- supply_chain_edges ----------

@@ -1,0 +1,59 @@
+# docker-compose.gpu-8gb.yml
+# Override file for hosts with limited (≤ 8 GB) GPU memory.
+#
+# Audit finding 3.1 — VRAM saturation
+# -----------------------------------
+# Running the TFT + GAT + Distilled-LLM + PPO actor-critic concurrently
+# saturates an 8 GB consumer GPU. The pragmatic mitigation is to pin
+# the semantic encoder to CPU: its distilled student is only ~15M
+# parameters (FinBERT teacher is 110M but only used during distillation
+# training, not online inference), so the CPU forward latency is well
+# within the <100 ms semantic-inference budget from the architecture
+# spec §3.B.
+#
+# Usage:
+#     docker compose \
+#         -f docker-compose.yml \
+#         -f docker-compose.gpu-8gb.yml \
+#         up
+#
+# What this override does:
+#   * perception_semantic — removes the GPU reservation entirely.
+#   * brain               — narrows GPU access to a single GPU (in case
+#                            the host happens to have multiple).
+#   * Sets ``CUDA_VISIBLE_DEVICES=""`` on perception_semantic so torch
+#     never picks up the GPU even by accident.
+
+services:
+  perception_semantic:
+    environment:
+      LUMINA_SERVICE_MODE: semantic_inference
+      CUDA_VISIBLE_DEVICES: ""
+    deploy: {}   # explicitly clear any GPU reservation
+
+  perception_tft:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  perception_graph:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  brain:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

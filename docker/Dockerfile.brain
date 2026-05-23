@@ -1,10 +1,69 @@
-# STARTER TEMPLATE — fusion + cognition + execution loop
-FROM pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
+# docker/Dockerfile.brain
+# syntax=docker/dockerfile:1.7
+#
+# Lumina V3 — "brain" image (fusion + cognition + execution + paper trading).
+#
+# Audit-driven changes
+# --------------------
+# * (2.1) Installs from pyproject.toml via `pip install ".[brain,gpu]"`.
+# * (2.4) Base bumped to a tag with Python 3.11.
+# * (1.3) Same PyG-wheel mechanism as the perception image so GAT layers
+#   that the cognition stack pulls in (via fusion.parity_check etc.)
+#   stay functional.
+#
+# For Blackwell GPUs (RTX 5060 / 5070 / 5080 / 5090), use the variant
+# Dockerfile.brain.blackwell which pins CUDA 12.8. See that file for the
+# trade-off discussion.
+
+ARG CUDA_PYTORCH_TAG=2.4.0-cuda12.4-cudnn9-runtime
+ARG PYG_INDEX_URL=https://data.pyg.org/whl/torch-2.4.0+cu124.html
+
+# ----- Stage 1 — builder ----------------------------------------------------
+FROM pytorch/pytorch:${CUDA_PYTORCH_TAG} AS builder
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+ARG PYG_INDEX_URL
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY pyproject.toml ./
+RUN mkdir -p backend && touch backend/__init__.py
+
+RUN pip install --prefix=/install ".[brain,gpu]" \
+    && pip install --prefix=/install \
+        torch-scatter torch-sparse torch-cluster \
+        -f "${PYG_INDEX_URL}" \
+    && pip install --prefix=/install "torch-geometric>=2.5"
+
+# ----- Stage 2 — runtime ----------------------------------------------------
+FROM pytorch/pytorch:${CUDA_PYTORCH_TAG} AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    LUMINA_SERVICE_MODE=paper_trading
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -g 1000 lumina \
+    && useradd -u 1000 -g lumina -m -s /bin/bash lumina
 
 WORKDIR /app
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e .
 
+COPY --from=builder /install /opt/conda
 COPY backend ./backend
+COPY scripts ./scripts
+COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && chown -R lumina:lumina /app
 
-CMD ["python", "-m", "backend.paper_trading.runner"]
+USER lumina
+
+ENTRYPOINT ["docker-entrypoint.sh"]

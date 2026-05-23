@@ -1,11 +1,52 @@
-# STARTER TEMPLATE — data ingestion service
-FROM python:3.11-slim
+# docker/Dockerfile.data
+# syntax=docker/dockerfile:1.7
+#
+# Lumina V3 — data-engine service image.
+#
+# Audit-driven changes
+# --------------------
+# * (2.1) Installs from pyproject.toml via `pip install ".[data]"`.
+# * (2.4) Base remains python:3.11-slim (no GPU here).
+
+# ----- Stage 1 — builder ----------------------------------------------------
+FROM python:3.11-slim AS builder
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY pyproject.toml ./
+RUN mkdir -p backend && touch backend/__init__.py
+RUN pip install --prefix=/install ".[data]"
+
+# ----- Stage 2 — runtime ----------------------------------------------------
+FROM python:3.11-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    LUMINA_SERVICE_MODE=ingestion
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -g 1000 lumina \
+    && useradd -u 1000 -g lumina -m -s /bin/bash lumina
 
 WORKDIR /app
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e .
 
+COPY --from=builder /install /usr/local
 COPY backend ./backend
+COPY scripts ./scripts
+COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && chown -R lumina:lumina /app
 
-# TODO: define entrypoint for collectors + ingestion pipeline
-CMD ["python", "-m", "backend.data_engine.pipelines.ingestion"]
+USER lumina
+
+ENTRYPOINT ["docker-entrypoint.sh"]

@@ -1,3 +1,4 @@
+# backend/config/logging.py
 """Loguru JSON-structured logging for ELK/Splunk compatibility."""
 
 from __future__ import annotations

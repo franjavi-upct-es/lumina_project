@@ -1,13 +1,39 @@
+# backend/config/settings.py
 """Pydantic BaseSettings loading from .env. Singleton via lru_cache."""
 
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Literal
+from pathlib import Path
+from typing import Annotated, Literal
 
-import loguru
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+
+class ArenaSettings(BaseSettings):
+    """Runtime configuration for the Spartan Arena subsystem."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="ARENA_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    artifact_dir: Path = Path("./artifacts/arena")
+    """Path to write structured per-step JSONL artifacts. Used in addition to TimescaleDB."""
+
+    enable_run_summarizer_llm: bool = False
+    """If True, run_summarizer may load a small local LLM (Phi-3-mini class) for
+    end-of-run narratives. If False, fall back to a pure template summary."""
+
+    run_summarizer_model_path: Path | None = None
+    """Path to the local SLM weights directory. Read only if enable_run_summarizer_llm."""
+
+    default_playback_multiplier: float = 1.0
+    """Default playback multiplier exposed to the frontend. 1.0 = run as fast as
+    the pipeline allows. >1.0 = sleep extra after each step (for human watching)."""
 
 
 class Settings(BaseSettings):
@@ -38,14 +64,14 @@ class Settings(BaseSettings):
     TIMESCALE_POOL_MAX: int = 20
 
     # ---------- Ingestion ----------
-    INGESTION_BATCH_SIZE: int = 100
+    INGESTION_BATCH_SIZE: int = 1000
     INGESTION_FLUSH_INTERVAL_S: float = 5.0
     INGESTION_BACKPRESSURE_FACTOR: float = 2.0
     INGESTION_MAX_RETRIES: int = 3
 
     # ---------- Collectors ----------
     COLLECTOR_MAX_BACKOFF_S: float = 60.0
-    COLLLECTOR_HEARTBEAT_S: float = 30.0
+    COLLECTOR_HEARTBEAT_S: float = 30.0
 
     # ---------- Feature store ----------
     FEATURE_STORE_BATCH_SIZE: int = 64
@@ -57,9 +83,22 @@ class Settings(BaseSettings):
 
     # ---------- API ----------
     API_KEY: str = ""
-    CORS_ORIGIN: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    CORS_ORIGINS: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:5173"]
+    )
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value: str | list[str]) -> list[str]:
+        if isinstance(value, list):
+            return value
+        return [origin.strip() for origin in value.split(",") if origin.strip()]
+
+    # Nested settings group for the Spartan Arena subsystem. Uses its own
+    # env_prefix ("ARENA_") so it can be tuned independently in deployment.
+    arena: ArenaSettings = Field(default_factory=ArenaSettings)
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     return Settings()

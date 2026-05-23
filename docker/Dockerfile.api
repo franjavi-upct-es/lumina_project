@@ -1,13 +1,78 @@
-# STARTER TEMPLATE
-FROM python:3.11-slim
+# docker/Dockerfile.api
+# syntax=docker/dockerfile:1.7
+#
+# Lumina V3 — API service image.
+#
+# Audit-driven changes
+# --------------------
+# * (2.1) Installs from pyproject.toml via `pip install ".[api]"`. The
+#   dependency list lives in ONE place; the previous duplication of
+#   wheel lists across four Dockerfiles is gone.
+# * (2.4) Base image pinned to `python:3.11-slim` (was already correct
+#   here — but documented for completeness).
+#
+# Layout
+# ------
+# Two-stage: a builder wheel-cache + a slim runtime. Non-root user uid
+# 1000. HEALTHCHECK probes /api/monitoring/health every 30 s.
+
+# ----- Stage 1 — builder ----------------------------------------------------
+FROM python:3.11-slim AS builder
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Build-time deps. gcc + libpq-dev are needed for asyncpg's C extensions;
+# curl stays in the *runtime* stage (it's used by HEALTHCHECK).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Install dependencies from the project metadata. We copy pyproject.toml
+# AND a minimal `backend/__init__.py` so setuptools' package-discovery
+# finds an installable "backend" package and `pip install ".[api]"`
+# resolves the extra. Source code is then mounted in the runtime stage.
+COPY pyproject.toml ./
+RUN mkdir -p backend && touch backend/__init__.py
+RUN pip install --prefix=/install ".[api]"
+
+# ----- Stage 2 — runtime ----------------------------------------------------
+FROM python:3.11-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    LUMINA_SERVICE_MODE=api
+
+# libpq5 is the runtime shared object for asyncpg; curl powers HEALTHCHECK.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq5 curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -g 1000 lumina \
+    && useradd -u 1000 -g lumina -m -s /bin/bash lumina
 
 WORKDIR /app
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e ".[dev]"
 
+# Copy the resolved environment from the builder stage.
+COPY --from=builder /install /usr/local
+
+# Copy application code last so source edits don't bust the deps layer.
 COPY backend ./backend
 COPY alembic ./alembic
 COPY alembic.ini ./
+COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && chown -R lumina:lumina /app
+
+USER lumina
 
 EXPOSE 8000
-CMD ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl --fail --silent http://localhost:8000/api/monitoring/health \
+        > /dev/null || exit 1
+
+ENTRYPOINT ["docker-entrypoint.sh"]

@@ -1,31 +1,193 @@
-# STARTER TEMPLATE — orchestrates all services
-version: "3.9"
+# docker-compose.yml
+# Lumina V3 — local-development service composition.
+#
+# Audit-driven changes
+# --------------------
+# Finding 2.2: the Cross-Modal Attention Nexus consumes embeddings from
+# THREE perception modalities simultaneously. The previous file only ran
+# a single perception container in `tft_inference` mode, making the
+# 224-d super-state impossible to assemble. We now ship one container
+# per modality (perception_tft / perception_semantic / perception_graph)
+# and they write to disjoint Redis keys via their respective
+# LUMINA_SERVICE_MODE values.
+#
+# Finding 3.1 (VRAM saturation) is addressed by `docker-compose.gpu-8gb.yml`
+# in this directory, which is an override file that pins
+# perception_semantic to CPU on 8GB hosts. Use as:
+#     docker compose -f docker-compose.yml -f docker-compose.gpu-8gb.yml up
 
 services:
+  # ----- Storage -----------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: lumina_redis
+    restart: unless-stopped
+    command: ["redis-server", "/etc/redis/redis.conf"]
+    volumes:
+      - redis_data:/data
+      - ./docker/services/redis.conf:/etc/redis/redis.conf:ro
+    ports:
+      - "6379:6379"
+    networks: [lumina_net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   timescale:
     image: timescale/timescaledb:latest-pg16
+    container_name: lumina_timescale
+    restart: unless-stopped
     environment:
       POSTGRES_USER: lumina
       POSTGRES_PASSWORD: lumina
       POSTGRES_DB: lumina
-    ports: ["5432:5432"]
-    volumes: ["timescale_data:/var/lib/postgresql/data"]
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./docker/services/timescale.conf:/etc/postgresql/postgresql.conf.d/timescale.conf:ro
+    ports:
+      - "5432:5432"
+    networks: [lumina_net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lumina -d lumina"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
-  redis:
-    image: redis:7-alpine
-    ports: ["6379:6379"]
-    volumes: ["redis_data:/data"]
+  # ----- One-shot migration ------------------------------------------------
+  migrate:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: lumina_migrate
+    restart: "no"
+    environment:
+      LUMINA_SERVICE_MODE: migrate
+    env_file: [.env]
+    depends_on:
+      timescale: { condition: service_healthy }
+    networks: [lumina_net]
 
+  # ----- API ---------------------------------------------------------------
   api:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
+    container_name: lumina_api
+    restart: unless-stopped
+    environment:
+      LUMINA_SERVICE_MODE: api
     env_file: [.env]
-    ports: ["8000:8000"]
-    depends_on: [timescale, redis]
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:     { condition: service_healthy }
+      timescale: { condition: service_healthy }
+      migrate:   { condition: service_completed_successfully }
+    networks: [lumina_net]
 
-  # TODO: add data, perception, brain services per SPEC
+  # ----- Data engine -------------------------------------------------------
+  data:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.data
+    container_name: lumina_data
+    restart: unless-stopped
+    environment:
+      LUMINA_SERVICE_MODE: ingestion
+    env_file: [.env]
+    depends_on:
+      redis:     { condition: service_healthy }
+      timescale: { condition: service_healthy }
+      migrate:   { condition: service_completed_successfully }
+    networks: [lumina_net]
+
+  # ----- Perception layer (3 modalities, one container each) ----------------
+  # Each container subscribes to Redis pub/sub channels for its inputs
+  # and publishes its embedding to a modality-specific Redis key. The
+  # State Assembler (running inside `brain`) reads all three.
+  perception_tft:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.perception
+    container_name: lumina_perception_tft
+    restart: unless-stopped
+    environment:
+      LUMINA_SERVICE_MODE: tft_inference
+    env_file: [.env]
+    depends_on:
+      redis:     { condition: service_healthy }
+      timescale: { condition: service_healthy }
+    networks: [lumina_net]
+    # Uncomment on a CUDA host:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  perception_semantic:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.perception
+    container_name: lumina_perception_semantic
+    restart: unless-stopped
+    environment:
+      LUMINA_SERVICE_MODE: semantic_inference
+    env_file: [.env]
+    depends_on:
+      redis:     { condition: service_healthy }
+      timescale: { condition: service_healthy }
+    networks: [lumina_net]
+    # Uncomment on a CUDA host (see also docker-compose.gpu-8gb.yml override):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  perception_graph:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.perception
+    container_name: lumina_perception_graph
+    restart: unless-stopped
+    environment:
+      LUMINA_SERVICE_MODE: graph_inference
+    env_file: [.env]
+    depends_on:
+      redis:     { condition: service_healthy }
+      timescale: { condition: service_healthy }
+    networks: [lumina_net]
+
+  # ----- Brain (fusion + cognition + execution + state assembler) ----------
+  brain:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.brain
+    container_name: lumina_brain
+    restart: unless-stopped
+    environment:
+      LUMINA_SERVICE_MODE: paper_trading
+    env_file: [.env]
+    depends_on:
+      redis:               { condition: service_healthy }
+      timescale:           { condition: service_healthy }
+      api:                 { condition: service_started }
+      perception_tft:      { condition: service_started }
+      perception_semantic: { condition: service_started }
+      perception_graph:    { condition: service_started }
+    networks: [lumina_net]
 
 volumes:
-  timescale_data:
   redis_data:
+  timescale_data:
+
+networks:
+  lumina_net:
+    driver: bridge

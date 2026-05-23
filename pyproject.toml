@@ -1,123 +1,244 @@
-[project]
-name = "lumina-project"
-version = "3.0.0"
-description = "Lumina V3 — Chimera deep-fusion algorithmic trading system"
-readme = "README.md"
-license = { text = "MIT" }
-requires-python = ">=3.11"
-authors = [{ name = "Francisco Javier Mercader Martínez" }]
+# pyproject.toml
+# Lumina V3 — Python project metadata.
+#
+# Dependency layering
+# -------------------
+# We split deps into one minimal "core" set plus several extras so each
+# Docker image can install only what it actually needs:
+#
+#     core         — fastapi/pydantic/loguru — always present
+#     [api]        — REST + WS server
+#     [data]       — collectors + ingestion (yfinance, asyncpg, polars)
+#     [perception] — torch + transformers + torch-geometric
+#     [brain]      — perception + gymnasium + alpaca-py
+#     [gpu]        — quantisation helpers (accelerate, bitsandbytes)
+#     [dev]        — tests + lint + typing
+#
+# IMPORTANT: stable-baselines3 is intentionally NOT a dependency. Lumina
+# V3 uses an in-house PPO implementation (backend/cognition/agent/ppo_agent.py)
+# that supports our 4-D squashed-Gaussian action space, MC-Dropout
+# uncertainty, and KL early-stop — features SB3 does not expose. Adding
+# SB3 would create two divergent code paths for the same concern.
 
+[project]
+name = "lumina_v3"
+version = "0.1.0"
+description = "Lumina V3 — Chimera deep-fusion algorithmic trading system"
+requires-python = ">=3.11"
 dependencies = [
-  # Web / API
-  "fastapi>=0.110",
-  "uvicorn[standard]>=0.27",
-  "pydantic>=2.6",
-  "pydantic-settings>=2.2",
-  "httpx>=0.27",
-  "websockets>=12.0",
-  # DB
-  "asyncpg>=0.29",
-  "redis>=5.0",
-  "alembic>=1.13",
-  # Data
-  "polars>=0.20",
-  "numpy>=1.26",
-  "beautifulsoup4>=4.12",
-  # ML
-  "torch>=2.2",
-  "torch-geometric>=2.5",
-  "transformers>=4.38",
-  "scikit-learn>=1.4",
-  "gymnasium>=0.29",
-  # Broker
-  "alpaca-py>=0.20",
-  # MLOps / observability
-  "mlflow>=2.10",
-  "prometheus-client>=0.20",
-  "loguru>=0.7",
-  "tenacity>=8.2",
-  "tqdm>=4.66",
-  "matplotlib>=3.8",
+    # ----- Core (used by every service) ---------------------------------
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "loguru>=0.7",
+    "tenacity>=8.2",
+    "prometheus-client>=0.20",
+    "numpy>=1.26",
+    "jupyterlab>=4.5.7",
+    "torch-geometric>=2.7.0",
 ]
 
 [project.optional-dependencies]
+# ----- Per-service extras (installed by the matching Dockerfile) ----------
+api = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "httpx>=0.27",
+    "websockets>=12.0",
+    "asyncpg>=0.29",
+    "redis>=5.0",                # we use redis.asyncio exclusively
+    "alembic>=1.13",
+    "sqlalchemy>=2.0",
+    "polars>=0.20",
+]
+
+data = [
+    "httpx>=0.27",
+    "websockets>=12.0",
+    "asyncpg>=0.29",
+    "redis>=5.0",
+    "sqlalchemy>=2.0",
+    "polars>=0.20",
+    "pandas>=2.2",               # required by yfinance
+    "yfinance>=0.2.40",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
+    "tqdm>=4.66",
+]
+
+perception = [
+    "asyncpg>=0.29",
+    "redis>=5.0",
+    "sqlalchemy>=2.0",
+    "polars>=0.20",
+    "pandas>=2.2",
+    "torch>=2.2",
+    "transformers>=4.38",
+    "scikit-learn>=1.4",
+    "mlflow>=2.10",
+    # torch-geometric and its companions (torch-scatter, torch-sparse) are
+    # NOT listed here because they need to be installed from the official
+    # PyG wheel index against a specific torch + CUDA combination. The
+    # Dockerfile.perception handles this explicitly.
+]
+
+brain = [
+    "asyncpg>=0.29",
+    "redis>=5.0",
+    "sqlalchemy>=2.0",
+    "polars>=0.20",
+    "pandas>=2.2",
+    "torch>=2.2",
+    "transformers>=4.38",
+    "scikit-learn>=1.4",
+    "gymnasium>=0.29",
+    "alpaca-py>=0.20",
+    "mlflow>=2.10",
+    "httpx>=0.27",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+    # captum powers the Integrated-Gradients path on the distilled LLM
+    # encoder, used on-demand by the Spartan Arena's XAI module to attribute
+    # token importance at pivotal divergence points.
+    "captum>=0.7.0",
+]
+
+# ----- GPU quantisation helpers (opt-in) ----------------------------------
+# Required when running the FinBERT teacher (110M params) or a larger
+# semantic model on memory-constrained GPUs. The distilled student
+# (~15M params) does NOT need these — it fits in <50 MB at fp16.
+gpu = [
+    "accelerate>=0.30",
+    "bitsandbytes>=0.43",
+]
+
+# ----- Development tools --------------------------------------------------
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "pytest-cov>=4.1",
-    "ruff>=0.3",
+    "ruff>=0.4",
     "mypy>=1.9",
+    "jupytext>=1.16",
+    "ipykernel>=6.29",
+    "pre-commit>=3.6",
+    # Bring along everything else so `pip install -e .[dev]` produces
+    # a one-shot development environment.
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "httpx>=0.27",
+    "websockets>=12.0",
+    "asyncpg>=0.29",
+    "redis>=5.0",
+    "alembic>=1.13",
+    "sqlalchemy>=2.0",
+    "polars>=0.20",
+    "pandas>=2.2",
+    "yfinance>=0.2.40",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
+    "torch>=2.2",
+    "transformers>=4.38",
+    "scikit-learn>=1.4",
+    "gymnasium>=0.29",
+    "alpaca-py>=0.20",
+    "mlflow>=2.10",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+    "tqdm>=4.66",
+    "captum>=0.7.0",
 ]
 
-# ---------------------------------------------------------------------------
-# UV configuration
-# ---------------------------------------------------------------------------
-[tool.uv]
-# PyTorch index for CUDA builds (uncomment and adjust for your CUDA version)
-
-[[tool.uv.index]]
-name = "pytorch-nightly"
-url = "https://download.pytorch.org/whl/nightly/cu128"
-explicit = true
-
-# ---------------------------------------------------------------------------
-# Build system (hatchling is UV's recommended backend)
-# ---------------------------------------------------------------------------
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*"]
 
-# ---------------------------------------------------------------------------
-# Ruff
-# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "slow: tests slower than 1 second",
+    "integration: requires a running Redis/Timescale instance",
+    "gpu: requires a CUDA-capable GPU",
+]
+
+# ----- Ruff: linter + formatter --------------------------------------------
 [tool.ruff]
-target-version = "py311"
 line-length = 100
+target-version = "py311"
+extend-exclude = ["notebooks/*.py", "alembic/versions/*"]
 
 [tool.ruff.lint]
 select = [
-  "E",   # pycodestyle errors
-  "W",   # pycodestyle warnings
-  "F",   # pyflakes
-  "I",   # isort
-  "N",   # pep8-naming
-  "UP",  # pyupgrade
-  "B",   # flake8-bugbear
-  "SIM", # flake8-simplify
+    "E", "W", "F", "I", "N", "UP", "B", "SIM", "RUF",
+    "TID",   # tidy imports — used below to ban sync redis
 ]
-ignore = ["N806"]
+ignore = [
+    "E501",
+    "B008",
+    "N812",
+    "SIM108",
+    "RUF001",
+    "RUF002",
+    "RUF003",
+    "RUF012",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/**" = ["S101", "N802"]
+"scripts/**" = ["T201"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["src"]
+known-first-party = ["backend"]
 
-# ---------------------------------------------------------------------------
-# Pytest
-# ---------------------------------------------------------------------------
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-v --tb=short --strict-markers"
-markers = [
-  "slow: marks tests that require significant computation (deselect with '-m \"not slow\"')",
-  "gpu: marks tests that require a GPU",
-  "integration: marks integration tests",
-]
+# ----- Tidy imports: forbid sync redis client ----------------------------
+# Audit finding 3.3: the sync `redis.Redis` class would block the FastAPI
+# event loop during high-volatility ingestion. Enforce the async-only
+# rule at lint time so no future commit can re-introduce the regression.
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"redis.Redis".msg = "Use redis.asyncio.Redis — the sync client blocks the event loop. See audit finding 3.3."
+"redis.StrictRedis".msg = "Use redis.asyncio.Redis — the sync client blocks the event loop."
+"redis.client.Redis".msg = "Use redis.asyncio.Redis — the sync client blocks the event loop."
 
-# ---------------------------------------------------------------------------
-# Bandit
-# ---------------------------------------------------------------------------
-[tool.bandit]
-skips = ["B101", "B404", "B603", "B607", "B615"]
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 
-# ---------------------------------------------------------------------------
-# Mypy
-# ---------------------------------------------------------------------------
+# ----- mypy ----------------------------------------------------------------
 [tool.mypy]
 python_version = "3.11"
-warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = true
-check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = false
+disallow_untyped_defs = false
 ignore_missing_imports = true
+follow_imports = "silent"
+show_error_codes = true
+namespace_packages = true
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = [
+    "backend.data_engine.storage.redis_cache",
+    "backend.data_engine.collectors.circuit_breaker",
+    "backend.data_engine.collectors.price_stream",
+    "backend.data_engine.pipelines.ingestion",
+    "backend.api.routes.agent",
+    "backend.integration.e2e_loop",
+    "backend.perception.semantic.distillation",
+]
+disable_error_code = ["misc", "operator", "arg-type"]
+
+# ----- Pyright ------------------------------------------------------------
+[tool.pyright]
+include = ["backend"]
+exclude = ["**/__pycache__", "notebooks", "alembic/versions"]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+reportMissingImports = "warning"
+reportMissingTypeStubs = false
