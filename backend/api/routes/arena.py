@@ -23,6 +23,7 @@ Endpoints
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from datetime import UTC, datetime
@@ -212,10 +213,9 @@ async def get_decisions(
     if trajectory_id is not None:
         query += " AND trajectory_id = $2"
         params.append(trajectory_id)
-    query += " ORDER BY step_index ASC LIMIT $%d OFFSET $%d" % (
-        len(params) + 1,
-        len(params) + 2,
-    )
+    limit_pos = len(params) + 1
+    offset_pos = len(params) + 2
+    query += f" ORDER BY step_index ASC LIMIT ${limit_pos} OFFSET ${offset_pos}"
     params.extend([limit, offset])
     async with timescale._conn() as conn:
         rows = await conn.fetch(query, *params)
@@ -382,10 +382,8 @@ async def live_stream(websocket: WebSocket, run_id: UUID) -> None:
     except Exception:
         logger.exception("Arena WS for run {} crashed", run_id)
     finally:
-        try:
+        with contextlib.suppress(Exception):
             await pubsub.unsubscribe(channel_name)
-        except Exception:
-            pass
 
 
 # ----------------------------------------------------------------------

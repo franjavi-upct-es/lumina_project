@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 import statistics
 from collections import Counter
-from typing import Any
+from typing import Any, Literal
 
 from loguru import logger
 
@@ -65,7 +65,7 @@ def summarize_run(
         pivotal_count=pivotal_count,
     )
 
-    summary_method: str = "template"
+    summary_method: Literal["template", "slm"] = "template"
     narrative = template_narrative
     if use_slm:
         try:
@@ -195,10 +195,7 @@ def _summarize_with_slm(
     if model_path is None:
         return None
     try:
-        from transformers import (  # type: ignore[import-untyped]
-            AutoModelForCausalLM,
-            AutoTokenizer,
-        )
+        from transformers import AutoModelForCausalLM, AutoTokenizer
     except Exception as exc:
         logger.warning("transformers not importable for SLM summariser: {}", exc)
         return None

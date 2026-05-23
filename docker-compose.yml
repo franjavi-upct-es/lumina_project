@@ -121,13 +121,13 @@ services:
       timescale: { condition: service_healthy }
     networks: [lumina_net]
     # Uncomment on a CUDA host:
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   perception_semantic:
     build:
@@ -143,13 +143,13 @@ services:
       timescale: { condition: service_healthy }
     networks: [lumina_net]
     # Uncomment on a CUDA host (see also docker-compose.gpu-8gb.yml override):
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   perception_graph:
     build:

@@ -22,3 +22,7 @@ reports/
 node_modules/
 dist/
 .vite/
+.claude
+artifacts/
+.ipynb_checkpoints
+.vscode/

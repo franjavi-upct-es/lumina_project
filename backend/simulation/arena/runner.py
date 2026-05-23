@@ -23,6 +23,7 @@ not exist in this codebase. We adapt to the real names (see
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -30,11 +31,13 @@ from pathlib import Path
 import numpy as np
 import torch
 from loguru import logger
+from prometheus_client import Counter
 
 from backend.cognition.agent.ppo_agent import PPOAgent
 from backend.config.constants import (
     ACTION_DIM,
     ARENA_DIVERGENCE_HORIZON_BARS,
+    ARENA_EXPLANATION_QUEUE_SIZE,
 )
 from backend.config.settings import get_settings
 from backend.data_engine.storage.timescale import TimescaleStore
@@ -54,6 +57,17 @@ from backend.simulation.arena.time_controller import AdaptiveStepController
 from backend.simulation.arena.trajectory_logger import TrajectoryLogger
 from backend.simulation.environments.base_env import LuminaTradingEnv
 from backend.simulation.xai.step_explainer import format_decision
+
+ARENA_EXPLANATIONS_DROPPED = Counter(
+    "arena_explanations_dropped_total",
+    "Step explanations discarded because the consumer-side sink queue was full.",
+    labelnames=("run_id",),
+)
+ARENA_EXPLANATIONS_EMITTED = Counter(
+    "arena_explanations_emitted_total",
+    "Step explanations successfully dispatched to the consumer-side sink.",
+    labelnames=("run_id",),
+)
 
 EnvFactory = Callable[[int], LuminaTradingEnv]
 """A function ``seed -> LuminaTradingEnv``. The runner calls it once per trajectory."""
@@ -83,6 +97,14 @@ class ArenaRunner:
     timescale
         Optional storage handle. When ``None``, decisions are written only
         to JSONL artifacts (used by unit tests against a sandbox FS).
+    explanation_sink
+        Optional callback invoked once per emitted :class:`StepExplanation`.
+        The step loop *never* awaits the sink directly — explanations are
+        enqueued into a bounded in-process queue and drained by a dedicated
+        consumer task. If the sink is slow and the queue fills, new
+        explanations are dropped and ``arena_explanations_dropped_total`` is
+        incremented. This guarantees that the per-step latency budget of
+        the arena loop is independent of sink throughput.
     """
 
     def __init__(
@@ -110,6 +132,12 @@ class ArenaRunner:
         self._returns_history: list[list[float]] = []
         # Trace of decisions, indexed by step then trajectory_id.
         self._records_by_step: dict[int, dict[int, DecisionRecord]] = {}
+        # Explanation dispatch — bounded queue + dedicated consumer task.
+        # The queue is created lazily in ``run()`` so that the bound is
+        # taken against the loop that actually owns the arena execution.
+        self._explanation_queue: asyncio.Queue[StepExplanation] | None = None
+        self._explanation_consumer_task: asyncio.Task | None = None
+        self._run_id_label = str(run_metadata.run_id)
 
         settings = get_settings()
         self.artifact_root: Path = settings.arena.artifact_dir
@@ -127,6 +155,7 @@ class ArenaRunner:
     async def run(self) -> ArenaRunMetadata:
         """Execute the full arena run, returning the final metadata."""
         await self._persist_run_metadata(status=ArenaRunStatus.RUNNING)
+        self._start_explanation_consumer()
         try:
             await self._initialize_envs()
             await self.logger.start()
@@ -142,10 +171,69 @@ class ArenaRunner:
             logger.exception("Arena run {} failed", self.metadata.run_id)
             await self.logger.finalize()
             return await self._mark_done(ArenaRunStatus.FAILED, failure_reason=str(exc))
+        finally:
+            await self._stop_explanation_consumer()
 
     async def cancel(self) -> None:
         """Cooperative cancellation. Trajectories finish their current step."""
         self._cancel_event.set()
+
+    # ------------------------------------------------------------------
+    # Explanation sink — bounded, non-blocking dispatch.
+    # ------------------------------------------------------------------
+    def _start_explanation_consumer(self) -> None:
+        if self._explanation_sink is None:
+            return
+        self._explanation_queue = asyncio.Queue(maxsize=ARENA_EXPLANATION_QUEUE_SIZE)
+        self._explanation_consumer_task = asyncio.create_task(
+            self._explanation_consumer_loop(),
+            name=f"arena-explanation-consumer-{self._run_id_label}",
+        )
+
+    async def _stop_explanation_consumer(self) -> None:
+        task = self._explanation_consumer_task
+        queue = self._explanation_queue
+        if task is None or queue is None:
+            return
+        # Drain whatever is already enqueued, but bound the drain wait so a
+        # stuck sink can never block run() shutdown indefinitely.
+        try:
+            await asyncio.wait_for(queue.join(), timeout=5.0)
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Arena run {}: explanation queue drain timed out; "
+                "remaining items will be discarded.",
+                self.metadata.run_id,
+            )
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await task
+        self._explanation_consumer_task = None
+        self._explanation_queue = None
+
+    async def _explanation_consumer_loop(self) -> None:
+        """Single consumer that drains the bounded explanation queue."""
+        assert self._explanation_queue is not None
+        assert self._explanation_sink is not None
+        sink = self._explanation_sink
+        queue = self._explanation_queue
+        while True:
+            explanation = await queue.get()
+            try:
+                maybe = sink(explanation)
+                if asyncio.iscoroutine(maybe):
+                    await maybe
+                ARENA_EXPLANATIONS_EMITTED.labels(run_id=self._run_id_label).inc()
+            except asyncio.CancelledError:
+                # ``task_done`` must run before re-raising so a concurrent
+                # ``queue.join()`` in shutdown can complete instead of hanging.
+                queue.task_done()
+                raise
+            except Exception:
+                logger.exception("Step-explanation sink raised; continuing run")
+                queue.task_done()
+            else:
+                queue.task_done()
 
     # ------------------------------------------------------------------
     async def _initialize_envs(self) -> None:
@@ -247,15 +335,16 @@ class ArenaRunner:
         bar_return = _per_bar_return(reward)
         self._returns_history[t_id].append(bar_return)
 
-        # Emit the step explanation if a sink was registered.
-        if self._explanation_sink is not None:
+        # Emit the step explanation if a sink was registered. We hand the
+        # explanation to the consumer task via a bounded queue rather than
+        # awaiting the sink here — a slow sink must never feed back into
+        # the per-step latency of the trajectory.
+        if self._explanation_queue is not None:
             explanation = format_decision(record, divergence=None)
             try:
-                maybe = self._explanation_sink(explanation)
-                if asyncio.iscoroutine(maybe):
-                    await maybe
-            except Exception:
-                logger.exception("Step-explanation sink raised; continuing run")
+                self._explanation_queue.put_nowait(explanation)
+            except asyncio.QueueFull:
+                ARENA_EXPLANATIONS_DROPPED.labels(run_id=self._run_id_label).inc()
 
         if vetoed:
             logger.debug(

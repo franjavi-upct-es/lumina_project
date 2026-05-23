@@ -105,42 +105,65 @@ export function ArenaTrajectoriesPanel({
     };
   }, [decisions]);
 
-  if (loading) return <div style={panelStyle}>Loading arena trajectories…</div>;
-  if (error) return <div style={{ ...panelStyle, color: "#c44" }}>Error: {error}</div>;
+  if (loading) return <div className="lx-dim" style={{ padding: 12 }}>Loading arena trajectories…</div>;
+  if (error) return <div style={{ color: "var(--red)", padding: 12 }}>Error: {error}</div>;
   if (rows.length === 0) {
-    return <div style={panelStyle}>No decisions recorded for this run yet.</div>;
+    return <div className="lx-dim" style={{ padding: 12 }}>No decisions recorded for this run yet.</div>;
   }
 
   return (
-    <div style={panelStyle}>
-      <div style={{ display: "flex", gap: "8px", marginBottom: "8px", flexWrap: "wrap" }}>
-        {trajectoryIds.map((tid) => (
-          <button
-            key={tid}
-            onClick={() =>
-              setSelectedTrajectoryId(selectedTrajectoryId === tid ? null : tid)
-            }
-            style={{
-              border: `1px solid ${PALETTE[tid % PALETTE.length]}`,
-              background: selectedTrajectoryId === tid ? PALETTE[tid % PALETTE.length] : "white",
-              color: selectedTrajectoryId === tid ? "white" : PALETTE[tid % PALETTE.length],
-              padding: "2px 8px",
-              borderRadius: "12px",
-              cursor: "pointer",
-              fontSize: "12px",
-            }}
-          >
-            T{tid}
-          </button>
-        ))}
+    <div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+        {trajectoryIds.map((tid) => {
+          const active = selectedTrajectoryId === tid;
+          const color = PALETTE[tid % PALETTE.length];
+          return (
+            <button
+              key={tid}
+              onClick={() =>
+                setSelectedTrajectoryId(selectedTrajectoryId === tid ? null : tid)
+              }
+              className={`lx-btn ${active ? "active" : "ghost"}`}
+              style={{
+                borderColor: active ? color : "var(--border)",
+                color: active ? "#fff" : color,
+                background: active ? color : "transparent",
+                padding: "3px 10px",
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+              }}
+            >
+              T{tid}
+            </button>
+          );
+        })}
       </div>
       <ResponsiveContainer width="100%" height={320}>
         <LineChart data={rows} margin={{ top: 5, right: 16, bottom: 24, left: 16 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="step_index" label={{ value: "Step", position: "bottom" }} />
-          <YAxis label={{ value: "Cumulative reward", angle: -90, position: "insideLeft" }} />
-          <Tooltip />
-          <Legend verticalAlign="top" height={24} />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.10)" />
+          <XAxis
+            dataKey="step_index"
+            stroke="rgba(148,163,184,0.5)"
+            tick={{ fontSize: 10, fill: "rgba(148,163,184,0.7)", fontFamily: "var(--font-mono)" }}
+            tickLine={false}
+            axisLine={false}
+          />
+          <YAxis
+            stroke="rgba(148,163,184,0.5)"
+            tick={{ fontSize: 10, fill: "rgba(148,163,184,0.7)", fontFamily: "var(--font-mono)" }}
+            tickLine={false}
+            axisLine={false}
+          />
+          <Tooltip
+            contentStyle={{
+              background: "#0b1220",
+              border: "1px solid rgba(148,163,184,0.2)",
+              borderRadius: 6,
+              fontSize: 11,
+              color: "#e2e8f0",
+            }}
+          />
+          <Legend verticalAlign="top" height={24} wrapperStyle={{ fontSize: 11, color: "var(--text-secondary)" }} />
           {trajectoryIds.map((tid) => (
             <Line
               key={tid}
@@ -148,7 +171,7 @@ export function ArenaTrajectoriesPanel({
               dataKey={`T${tid}`}
               stroke={PALETTE[tid % PALETTE.length]}
               dot={false}
-              strokeWidth={selectedTrajectoryId === tid ? 3 : 1}
+              strokeWidth={selectedTrajectoryId === tid ? 2.5 : 1.2}
               isAnimationActive={false}
             />
           ))}
@@ -159,8 +182,8 @@ export function ArenaTrajectoriesPanel({
                 x={d.step_index}
                 y={0}
                 r={4}
-                fill="#c44"
-                stroke="#c44"
+                fill="var(--red)"
+                stroke="var(--red)"
                 isFront
                 onClick={() => onDivergenceClick?.(d)}
                 style={{ cursor: onDivergenceClick ? "pointer" : "default" }}
@@ -171,11 +194,3 @@ export function ArenaTrajectoriesPanel({
     </div>
   );
 }
-
-const panelStyle: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #d0d7de",
-  borderRadius: "6px",
-  padding: "12px",
-  boxSizing: "border-box",
-};

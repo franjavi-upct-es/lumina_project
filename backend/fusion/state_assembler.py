@@ -4,16 +4,19 @@
 The class also exposes an inline ``build()`` path used by the Spartan Arena
 (Phase X.3 of the Arena roadmap). When the arena attaches the three
 encoders directly to the assembler, ``build()`` runs the full
-TFT + LLM + GAT + Nexus pipeline inline and returns both the 256-d
-market-state vector and an optional :class:`AttributionPayload`
-containing the VSN / GAT / cross-modal weights collected during that
-same forward pass — i.e. no extra inference cost.
+TFT + LLM + GAT + Nexus pipeline inline and returns the market-state
+vector plus a :class:`RawAttributionTensors` payload — the raw byproducts
+of the same forward pass. The on-the-wire ``AttributionPayload`` schema is
+intentionally *not* materialised here: the fusion layer owns tensors, and
+the consumer (the arena) is responsible for reducing them to its schema.
+This keeps the dependency direction clean (fusion has no knowledge of
+simulation) and lets the live path skip the schema work entirely.
 """
 
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -31,7 +34,37 @@ if TYPE_CHECKING:
     from backend.perception.semantic.distilled_llm import DistilledFinancialEncoder
     from backend.perception.structural.gat_model import GraphEncoder
     from backend.perception.temporal.tft_model import TemporalFusionTransformer
-    from backend.simulation.arena.schemas import AttributionPayload
+
+
+@dataclass(frozen=True)
+class RawAttributionTensors:
+    """Raw byproducts of an attribution-capturing forward pass.
+
+    Fusion owns this dataclass on purpose — the live execution layer must
+    not have to import simulation schemas just to type a return value.
+    Consumers (e.g. the arena runner) reduce these tensors into their own
+    on-the-wire schema via ``backend.simulation.xai.attribution_extractor``.
+
+    Attributes
+    ----------
+    cross_modal_weights
+        ``(3,)`` softmaxed tensor — price/news/graph weights.
+    vsn_weights_by_feature
+        Mapping ``feature_name -> (T,)`` 1-D tensor (TFT VSN weights).
+    gat_edge_index
+        ``(2, E)`` long tensor of source/target node indices.
+    gat_alpha
+        ``(E,)`` tensor of last-layer GAT attention coefficients.
+    ticker_list
+        Tuple aligning GAT node indices to ticker symbols.
+    """
+
+    cross_modal_weights: torch.Tensor
+    vsn_weights_by_feature: dict[str, torch.Tensor]
+    gat_edge_index: torch.Tensor
+    gat_alpha: torch.Tensor
+    ticker_list: tuple[str, ...]
+
 
 STATES_ASSEMBLED = Counter(
     "fusion_states_assembled_total", "Market states written", labelnames=("ticker",)
@@ -58,12 +91,21 @@ def _k_state_uncertainty(ticker: str) -> str:
     return f"state:uncertainty:{ticker}"
 
 
-def _default_feature_state_labeler(_name: str, _value: float) -> str:
-    """Conservative fallback when no labeler is wired by the caller."""
-    return "neutral"
-
-
 class StateAssembler:
+    """Two-mode fusion driver.
+
+    ``arena_mode=False`` (default): live operation. ``run()`` consumes
+    embeddings from Redis on a fixed cadence, produces market states, and
+    publishes them back to Redis. Calling ``build()`` in this mode raises.
+
+    ``arena_mode=True``: offline simulation. ``build()`` is callable with
+    inline encoders attached via ``attach_encoders``. Calling ``run()`` in
+    this mode raises. This invariant is enforced at construction time so
+    no single instance can ever serve both paths — that prevents the
+    capture-attribution overhead from ever leaking into the live reflex
+    arc by accident.
+    """
+
     def __init__(
         self,
         model: DeepFusionNexus,
@@ -73,6 +115,8 @@ class StateAssembler:
         interval_s: float = 1.0,
         uncertainty_samples: int = 20,
         compute_uncertainty_every_n: int = 5,
+        *,
+        arena_mode: bool = False,
     ):
         self.model = model.to(device).eval()
         self.device = device
@@ -81,6 +125,7 @@ class StateAssembler:
         self.interval_s = interval_s
         self.uncertainty_samples = uncertainty_samples
         self.compute_uncertainty_every_n = compute_uncertainty_every_n
+        self.arena_mode = bool(arena_mode)
         self._running = False
         self._tick_counter = 0
         # Inline encoders (Arena mode). Populated via :meth:`attach_encoders`.
@@ -106,8 +151,14 @@ class StateAssembler:
         Live deployments do not call this — the encoders run as separate
         services that publish to Redis. The Spartan Arena, however, runs
         the entire pipeline inline so it can capture attribution data
-        without an extra forward pass.
+        without an extra forward pass. Only callable when ``arena_mode``
+        was set at construction.
         """
+        if not self.arena_mode:
+            raise RuntimeError(
+                "attach_encoders() is arena-only. Construct StateAssembler with "
+                "arena_mode=True for offline / simulation use."
+            )
         self._tft = tft.to(self.device).eval()
         self._llm = llm.to(self.device).eval()
         self._gat = gat.to(self.device).eval()
@@ -123,9 +174,8 @@ class StateAssembler:
         graph_x: torch.Tensor,
         graph_edge_index: torch.Tensor,
         graph_edge_attr: torch.Tensor,
-        feature_state_labeler: Callable[[str, float], str] | None = None,
         capture_attribution: bool = False,
-    ) -> tuple[torch.Tensor, AttributionPayload | None]:
+    ) -> tuple[torch.Tensor, RawAttributionTensors | None]:
         """Run the full Chimera pipeline for a single ticker.
 
         Parameters
@@ -139,13 +189,20 @@ class StateAssembler:
             ``(1, S)`` tensors — the LLM input.
         graph_x, graph_edge_index, graph_edge_attr
             The graph batch — node features, edge indices, edge features.
-        feature_state_labeler
-            Optional callable used by the attribution extractor to label
-            VSN features (e.g. ``("rsi_14", 72.3) -> "overbought"``).
         capture_attribution
-            When ``True``, also computes and returns the
-            :class:`AttributionPayload` for this decision step.
+            When ``True``, also returns the :class:`RawAttributionTensors`
+            captured from this forward pass. Schema reduction is done by
+            the caller — fusion intentionally does not know about
+            ``AttributionPayload``.
         """
+        if not self.arena_mode:
+            raise RuntimeError(
+                "StateAssembler.build() is arena-only. The live ``_cycle`` path "
+                "runs without attribution capture by design — accidentally calling "
+                "build() from the live loop would re-introduce the latency we "
+                "explicitly engineered out. Construct with arena_mode=True for "
+                "simulation."
+            )
         if self._tft is None or self._llm is None or self._gat is None:
             raise RuntimeError(
                 "StateAssembler.build requires inline encoders. "
@@ -201,23 +258,30 @@ class StateAssembler:
         if not capture_attribution:
             return state, None
 
-        # Defer the heavy import to avoid the circular module-load risk.
-        from backend.simulation.xai.attribution_extractor import extract_attribution
+        # When capture_attribution is True the three branches above always
+        # populated these; assert so the type checker can see it.
+        assert modality_weights is not None
+        assert vsn_weights is not None
+        assert alpha is not None and alpha_edge_index is not None
 
-        attribution = extract_attribution(
-            cross_modal_weights_tensor=modality_weights.squeeze(0),
+        raw = RawAttributionTensors(
+            cross_modal_weights=modality_weights.squeeze(0),
             vsn_weights_by_feature={
-                name: weights.squeeze(0) for name, weights in (vsn_weights or {}).items()
+                name: weights.squeeze(0) for name, weights in vsn_weights.items()
             },
-            gat_edge_index=alpha_edge_index if alpha_edge_index is not None else graph_edge_index,
-            gat_alpha=alpha if alpha is not None else torch.zeros(graph_edge_index.size(1)),
-            ticker_list=ticker_list,
-            feature_state_labeler=feature_state_labeler or _default_feature_state_labeler,
-            top_k=5,
+            gat_edge_index=alpha_edge_index,
+            gat_alpha=alpha,
+            ticker_list=tuple(ticker_list),
         )
-        return state, attribution
+        return state, raw
 
     async def run(self, tickers: list[str] | None = None) -> None:
+        if self.arena_mode:
+            raise RuntimeError(
+                "StateAssembler.run() is the live loop; do not call it on an "
+                "arena_mode=True instance. Use build() instead, or construct a "
+                "separate assembler with arena_mode=False for live operation."
+            )
         self._running = True
         tickers = tickers or list(TARGET_TICKERS)
         logger.info(f"StateAssembler started on {len(tickers)} tickers")

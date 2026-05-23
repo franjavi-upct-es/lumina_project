@@ -13,12 +13,14 @@
 #
 # This variant pins:
 #     CUDA 12.8.x base image
-#     PyTorch built with cu128 wheels (>=2.5 release branch)
+#     PyTorch built with cu128 wheels (>=2.7 release branch)
 #     torch-geometric companions from the PyG cu128 index.
 #
 # We do NOT use nightly torch as the audit recommended. Nightly torch
 # breaks weekly and is unsuitable for a system meant to run unattended.
-# CUDA 12.8 reached stable in PyTorch 2.5.x; that is what we use here.
+# PyTorch first published a stable cu128 runtime image on 2.7.0; that is
+# the earliest tag we can pin to. Earlier 2.5.x labels were referenced
+# during the audit write-up but Docker Hub never carried them.
 #
 # How to build:
 #     docker build -f docker/Dockerfile.brain.blackwell \
@@ -27,8 +29,8 @@
 # How to use from docker-compose: override the `image` field of the
 # `brain` service or set CUDA_PYTORCH_TAG via a compose override file.
 
-ARG CUDA_PYTORCH_TAG=2.5.1-cuda12.8-cudnn9-runtime
-ARG PYG_INDEX_URL=https://data.pyg.org/whl/torch-2.5.0+cu128.html
+ARG CUDA_PYTORCH_TAG=2.7.1-cuda12.8-cudnn9-runtime
+ARG PYG_INDEX_URL=https://data.pyg.org/whl/torch-2.7.0+cu128.html
 
 # ----- Stage 1 — builder ----------------------------------------------------
 FROM pytorch/pytorch:${CUDA_PYTORCH_TAG} AS builder

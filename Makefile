@@ -47,6 +47,8 @@ install:
 	$(UV) sync --all-extras
 
 dev:
+	REDIS_URL=redis://localhost:6379/0 \
+	TIMESCALE_URL=postgresql://lumina:lumina@localhost:5432/lumina \
 	$(UV_RUN) uvicorn backend.api.main:app --reload --port 8000
 
 test:

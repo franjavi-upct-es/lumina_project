@@ -9,14 +9,14 @@ shapes elsewhere in the codebase.
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeFloat
 
 
-class ActionKind(str, Enum):
+class ActionKind(StrEnum):
     BUY = "BUY"
     SELL = "SELL"
     HOLD = "HOLD"
@@ -24,7 +24,7 @@ class ActionKind(str, Enum):
     INCREASE = "INCREASE"
 
 
-class ArenaRunStatus(str, Enum):
+class ArenaRunStatus(StrEnum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"

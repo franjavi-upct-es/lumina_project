@@ -35,6 +35,7 @@ dependencies = [
     "numpy>=1.26",
     "jupyterlab>=4.5.7",
     "torch-geometric>=2.7.0",
+    "psycopg2-binary>=2.9.12",
 ]
 
 [project.optional-dependencies]
@@ -242,3 +243,8 @@ pythonVersion = "3.11"
 typeCheckingMode = "basic"
 reportMissingImports = "warning"
 reportMissingTypeStubs = false
+# PyTorch ships incomplete stubs (`torch.cat`, `torch.from_numpy`,
+# `torch.zeros`, etc. are exported at runtime but missing from the
+# packaged stubs). Silencing this rule reflects reality without
+# disabling actual mistakes elsewhere.
+reportPrivateImportUsage = "none"

@@ -1,17 +1,10 @@
 // frontend/src/App.tsx
 //
-// Top-level application shell.
-//
-// Routing
-// -------
-// We deliberately avoid react-router-dom because (a) it would be a new
-// dependency for a 3-page app, and (b) the page set is very stable.
-// Instead, a tiny in-house view switcher reads the URL hash (e.g.
-// "#/backtest") and renders the corresponding page. Forward / back
-// buttons work because we use the hash, and deep linking works because
-// the hash is part of the URL.
+// Top-level application shell. Routes are driven by the URL hash so we
+// don't need react-router for a 4-page app.
 
 import { useEffect, useState } from "react";
+import { AppShell } from "./components/common/AppShell";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { ArenaPage } from "./pages/ArenaPage";
 import { Backtest } from "./pages/Backtest";
@@ -21,7 +14,6 @@ import { Settings } from "./pages/Settings";
 type View = "dashboard" | "backtest" | "arena" | "settings";
 
 function hashToView(hash: string): View {
-  // Strip the leading "#/" or "#"; default to dashboard.
   const stripped = hash.replace(/^#\/?/, "");
   if (stripped === "backtest") return "backtest";
   if (stripped === "arena") return "arena";
@@ -40,38 +32,12 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <NavBar active={view} />
-      {view === "dashboard" && <Dashboard />}
-      {view === "backtest" && <Backtest />}
-      {view === "arena" && <ArenaPage />}
-      {view === "settings" && <Settings />}
+      <AppShell active={view} arenaBadge={2}>
+        {view === "dashboard" && <Dashboard />}
+        {view === "backtest" && <Backtest />}
+        {view === "arena" && <ArenaPage />}
+        {view === "settings" && <Settings />}
+      </AppShell>
     </ErrorBoundary>
-  );
-}
-
-function NavBar({ active }: { active: View }) {
-  const linkStyle = (target: View): React.CSSProperties => ({
-    padding: "8px 16px",
-    textDecoration: "none",
-    color: active === target ? "#0969da" : "#24292f",
-    fontWeight: active === target ? 600 : 400,
-    borderBottom: active === target ? "2px solid #0969da" : "2px solid transparent",
-  });
-
-  return (
-    <nav
-      style={{
-        display: "flex",
-        alignItems: "center",
-        padding: "0 16px",
-        borderBottom: "1px solid #d0d7de",
-        background: "#f6f8fa",
-      }}
-    >
-      <a href="#/dashboard" style={linkStyle("dashboard")}>Dashboard</a>
-      <a href="#/backtest" style={linkStyle("backtest")}>Backtest</a>
-      <a href="#/arena" style={linkStyle("arena")}>Arena</a>
-      <a href="#/settings" style={linkStyle("settings")}>Settings</a>
-    </nav>
   );
 }

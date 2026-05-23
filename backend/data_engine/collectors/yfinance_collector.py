@@ -50,6 +50,7 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, date
 
+import pandas as pd
 import polars as pl
 import yfinance as yf
 from loguru import logger
@@ -80,6 +81,10 @@ class YFinanceCollector:
                     "trade_count": pl.Int64,
                 }
             )
+        # yfinance 0.2.40+ returns a MultiIndex for columns even with a single ticker.
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+
         df = df.reset_index()
         time_col = "Date" if "Date" in df.columns else "Datetime"
         df = df.rename(
@@ -192,9 +197,9 @@ class YFinanceCollector:
                 logger.warning(f"yfinance returned no data for {ticker}")
                 continue
             rows: list[OHLCVRow] = []
+            ticker_total = 0
             for r in df.iter_rows(named=True):
                 t = r["time"]
-                # Anchor every daily bar at 20:00 UTC = NYSE close.
                 anchored = t.replace(hour=20, minute=0, second=0, microsecond=0, tzinfo=UTC)
                 rows.append(
                     OHLCVRow(
@@ -209,8 +214,14 @@ class YFinanceCollector:
                         trade_count=None,
                     )
                 )
-            inserted = await store.insert_ohlcv_batch(rows)
-            total += inserted
-            logger.success(f"{ticker}: backfilled {inserted} daily bars")
+                if len(rows) >= 1000:
+                    ticker_total += await store.insert_ohlcv_batch(rows)
+                    rows = []
+
+            if rows:
+                ticker_total += await store.insert_ohlcv_batch(rows)
+
+            total += ticker_total
+            logger.success(f"{ticker}: backfilled {ticker_total} daily bars")
             await asyncio.sleep(rate_limit_seconds)
         return total

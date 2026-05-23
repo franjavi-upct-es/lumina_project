@@ -119,7 +119,7 @@ def train_full_curriculum(
     _MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
     # ----- 1. Build the policy + agent --------------------------------
-    policy = PolicyNetwork(distribution="gaussian")
+    policy = PolicyNetwork(state_dim=NEXUS_OUTPUT_DIM + 4, distribution="gaussian")
     gate = UncertaintyGate(UncertaintyGateConfig())
     agent = PPOAgent(policy, gate, PPOConfig(), device=device)
 

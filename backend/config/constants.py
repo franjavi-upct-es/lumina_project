@@ -238,3 +238,9 @@ log a WARNING but do not interrupt the run."""
 ARENA_TIMING_WINDOW_SIZE: int = 100
 """Rolling window size (number of recent steps) used by time_controller.py
 to compute average and p95 step durations."""
+
+ARENA_EXPLANATION_QUEUE_SIZE: int = 256
+"""Bounded size of the in-process queue that buffers StepExplanations between
+the arena step loop (producer) and the user-supplied explanation sink
+(consumer). When full, the step loop drops the explanation and increments
+``arena_explanations_dropped_total`` rather than blocking the trajectory."""

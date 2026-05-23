@@ -1,9 +1,6 @@
 // frontend/src/components/panels/DivergenceTimelinePanel.tsx
 //
-// Vertical timeline of every pivotal divergence in the run. Each row
-// summarises the step, the best/worst trajectories, and the Sharpe
-// delta. Hovering a row surfaces the best trajectory's full
-// StepExplanation.
+// Vertical timeline of every pivotal divergence in the run. Dark-theme.
 
 import { useEffect, useMemo, useState } from "react";
 import { getDivergences, getExplanations } from "../../api/arena";
@@ -54,71 +51,76 @@ export function DivergenceTimelinePanel({ runId, onSelect }: Props) {
     return map;
   }, [explanations]);
 
-  if (loading) return <div style={panelStyle}>Loading divergences…</div>;
-  if (error) return <div style={{ ...panelStyle, color: "#c44" }}>Error: {error}</div>;
-  if (divergences.length === 0) {
-    return <div style={panelStyle}>No pivotal divergences detected.</div>;
-  }
-
   return (
-    <div style={panelStyle}>
-      <h3 style={{ margin: "0 0 8px 0", fontSize: "14px" }}>
-        Pivotal divergences ({divergences.length})
-      </h3>
-      <ol style={{ margin: 0, paddingLeft: "20px", maxHeight: "320px", overflowY: "auto" }}>
-        {divergences.map((d) => {
-          const key = `${d.step_index}-${d.best_trajectory_id}-${d.worst_trajectory_id}`;
-          const exp = explanationByRecordId.get(key);
-          const isHovered = hoveredRecordId === key;
-          return (
-            <li
-              key={key}
-              onMouseEnter={() => setHoveredRecordId(key)}
-              onMouseLeave={() => setHoveredRecordId(null)}
-              onClick={() => onSelect?.(d)}
-              style={{
-                cursor: onSelect ? "pointer" : "default",
-                padding: "4px 0",
-                borderBottom: "1px solid #eef1f4",
-              }}
-            >
-              <div style={{ fontFamily: "monospace", fontSize: "12px" }}>
-                {new Date(d.sim_timestamp).toISOString().slice(0, 19)} · step{" "}
-                <strong>{d.step_index}</strong>
-              </div>
-              <div style={{ fontSize: "12px" }}>
-                T{d.best_trajectory_id} vs T{d.worst_trajectory_id} | L2=
-                {d.action_l2_distance.toFixed(2)} | Δ Sharpe={" "}
-                <span style={{ color: d.sharpe_delta > 0 ? "#2a8" : "#c44" }}>
-                  {d.sharpe_delta > 0 ? "+" : ""}
-                  {d.sharpe_delta.toFixed(2)}
-                </span>
-              </div>
-              {isHovered && exp && (
-                <pre
-                  style={{
-                    margin: "4px 0 0 0",
-                    background: "#f6f8fa",
-                    padding: "6px",
-                    fontSize: "11px",
-                    whiteSpace: "pre-wrap",
-                  }}
+    <section className="lx-panel">
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div className="lx-label">Pivotal Divergences</div>
+        <span className="lx-mono lx-dim" style={{ fontSize: 11 }}>{divergences.length}</span>
+      </header>
+
+      {loading && <div className="lx-dim" style={{ fontSize: 12 }}>Loading divergences…</div>}
+      {error && <div style={{ color: "var(--red)", fontSize: 12 }}>Error: {error}</div>}
+      {!loading && !error && divergences.length === 0 && (
+        <div className="lx-dim" style={{ fontSize: 12 }}>No pivotal divergences detected.</div>
+      )}
+
+      {divergences.length > 0 && (
+        <ol style={{ margin: 0, padding: 0, listStyle: "none", maxHeight: 320, overflowY: "auto" }}>
+          {divergences.map((d) => {
+            const key = `${d.step_index}-${d.best_trajectory_id}-${d.worst_trajectory_id}`;
+            const exp = explanationByRecordId.get(key);
+            const isHovered = hoveredRecordId === key;
+            return (
+              <li
+                key={key}
+                onMouseEnter={() => setHoveredRecordId(key)}
+                onMouseLeave={() => setHoveredRecordId(null)}
+                onClick={() => onSelect?.(d)}
+                style={{
+                  cursor: onSelect ? "pointer" : "default",
+                  padding: "10px 12px",
+                  borderRadius: 6,
+                  borderLeft: `2px solid ${d.sharpe_delta > 0 ? "var(--green)" : "var(--red)"}`,
+                  background: isHovered ? "var(--bg-row-hover)" : "transparent",
+                  marginBottom: 6,
+                }}
+              >
+                <div
+                  className="lx-mono"
+                  style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", gap: 12 }}
                 >
-                  {exp.text}
-                </pre>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-    </div>
+                  <span>{new Date(d.sim_timestamp).toISOString().slice(0, 19)}</span>
+                  <span>step <strong style={{ color: "var(--text-primary)" }}>{d.step_index}</strong></span>
+                </div>
+                <div className="lx-mono" style={{ fontSize: 12, marginTop: 4 }}>
+                  T{d.best_trajectory_id} <span className="lx-dim">vs</span> T{d.worst_trajectory_id}{" "}
+                  <span className="lx-dim">· L2=</span>{d.action_l2_distance.toFixed(2)}{" "}
+                  <span className="lx-dim">· Δ Sharpe</span>{" "}
+                  <span style={{ color: d.sharpe_delta > 0 ? "var(--green)" : "var(--red)", fontWeight: 600 }}>
+                    {d.sharpe_delta > 0 ? "+" : ""}{d.sharpe_delta.toFixed(2)}
+                  </span>
+                </div>
+                {isHovered && exp && (
+                  <pre
+                    style={{
+                      margin: "8px 0 0 0",
+                      background: "var(--bg-panel-2)",
+                      border: "1px solid var(--border-soft)",
+                      padding: 8,
+                      borderRadius: 4,
+                      fontSize: 11,
+                      whiteSpace: "pre-wrap",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    {exp.text}
+                  </pre>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
   );
 }
-
-const panelStyle: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #d0d7de",
-  borderRadius: "6px",
-  padding: "12px",
-  boxSizing: "border-box",
-};

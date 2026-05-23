@@ -79,7 +79,7 @@ class PPOConfig:
     lr: float = 3e-4
     """Adam learning rate. PPO is robust over a wide range, but 3e-4
     is the standard."""
-    target_kl: float = 0.02
+    target_kl: float = 0.2
     """If approx. KL divergence between π_θ and π_{θ_old} exceeds 1.5x
     this value, we early-stop the update. Prevents catastrophic drift."""
 
@@ -226,6 +226,58 @@ class PPOAgent:
             )
 
         return mean_action, mean_log_prob, mean_value, uncertainty, False
+
+    # ------------------------------------------------------------------
+    @torch.no_grad()
+    def act_batch(
+        self,
+        states: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Batched ``act`` for N independent states.
+
+        Folds the per-state ``mc_samples`` loop into a single forward pass
+        of shape (N * M, state_dim) — useful when the environment exposes
+        several sub-agents (e.g. one per asset) that must be queried at the
+        same timestep. The gate is still consulted *per state* because it
+        is a stateful object (see [[uncertainty_gate]]).
+        """
+        s = torch.from_numpy(states).float().to(self.device)  # (N, D)
+        n_states, state_dim = s.shape
+        m = self.mc_samples
+        action_dim = self.policy.actor.action_dim
+
+        was_training = self.policy.training
+        self.policy.train()  # enables dropout
+
+        # Replicate each state M times: (M, N, D) → (M*N, D)
+        s_rep = s.unsqueeze(0).expand(m, n_states, state_dim).reshape(m * n_states, state_dim)
+        sampled, value = self.policy.sample(s_rep, deterministic=False)
+
+        self.policy.train(was_training)
+
+        # (M, N, A) / (M, N) / (M, N)
+        actions_mc = sampled.action.view(m, n_states, action_dim)
+        log_probs_mc = sampled.log_prob.view(m, n_states)
+        values_mc = value.view(m, n_states)
+
+        # Per-state epistemic uncertainty = mean over action dims of std across MC samples
+        if m >= 2:
+            uncertainties_t = actions_mc.std(dim=0, unbiased=True).mean(dim=-1)
+        else:
+            uncertainties_t = torch.zeros(n_states, device=self.device)
+
+        mean_actions = actions_mc.mean(dim=0).cpu().numpy()
+        mean_log_probs = log_probs_mc.mean(dim=0).cpu().numpy()
+        mean_values = values_mc.mean(dim=0).cpu().numpy()
+        uncertainties = uncertainties_t.cpu().numpy()
+
+        vetoed = np.zeros(n_states, dtype=bool)
+        for i in range(n_states):
+            if self.gate.should_veto(float(uncertainties[i])):
+                mean_actions[i] = self.gate.defensive_action(action_dim)
+                vetoed[i] = True
+
+        return mean_actions, mean_log_probs, mean_values, uncertainties, vetoed
 
     # ------------------------------------------------------------------
     def record(

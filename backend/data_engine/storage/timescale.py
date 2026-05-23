@@ -6,9 +6,8 @@ from __future__ import annotations
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import datetime
-from typing import Literal
-from uuid import UUID
+from datetime import datetime, timedelta
+from typing import Any, Literal
 
 import asyncpg
 import polars as pl
@@ -18,11 +17,11 @@ from pydantic import BaseModel, Field
 from backend.config.settings import get_settings
 
 Frequency = Literal["1m", "5m", "1h", "1d"]
-_BUCKET_MAP: dict[Frequency, str] = {
-    "1m": "1 minute",
-    "5m": "5 minutes",
-    "1h": "1 hour",
-    "1d": "1 day",
+_BUCKET_MAP: dict[Frequency, timedelta] = {
+    "1m": timedelta(minutes=1),
+    "5m": timedelta(minutes=5),
+    "1h": timedelta(hours=1),
+    "1d": timedelta(days=1),
 }
 
 
