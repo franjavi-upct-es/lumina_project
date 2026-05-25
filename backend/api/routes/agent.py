@@ -7,13 +7,12 @@ import asyncio
 import json
 from datetime import UTC, datetime
 
+import numpy as np
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from backend.api.deps import get_redis, require_api_key
 from backend.api.schemas import AgentStatusResponse
 from backend.data_engine.storage.redis_cache import RedisCache
-
-import numpy as np
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
@@ -21,7 +20,7 @@ router = APIRouter(prefix="/api/agent", tags=["agent"])
 @router.get("/status", response_model=AgentStatusResponse, dependencies=[Depends(require_api_key)])
 async def get_status(redis: RedisCache = Depends(get_redis)) -> AgentStatusResponse:
     data_raw = await redis.client.get("agent:last_action")
-    
+
     # Also fetch attention weights for the dashboard heatmap
     # Hardcoded to SPY for the general status for now, could be parameterized
     attn_raw = await redis.client.get("state:attention:SPY")
@@ -37,14 +36,14 @@ async def get_status(redis: RedisCache = Depends(get_redis)) -> AgentStatusRespo
             gate_active=d.get("gate_active", False),
             last_update=datetime.fromisoformat(d["ts"]),
             consecutive_vetoes=d.get("consecutive_vetoes", 0),
-            attention_weights=attn_list
+            attention_weights=attn_list,
         )
     return AgentStatusResponse(
         current_action=0.0,
         uncertainty=0.0,
         gate_active=False,
         last_update=datetime.now(UTC),
-        attention_weights=attn_list
+        attention_weights=attn_list,
     )
 
 

@@ -42,7 +42,7 @@ class NexusTrainer:
         # Temporary classification head for the regime task.
         # We don't save this head; we only care about the Nexus backbone.
         self.regime_head = nn.Linear(model.head[-2].out_features, 4).to(device)
-        
+
         self.optim = torch.optim.AdamW(
             list(self.model.parameters()) + list(self.regime_head.parameters()),
             lr=lr,
@@ -56,28 +56,27 @@ class NexusTrainer:
             for epoch in range(epochs):
                 self.model.train()
                 train_loss, train_correct, n_total = 0.0, 0, 0
-                
+
                 for p, s, g, regimes in tqdm(self.train_loader, desc=f"Nexus Epoch {epoch}"):
                     p, s, g, regimes = [x.to(self.device) for x in (p, s, g, regimes)]
-                    
+
                     self.optim.zero_grad()
                     out = self.model(p, s, g)
                     logits = self.regime_head(out["market_state"])
-                    
+
                     loss = F.cross_entropy(logits, regimes)
                     loss.backward()
                     self.optim.step()
-                    
+
                     train_loss += loss.item() * p.size(0)
                     train_correct += (logits.argmax(1) == regimes).sum().item()
                     n_total += p.size(0)
 
                 val_loss, val_acc = self._validate()
-                mlflow.log_metrics({
-                    "train_loss": train_loss / n_total,
-                    "val_loss": val_loss,
-                    "val_acc": val_acc
-                }, step=epoch)
+                mlflow.log_metrics(
+                    {"train_loss": train_loss / n_total, "val_loss": val_loss, "val_acc": val_acc},
+                    step=epoch,
+                )
 
                 logger.info(f"Nexus Epoch {epoch}: val_loss={val_loss:.4f} val_acc={val_acc:.2%}")
 

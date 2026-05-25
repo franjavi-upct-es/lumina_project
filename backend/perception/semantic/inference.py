@@ -120,7 +120,6 @@ async def _amain() -> None:
 
 def main() -> int:
     import asyncio
-    import sys
 
     from backend.config.logging import configure_logging
 

@@ -167,14 +167,16 @@ class ArenaRunner:
 
         with mlflow.start_run(run_name=f"arena_{self.metadata.run_id}"):
             # Log run parameters
-            mlflow.log_params({
-                "run_id": self.metadata.run_id,
-                "ticker": self.metadata.ticker,
-                "start_date": self.metadata.start_date.isoformat(),
-                "end_date": self.metadata.end_date.isoformat(),
-                "n_trajectories": self.metadata.n_trajectories,
-                "playback_multiplier": self.metadata.playback_multiplier,
-            })
+            mlflow.log_params(
+                {
+                    "run_id": self.metadata.run_id,
+                    "ticker": self.metadata.ticker,
+                    "start_date": self.metadata.start_date.isoformat(),
+                    "end_date": self.metadata.end_date.isoformat(),
+                    "n_trajectories": self.metadata.n_trajectories,
+                    "playback_multiplier": self.metadata.playback_multiplier,
+                }
+            )
 
             try:
                 await self._initialize_envs()
@@ -186,11 +188,13 @@ class ArenaRunner:
                 # Calculate and log summary metrics
                 sharpes = _per_trajectory_sharpe(self._records_by_trajectory)
                 if sharpes:
-                    mlflow.log_metrics({
-                        "mean_sharpe": float(np.mean(list(sharpes.values()))),
-                        "max_sharpe": float(np.max(list(sharpes.values()))),
-                        "min_sharpe": float(np.min(list(sharpes.values()))),
-                    })
+                    mlflow.log_metrics(
+                        {
+                            "mean_sharpe": float(np.mean(list(sharpes.values()))),
+                            "max_sharpe": float(np.max(list(sharpes.values()))),
+                            "min_sharpe": float(np.min(list(sharpes.values()))),
+                        }
+                    )
 
                 return await self._mark_done(ArenaRunStatus.COMPLETED)
             except asyncio.CancelledError:
@@ -232,7 +236,7 @@ class ArenaRunner:
         # stuck sink can never block run() shutdown indefinitely.
         try:
             await asyncio.wait_for(queue.join(), timeout=5.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "Arena run {}: explanation queue drain timed out; "
                 "remaining items will be discarded.",
@@ -290,11 +294,11 @@ class ArenaRunner:
             sim_timestamp = sim_start + timedelta(minutes=step_index)
             async with self.time_controller.step(step_index):
                 step_records = await self._run_one_step(step_index, sim_timestamp)
-            
+
             self._records_by_step[step_index] = step_records
             for tid, record in step_records.items():
                 self._records_by_trajectory[tid].append(record)
-            
+
             # Log step metrics to MLflow
             if mlflow.active_run():
                 step_metrics = {}

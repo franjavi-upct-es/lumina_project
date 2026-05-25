@@ -144,9 +144,7 @@ class MultiAssetTradingEnv:
         self.t += 1
 
         # Check bankruptcy
-        if self.equity < self.initial_capital * 0.1:
-            return True
-        return False
+        return self.equity < self.initial_capital * 0.1
 
 
 async def main():

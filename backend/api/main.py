@@ -53,17 +53,20 @@ async def _auto_backfill_task(ts):
         df = await ts.get_historical_window("SPY", start, end, freq="1d")
         if df.height < 5:
             logger.info("Database appears empty or sparse. Starting automatic yfinance backfill...")
-            await YFinanceCollector.backfill_to_timescale(ts, list(TARGET_TICKERS), start.date(), end.date())
+            await YFinanceCollector.backfill_to_timescale(
+                ts, list(TARGET_TICKERS), start.date(), end.date()
+            )
             logger.success("Automatic backfill complete.")
     except asyncio.CancelledError:
         pass
     except Exception as e:
         logger.error(f"Auto-backfill task failed: {e}")
 
+
 async def _portfolio_logger_task(ts):
     """Continuously record portfolio equity to TimescaleDB for the Dashboard history."""
     try:
-        broker = get_broker() # Get the singleton
+        broker = get_broker()  # Get the singleton
         while True:
             account = await broker.get_account()
             await ts.insert_portfolio_record(datetime.now(UTC), account.equity, account.cash)
@@ -73,6 +76,7 @@ async def _portfolio_logger_task(ts):
         pass
     except Exception as e:
         logger.error(f"Portfolio logger task failed: {e}")
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -89,7 +93,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # Redis is connected.
     _KILL_SWITCH_LISTENER = LocalKillSwitchListener(redis)
     await _KILL_SWITCH_LISTENER.start()
-    
+
     # Start background tasks
     _BG_TASKS.append(asyncio.create_task(_auto_backfill_task(ts)))
     _BG_TASKS.append(asyncio.create_task(_portfolio_logger_task(ts)))
@@ -102,7 +106,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             t.cancel()
         if _BG_TASKS:
             await asyncio.gather(*_BG_TASKS, return_exceptions=True)
-            
+
         if _KILL_SWITCH_LISTENER is not None:
             await _KILL_SWITCH_LISTENER.stop()
             _KILL_SWITCH_LISTENER = None
@@ -121,6 +125,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     from backend.api.middleware import CongestionControlMiddleware
+
     app.add_middleware(CongestionControlMiddleware, max_concurrent_requests=200)
     app.add_middleware(
         CORSMiddleware,

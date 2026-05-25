@@ -92,7 +92,8 @@ async def list_backtest_runs(
             sharpe=r["sharpe"],
             max_drawdown=r["max_drawdown"],
             total_return=r["total_return"],
-        ) for r in rows
+        )
+        for r in rows
     ]
 
 
@@ -111,15 +112,15 @@ async def get_results(
     if raw is None:
         raise HTTPException(status_code=404, detail=f"Unknown run_id: {run_id}")
     data = json.loads(raw)
-    
+
     status = data.get("status", "pending")
     sharpe = data.get("sharpe")
     max_drawdown = data.get("max_drawdown")
     total_return = data.get("total_return")
-    
+
     # Keep Timescale synced
     await ts.upsert_backtest_run(run_id, status, sharpe, max_drawdown, total_return)
-    
+
     return BacktestResultResponse(
         run_id=run_id,
         status=status,

@@ -24,8 +24,11 @@ There are three categories of providers:
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import Depends, Header, HTTPException, status
 from loguru import logger
+from pydantic import BaseModel
 
 from backend.config.settings import Settings, get_settings
 from backend.data_engine.storage.redis_cache import RedisCache, get_redis_cache
@@ -109,13 +112,12 @@ def reset_broker_singleton() -> None:
     _BROKER_SINGLETON = None
 
 
-from typing import Literal
-from pydantic import BaseModel
-
 class UserContext(BaseModel):
     """Context object carrying multi-tenant identity and subscription tier."""
+
     user_id: str
     tier: Literal["free", "pro", "enterprise"]
+
 
 def require_api_key(
     x_api_key: str | None = Header(default=None),

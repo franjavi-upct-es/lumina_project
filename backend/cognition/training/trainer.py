@@ -76,9 +76,7 @@ def _git_commit_hash() -> str:
 
 
 def _build_expert_trajectories(
-    market_states: np.ndarray | None = None,
-    n_samples: int = 4096,
-    rng_seed: int = 0
+    market_states: np.ndarray | None = None, n_samples: int = 4096, rng_seed: int = 0
 ) -> tuple[np.ndarray, np.ndarray]:
     """Generate (state, action) pairs from a simple oracle policy.
 
@@ -93,11 +91,11 @@ def _build_expert_trajectories(
     Parameters
     ----------
     market_states
-        If provided, uses these real latent states (B, 256). 
+        If provided, uses these real latent states (B, 256).
         Otherwise generates synthetic states.
     """
     rng = np.random.default_rng(rng_seed)
-    
+
     if market_states is not None:
         n_samples = market_states.shape[0]
         # Pad with zeros for the 4 portfolio channels to match PolicyNetwork input
@@ -106,7 +104,7 @@ def _build_expert_trajectories(
     else:
         # Synthetic states: i.i.d. Gaussians plus the 4 bookkeeping channels.
         states = rng.standard_normal((n_samples, NEXUS_OUTPUT_DIM + 4)).astype(np.float32) * 0.1
-    
+
     # The oracle "signal" is encoded in the first state dim.
     # In real states, this corresponds to the price signal slot 0 of the TFT.
     actions = np.zeros((n_samples, ACTION_DIM), dtype=np.float32)
@@ -121,7 +119,7 @@ def train_full_curriculum(
     bc_epochs: int = 20,
     device: str | None = None,
     use_historical_bc: bool = False,
-    timescale_store = None,
+    timescale_store=None,
     encoders: dict | None = None,
 ) -> Path:
     """Run the full curriculum and write the final checkpoint.
@@ -140,14 +138,13 @@ def train_full_curriculum(
     # ----- 2. Episode generators --------------------------------------
     if use_historical_bc and timescale_store and encoders:
         from backend.simulation.generators.scenario_loader import HistoricalEpisodeGenerator
+
         clean_gen = HistoricalEpisodeGenerator(
-            timescale_store=timescale_store,
-            encoders=encoders,
-            episode_length_min=390
+            timescale_store=timescale_store, encoders=encoders, episode_length_min=390
         )
     else:
         clean_gen = SyntheticEpisodeGenerator(n_steps=390, process="jump_diffusion")
-        
+
     adv_gen = AdversarialGenerator(clean_gen)
     env = LuminaTradingEnv(clean_gen, EnvConfig())
 

@@ -55,7 +55,7 @@ class AgentStatusResponse(BaseModel):
     gate_active: bool
     last_update: datetime
     consecutive_vetoes: int = 0
-    attention_weights: list[float] | None = None # [Price, News, Graph]
+    attention_weights: list[float] | None = None  # [Price, News, Graph]
 
 
 class AgentStreamMessage(BaseModel):
@@ -102,13 +102,16 @@ class PortfolioResponse(BaseModel):
     peak_equity: float
     drawdown_pct: float = Field(ge=0, le=1)
 
+
 class EquityPoint(BaseModel):
     time: datetime
     equity: float
     benchmark: float | None = None
 
+
 class PortfolioHistoryResponse(BaseModel):
     history: list[EquityPoint]
+
 
 # ----- Risk -----------------------------------------------------------------
 class KillSwitchRequest(BaseModel):

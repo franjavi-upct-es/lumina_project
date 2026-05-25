@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 import numpy as np
 import torch
 from loguru import logger
@@ -93,10 +95,8 @@ async def _amain() -> None:
                 await service.run_once(data, tickers_order)
             except Exception as exc:
                 logger.exception(f"Graph inference iteration failed: {exc}")
-            try:
+            with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(stop_event.wait(), timeout=_DAILY_INTERVAL_S)
-            except TimeoutError:
-                pass
     finally:
         await redis.disconnect()
         await timescale.disconnect()
@@ -104,7 +104,6 @@ async def _amain() -> None:
 
 def main() -> int:
     import asyncio
-    import sys
 
     from backend.config.logging import configure_logging
 

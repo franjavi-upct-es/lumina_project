@@ -4,7 +4,7 @@
 UV ?= uv
 UV_RUN := $(UV) run
 
-.PHONY: help install dev test test-unit test-integration lint type \
+.PHONY: help install dev test test-unit test-integration format lint type \
         migrate up up-8gb up-blackwell down restart logs ps clean \
         docker-build docker-build-api docker-build-data \
         docker-build-perception docker-build-brain docker-build-brain-blackwell \
@@ -19,6 +19,7 @@ help:
 	@echo "    test                 uv run pytest full suite"
 	@echo "    test-unit            uv run pytest fast tests only"
 	@echo "    test-integration     uv run pytest integration tests"
+	@echo "    format               uv run ruff format ."
 	@echo "    lint                 uv run ruff check + uv run ruff format --check"
 	@echo "    type                 uv run mypy backend"
 	@echo "    migrate              uv run alembic upgrade head"
@@ -60,6 +61,9 @@ test-unit:
 
 test-integration:
 	$(UV_RUN) pytest -v -m "integration"
+
+format:
+	$(UV_RUN) ruff format .
 
 lint:
 	$(UV_RUN) ruff check backend tests scripts

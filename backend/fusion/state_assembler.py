@@ -87,6 +87,10 @@ def _k_market_state(ticker: str) -> str:
     return f"state:market:{ticker}"
 
 
+def _k_state_attention(ticker: str) -> str:
+    return f"state:attention:{ticker}"
+
+
 def _k_state_uncertainty(ticker: str) -> str:
     return f"state:uncertainty:{ticker}"
 
@@ -325,12 +329,14 @@ class StateAssembler:
                 # return_attention=True yields (B, Heads, 3, 3) cross-modal attention
                 out = self.model(price_t, semantic_t, graph_t, return_attention=True)
             states = out["market_state"].cpu().numpy().astype(np.float32)
-            
+
             # Collapse to (B, 3) modality weights for the dashboard.
-            # out["attention_weights"] is (B, H, 3, 3). 
-            # We take mean over heads (dim 1) and mean over queries (dim 2) to get 
+            # out["attention_weights"] is (B, H, 3, 3).
+            # We take mean over heads (dim 1) and mean over queries (dim 2) to get
             # the importance of each modality as a key (dim 3).
-            attn_weights = out["attention_weights"].mean(dim=1).mean(dim=1).cpu().numpy().astype(np.float32)
+            attn_weights = (
+                out["attention_weights"].mean(dim=1).mean(dim=1).cpu().numpy().astype(np.float32)
+            )
 
             uncertainties: np.ndarray | None = None
             if compute_unc:

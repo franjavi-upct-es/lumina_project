@@ -242,10 +242,14 @@ class TimescaleStore:
         async with self._conn() as conn:
             await conn.execute(
                 "INSERT INTO portfolio_history (time, equity, cash) VALUES ($1, $2, $3)",
-                time, float(equity), float(cash)
+                time,
+                float(equity),
+                float(cash),
             )
 
-    async def get_portfolio_history(self, start: datetime, end: datetime, interval: timedelta) -> list[dict[str, Any]]:
+    async def get_portfolio_history(
+        self, start: datetime, end: datetime, interval: timedelta
+    ) -> list[dict[str, Any]]:
         query = """
             SELECT time_bucket($1, time) as time_bucket, last(equity, time) as equity, last(cash, time) as cash
             FROM portfolio_history
@@ -256,12 +260,19 @@ class TimescaleStore:
             rows = await conn.fetch(query, interval, start, end)
         return [dict(r) for r in rows]
 
-    async def upsert_backtest_run(self, run_id: str, status: str, sharpe: float=None, max_drawdown: float=None, total_return: float=None) -> None:
+    async def upsert_backtest_run(
+        self,
+        run_id: str,
+        status: str,
+        sharpe: float | None = None,
+        max_drawdown: float | None = None,
+        total_return: float | None = None,
+    ) -> None:
         query = """
             INSERT INTO backtest_runs (run_id, status, sharpe, max_drawdown, total_return)
             VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (run_id) DO UPDATE SET 
-                status = EXCLUDED.status, 
+            ON CONFLICT (run_id) DO UPDATE SET
+                status = EXCLUDED.status,
                 sharpe = COALESCE(EXCLUDED.sharpe, backtest_runs.sharpe),
                 max_drawdown = COALESCE(EXCLUDED.max_drawdown, backtest_runs.max_drawdown),
                 total_return = COALESCE(EXCLUDED.total_return, backtest_runs.total_return)

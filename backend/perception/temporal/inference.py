@@ -102,6 +102,7 @@ async def _amain() -> None:
     service = TFTInferenceService(model, redis, device=device)
     logger.info("TFTInferenceService starting (window={}).", service.window)
     stop_event = asyncio.Event()
+    stop_tasks: set[asyncio.Task[None]] = set()
 
     import signal
 
@@ -109,7 +110,9 @@ async def _amain() -> None:
 
     def _request_stop() -> None:
         stop_event.set()
-        asyncio.create_task(service.stop())
+        task = asyncio.create_task(service.stop())
+        stop_tasks.add(task)
+        task.add_done_callback(stop_tasks.discard)
 
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, _request_stop)
@@ -122,7 +125,6 @@ async def _amain() -> None:
 
 def main() -> int:
     import asyncio
-    import sys
 
     from backend.config.logging import configure_logging
 

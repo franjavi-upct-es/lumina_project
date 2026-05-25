@@ -48,10 +48,11 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
 
 class CongestionControlMiddleware(BaseHTTPMiddleware):
     """Simple concurrency limiter for multi-tenant safety.
-    
+
     Prevents the backend from being overwhelmed by too many simultaneous
     requests, returning 429 Too Many Requests when saturated.
     """
+
     def __init__(self, app, max_concurrent_requests: int = 100):
         super().__init__(app)
         self.semaphore = asyncio.Semaphore(max_concurrent_requests)
