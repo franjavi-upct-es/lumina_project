@@ -21,13 +21,13 @@ This has three useful properties:
     3. The drawdown is consistent across multiple replicas of the API.
 """
 
-from __future__ import annotations
-
+from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, Depends
 
-from backend.api.deps import get_broker, get_redis, require_api_key
-from backend.api.schemas import PortfolioResponse, PositionResponse
+from backend.api.deps import get_broker, get_redis, get_timescale, require_api_key
+from backend.api.schemas import PortfolioResponse, PositionResponse, PortfolioHistoryResponse, EquityPoint
 from backend.data_engine.storage.redis_cache import RedisCache
+from backend.data_engine.storage.timescale import TimescaleStore
 from backend.execution.broker.base import BaseBroker
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
@@ -99,3 +99,47 @@ async def get_portfolio(
         peak_equity=new_peak,
         drawdown_pct=drawdown,
     )
+
+@router.get(
+    "/history",
+    response_model=PortfolioHistoryResponse,
+    dependencies=[Depends(require_api_key)],
+)
+async def get_portfolio_history(
+    range: str = "30D",
+    ts: TimescaleStore = Depends(get_timescale),
+) -> PortfolioHistoryResponse:
+    """Return the historical portfolio equity."""
+    days = 30
+    if range == "1D": days = 1
+    elif range == "7D": days = 7
+    elif range == "90D": days = 90
+    elif range == "YTD": 
+        now = datetime.now(UTC)
+        days = (now - datetime(now.year, 1, 1, tzinfo=UTC)).days
+    elif range == "ALL": days = 3650
+    
+    end = datetime.now(UTC)
+    start = end - timedelta(days=days)
+    
+    # Choose resolution based on range to prevent too many points
+    interval = timedelta(hours=1) if days <= 7 else timedelta(days=1)
+    
+    rows = await ts.get_portfolio_history(start, end, interval)
+    
+    # We might not have benchmark data, so we'll mock it relative to start equity
+    # If no rows, return empty
+    if not rows:
+        return PortfolioHistoryResponse(history=[])
+        
+    start_equity = rows[0]["equity"]
+    
+    history = [
+        EquityPoint(
+            time=r["time_bucket"], 
+            equity=r["equity"],
+            benchmark=start_equity # Simple flat benchmark for now, could be enhanced with SPY
+        )
+        for r in rows
+    ]
+    return PortfolioHistoryResponse(history=history)

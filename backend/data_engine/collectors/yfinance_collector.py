@@ -86,7 +86,18 @@ class YFinanceCollector:
             df.columns = df.columns.get_level_values(0)
 
         df = df.reset_index()
-        time_col = "Date" if "Date" in df.columns else "Datetime"
+        # yfinance usually uses 'Date' (daily) or 'Datetime' (intraday).
+        # After reset_index(), if the index had no name, it becomes 'index'.
+        time_col = None
+        for candidate in ["Date", "Datetime", "index"]:
+            if candidate in df.columns:
+                time_col = candidate
+                break
+
+        if time_col is None:
+            # Fallback: take the first column if we can't find it by name
+            time_col = df.columns[0]
+
         df = df.rename(
             columns={
                 time_col: "time",

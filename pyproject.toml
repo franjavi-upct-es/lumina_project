@@ -6,7 +6,7 @@
 # We split deps into one minimal "core" set plus several extras so each
 # Docker image can install only what it actually needs:
 #
-#     core         — fastapi/pydantic/loguru — always present
+#     core         — shared runtime primitives — always present
 #     [api]        — REST + WS server
 #     [data]       — collectors + ingestion (yfinance, asyncpg, polars)
 #     [perception] — torch + transformers + torch-geometric
@@ -33,9 +33,6 @@ dependencies = [
     "tenacity>=8.2",
     "prometheus-client>=0.20",
     "numpy>=1.26",
-    "jupyterlab>=4.5.7",
-    "torch-geometric>=2.7.0",
-    "psycopg2-binary>=2.9.12",
 ]
 
 [project.optional-dependencies]
@@ -49,7 +46,13 @@ api = [
     "redis>=5.0",                # we use redis.asyncio exclusively
     "alembic>=1.13",
     "sqlalchemy>=2.0",
+    "psycopg2-binary>=2.9.12",   # Alembic sync PostgreSQL driver for migrate
     "polars>=0.20",
+    "pandas>=2.2",
+    "yfinance>=0.2.40",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
+    "pyarrow>=15.0",
 ]
 
 data = [
@@ -64,6 +67,7 @@ data = [
     "beautifulsoup4>=4.12",
     "lxml>=5.0",
     "tqdm>=4.66",
+    "pyarrow>=15.0",
 ]
 
 perception = [
@@ -73,7 +77,7 @@ perception = [
     "polars>=0.20",
     "pandas>=2.2",
     "torch>=2.2",
-    "transformers>=4.38",
+    "transformers>=4.38,<5",
     "scikit-learn>=1.4",
     "mlflow>=2.10",
     # torch-geometric and its companions (torch-scatter, torch-sparse) are
@@ -89,7 +93,7 @@ brain = [
     "polars>=0.20",
     "pandas>=2.2",
     "torch>=2.2",
-    "transformers>=4.38",
+    "transformers>=4.38,<5",
     "scikit-learn>=1.4",
     "gymnasium>=0.29",
     "alpaca-py>=0.20",
@@ -121,6 +125,7 @@ dev = [
     "mypy>=1.9",
     "jupytext>=1.16",
     "ipykernel>=6.29",
+    "jupyterlab>=4.5.7",
     "pre-commit>=3.6",
     # Bring along everything else so `pip install -e .[dev]` produces
     # a one-shot development environment.
@@ -138,7 +143,8 @@ dev = [
     "beautifulsoup4>=4.12",
     "lxml>=5.0",
     "torch>=2.2",
-    "transformers>=4.38",
+    "torch-geometric>=2.7.0",
+    "transformers>=4.38,<5",
     "scikit-learn>=1.4",
     "gymnasium>=0.29",
     "alpaca-py>=0.20",

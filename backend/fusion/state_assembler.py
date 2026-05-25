@@ -322,8 +322,16 @@ class StateAssembler:
             semantic_t = torch.from_numpy(np.stack(semantic_list)).to(self.device)
             graph_t = torch.from_numpy(np.stack(graph_list)).to(self.device)
             with torch.no_grad():
-                out = self.model(price_t, semantic_t, graph_t)
+                # return_attention=True yields (B, Heads, 3, 3) cross-modal attention
+                out = self.model(price_t, semantic_t, graph_t, return_attention=True)
             states = out["market_state"].cpu().numpy().astype(np.float32)
+            
+            # Collapse to (B, 3) modality weights for the dashboard.
+            # out["attention_weights"] is (B, H, 3, 3). 
+            # We take mean over heads (dim 1) and mean over queries (dim 2) to get 
+            # the importance of each modality as a key (dim 3).
+            attn_weights = out["attention_weights"].mean(dim=1).mean(dim=1).cpu().numpy().astype(np.float32)
+
             uncertainties: np.ndarray | None = None
             if compute_unc:
                 _, std = self.model.encode_with_uncertainty(
@@ -337,6 +345,7 @@ class StateAssembler:
         pipe = self.redis.client.pipeline()
         for i, ticker in enumerate(ready_tickers):
             pipe.set(_k_market_state(ticker), states[i].tobytes(), ex=60)
+            pipe.set(_k_state_attention(ticker), attn_weights[i].tobytes(), ex=60)
             if uncertainties is not None:
                 pipe.set(_k_state_uncertainty(ticker), float(uncertainties[i]), ex=300)
             STATES_ASSEMBLED.labels(ticker=ticker).inc()

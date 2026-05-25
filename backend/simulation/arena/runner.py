@@ -24,10 +24,12 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from collections import defaultdict
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import mlflow
 import numpy as np
 import torch
 from loguru import logger
@@ -132,6 +134,8 @@ class ArenaRunner:
         self._returns_history: list[list[float]] = []
         # Trace of decisions, indexed by step then trajectory_id.
         self._records_by_step: dict[int, dict[int, DecisionRecord]] = {}
+        # Trace of decisions, indexed by trajectory_id.
+        self._records_by_trajectory: dict[int, list[DecisionRecord]] = defaultdict(list)
         # Explanation dispatch — bounded queue + dedicated consumer task.
         # The queue is created lazily in ``run()`` so that the bound is
         # taken against the loop that actually owns the arena execution.
@@ -154,25 +158,54 @@ class ArenaRunner:
     # ------------------------------------------------------------------
     async def run(self) -> ArenaRunMetadata:
         """Execute the full arena run, returning the final metadata."""
+        settings = get_settings()
+        mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
+        mlflow.set_experiment(settings.MLFLOW_EXPERIMENT_NAME)
+
         await self._persist_run_metadata(status=ArenaRunStatus.RUNNING)
         self._start_explanation_consumer()
-        try:
-            await self._initialize_envs()
-            await self.logger.start()
-            await self._main_loop()
-            await self._flush_pending_divergences()
-            await self.logger.finalize()
-            return await self._mark_done(ArenaRunStatus.COMPLETED)
-        except asyncio.CancelledError:
-            logger.warning("Arena run {} cancelled", self.metadata.run_id)
-            await self.logger.finalize()
-            return await self._mark_done(ArenaRunStatus.CANCELLED)
-        except Exception as exc:
-            logger.exception("Arena run {} failed", self.metadata.run_id)
-            await self.logger.finalize()
-            return await self._mark_done(ArenaRunStatus.FAILED, failure_reason=str(exc))
-        finally:
-            await self._stop_explanation_consumer()
+
+        with mlflow.start_run(run_name=f"arena_{self.metadata.run_id}"):
+            # Log run parameters
+            mlflow.log_params({
+                "run_id": self.metadata.run_id,
+                "ticker": self.metadata.ticker,
+                "start_date": self.metadata.start_date.isoformat(),
+                "end_date": self.metadata.end_date.isoformat(),
+                "n_trajectories": self.metadata.n_trajectories,
+                "playback_multiplier": self.metadata.playback_multiplier,
+            })
+
+            try:
+                await self._initialize_envs()
+                await self.logger.start()
+                await self._main_loop()
+                await self._flush_pending_divergences()
+                await self.logger.finalize()
+
+                # Calculate and log summary metrics
+                sharpes = _per_trajectory_sharpe(self._records_by_trajectory)
+                if sharpes:
+                    mlflow.log_metrics({
+                        "mean_sharpe": float(np.mean(list(sharpes.values()))),
+                        "max_sharpe": float(np.max(list(sharpes.values()))),
+                        "min_sharpe": float(np.min(list(sharpes.values()))),
+                    })
+
+                return await self._mark_done(ArenaRunStatus.COMPLETED)
+            except asyncio.CancelledError:
+                logger.warning("Arena run {} cancelled", self.metadata.run_id)
+                await self.logger.finalize()
+                mlflow.set_tag("status", "cancelled")
+                return await self._mark_done(ArenaRunStatus.CANCELLED)
+            except Exception as exc:
+                logger.exception("Arena run {} failed", self.metadata.run_id)
+                await self.logger.finalize()
+                mlflow.set_tag("status", "failed")
+                mlflow.log_param("failure_reason", str(exc))
+                return await self._mark_done(ArenaRunStatus.FAILED, failure_reason=str(exc))
+            finally:
+                await self._stop_explanation_consumer()
 
     async def cancel(self) -> None:
         """Cooperative cancellation. Trajectories finish their current step."""
@@ -257,7 +290,21 @@ class ArenaRunner:
             sim_timestamp = sim_start + timedelta(minutes=step_index)
             async with self.time_controller.step(step_index):
                 step_records = await self._run_one_step(step_index, sim_timestamp)
+            
             self._records_by_step[step_index] = step_records
+            for tid, record in step_records.items():
+                self._records_by_trajectory[tid].append(record)
+            
+            # Log step metrics to MLflow
+            if mlflow.active_run():
+                step_metrics = {}
+                for tid, record in step_records.items():
+                    if record.realized_reward is not None:
+                        step_metrics[f"reward_t{tid}"] = float(record.realized_reward)
+                    step_metrics[f"confidence_t{tid}"] = float(record.confidence)
+                if step_metrics:
+                    mlflow.log_metrics(step_metrics, step=step_index)
+
             self.divergence_analyzer.ingest_step(step_index, sim_timestamp, step_records)
 
             # Finalize the divergence window K steps in the past.
@@ -474,6 +521,25 @@ def _per_bar_return(reward: float) -> float:
     fractional return.
     """
     return float(reward) / 100.0
+
+
+def _per_trajectory_sharpe(
+    decisions_by_trajectory: dict[int, list[DecisionRecord]],
+) -> dict[int, float]:
+    """Calculate the realized Sharpe ratio for each trajectory."""
+    result: dict[int, float] = {}
+    for tid, records in decisions_by_trajectory.items():
+        # Using realized_reward as a proxy for per-bar return (scaled)
+        rewards = np.asarray(
+            [r.realized_reward for r in records if r.realized_reward is not None],
+            dtype=np.float64,
+        )
+        if rewards.size < 2:
+            result[tid] = 0.0
+            continue
+        std = float(rewards.std(ddof=0)) or 1e-9
+        result[tid] = float(rewards.mean()) / std
+    return result
 
 
 def _stub_attribution() -> AttributionPayload:

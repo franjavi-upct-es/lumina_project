@@ -77,6 +77,10 @@ class Settings(BaseSettings):
     FEATURE_STORE_BATCH_SIZE: int = 64
     FEATURE_STORE_NUM_WORKERS: int = 4
 
+    # ---------- MLflow ----------
+    MLFLOW_TRACKING_URI: str = "http://mlflow:5000"
+    MLFLOW_EXPERIMENT_NAME: str = "lumina_v3_arena"
+
     # ---------- Safety ----------
     UNCERTAINTY_THRESHOLD: float = 0.85
     MAX_DRAWDOWN_LIMIT: float = 0.20

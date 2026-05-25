@@ -76,7 +76,9 @@ def _git_commit_hash() -> str:
 
 
 def _build_expert_trajectories(
-    n_samples: int = 4096, rng_seed: int = 0
+    market_states: np.ndarray | None = None,
+    n_samples: int = 4096,
+    rng_seed: int = 0
 ) -> tuple[np.ndarray, np.ndarray]:
     """Generate (state, action) pairs from a simple oracle policy.
 
@@ -88,16 +90,25 @@ def _build_expert_trajectories(
         action[2] = 0.0            (default sizing)
         action[3] = 0.0            (default stop)
 
-    The point of the BC stage is to teach the policy the *shape* of the
-    action space (4-D, bounded, smooth), not to teach it a profitable
-    strategy. The oracle being primitive is fine — Phase B will improve
-    on it dramatically.
+    Parameters
+    ----------
+    market_states
+        If provided, uses these real latent states (B, 256). 
+        Otherwise generates synthetic states.
     """
     rng = np.random.default_rng(rng_seed)
-    # Synthetic states: i.i.d. Gaussians plus the 4 bookkeeping channels.
-    states = rng.standard_normal((n_samples, NEXUS_OUTPUT_DIM + 4)).astype(np.float32) * 0.1
-    # The oracle "signal" is encoded in the first state dim, which is a
-    # deliberate teaching signal (the policy learns a tractable mapping).
+    
+    if market_states is not None:
+        n_samples = market_states.shape[0]
+        # Pad with zeros for the 4 portfolio channels to match PolicyNetwork input
+        portfolio_pad = np.zeros((n_samples, 4), dtype=np.float32)
+        states = np.concatenate([market_states, portfolio_pad], axis=1)
+    else:
+        # Synthetic states: i.i.d. Gaussians plus the 4 bookkeeping channels.
+        states = rng.standard_normal((n_samples, NEXUS_OUTPUT_DIM + 4)).astype(np.float32) * 0.1
+    
+    # The oracle "signal" is encoded in the first state dim.
+    # In real states, this corresponds to the price signal slot 0 of the TFT.
     actions = np.zeros((n_samples, ACTION_DIM), dtype=np.float32)
     actions[:, 0] = 0.5 * np.sign(states[:, 0])
     return states, actions
@@ -109,6 +120,9 @@ def train_full_curriculum(
     episodes_sharpe: int = 1000,
     bc_epochs: int = 20,
     device: str | None = None,
+    use_historical_bc: bool = False,
+    timescale_store = None,
+    encoders: dict | None = None,
 ) -> Path:
     """Run the full curriculum and write the final checkpoint.
 
@@ -124,14 +138,32 @@ def train_full_curriculum(
     agent = PPOAgent(policy, gate, PPOConfig(), device=device)
 
     # ----- 2. Episode generators --------------------------------------
-    # We use synthetic episodes for now; once encoders are trained the
-    # caller can swap in HistoricalEpisodeGenerator with the encoder dict.
-    clean_gen = SyntheticEpisodeGenerator(n_steps=390, process="jump_diffusion")
+    if use_historical_bc and timescale_store and encoders:
+        from backend.simulation.generators.scenario_loader import HistoricalEpisodeGenerator
+        clean_gen = HistoricalEpisodeGenerator(
+            timescale_store=timescale_store,
+            encoders=encoders,
+            episode_length_min=390
+        )
+    else:
+        clean_gen = SyntheticEpisodeGenerator(n_steps=390, process="jump_diffusion")
+        
     adv_gen = AdversarialGenerator(clean_gen)
     env = LuminaTradingEnv(clean_gen, EnvConfig())
 
     # ----- 3. Trainers for each phase ---------------------------------
-    expert_states, expert_actions = _build_expert_trajectories()
+    if use_historical_bc and timescale_store and encoders:
+        # Pull a few episodes to get real states for BC
+        logger.info("Collecting historical states for Behavioral Cloning...")
+        all_states = []
+        for _ in range(10):
+            ep = next(iter(clean_gen))
+            all_states.append(ep["market_states"])
+        market_states = np.vstack(all_states)
+        expert_states, expert_actions = _build_expert_trajectories(market_states=market_states)
+    else:
+        expert_states, expert_actions = _build_expert_trajectories()
+
     bc_trainer = BehavioralCloningTrainer(expert_states, expert_actions, device=device)
     dr_runner = DomainRandomizationRunner(env, clean_gen, adv_gen, DRConfig())
     sharpe_opt = SharpeOptimizer(env, clean_gen, SharpeOptimizerConfig())

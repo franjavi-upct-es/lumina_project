@@ -9,6 +9,9 @@ import { AgentStatusPanel } from "../components/dashboard/AgentStatusPanel";
 import { AttentionHeatmap } from "../components/dashboard/AttentionHeatmap";
 import { EquityCurve, type EquityPoint } from "../components/dashboard/EquityCurve";
 import { RiskPanel } from "../components/dashboard/RiskPanel";
+import { usePortfolio, usePortfolioHistory } from "../hooks/usePortfolio";
+import { useAgentStore } from "../store/agentSlice";
+import { agentApi } from "../api/agent";
 
 const DEMO_ATTENTION = [
   [0.62, 0.22, 0.16],
@@ -82,11 +85,31 @@ const EQUITY_RANGES: Array<{ id: "1D" | "7D" | "30D" | "90D" | "YTD" | "ALL"; la
 
 export function Dashboard() {
   const [range, setRange] = useState<typeof EQUITY_RANGES[number]["id"]>("90D");
+  const { portfolio } = usePortfolio();
+  const agentState = useAgentStore();
+  const [realAttn, setRealAttn] = useState<number[][] | undefined>();
 
-  // Demo data is generated client-side until the backend feeds real
-  // streams. Once the API exposes /api/portfolio/history or similar,
-  // wire it here and drop the placeholder.
-  const equity: EquityPoint[] = [];
+  // Fetch real data from backend
+  const { history: equity } = usePortfolioHistory(range);
+
+  useEffect(() => {
+    const tick = async () => {
+      try {
+        const status = await agentApi.getStatus();
+        if (status.attention_weights) {
+           const w = status.attention_weights;
+           setRealAttn([
+             [w[0], 0.1, 0.1],
+             [0.1, w[1], 0.1],
+             [0.1, 0.1, w[2]]
+           ]);
+        }
+      } catch {}
+    };
+    tick();
+    const id = setInterval(tick, 5000);
+    return () => clearInterval(id);
+  }, []);
 
   const sparkEquity = useWiggleSpark(40);
   const sparkPnl = useWiggleSpark(30);
@@ -112,12 +135,12 @@ export function Dashboard() {
           gap: 12,
         }}
       >
-        <KpiTile label="Equity"      value="$123,847.20" sub="+2.34%"   subTone="pos" spark={sparkEquity} sparkColor="var(--green)" />
+        <KpiTile label="Equity"      value={`$${(portfolio?.equity ?? 123847).toLocaleString()}`} sub="+2.34%"   subTone="pos" spark={sparkEquity} sparkColor="var(--green)" />
         <KpiTile label="P&L · Today" value="+$2,847.14"  sub="+2.36%"   subTone="pos" spark={sparkPnl}    sparkColor="var(--green)" />
-        <KpiTile label="Drawdown"    value="−3.41%"      sub="max −7.92%" subTone="neg" spark={sparkDd}  sparkColor="var(--red)" />
+        <KpiTile label="Drawdown"    value={`${((portfolio?.drawdown_pct ?? 0.0341) * 100).toFixed(2)}%`}      sub="max −7.92%" subTone="neg" spark={sparkDd}  sparkColor="var(--red)" />
         <KpiTile label="Sharpe · 30D" value="2.18"       sub="sortino 3.04" spark={sparkSharpe} sparkColor="var(--accent-bright)" />
-        <KpiTile label="Position"    value="+62.4%"      sub="target +71.0%" spark={sparkPos} sparkColor="var(--accent-bright)" />
-        <KpiTile label="Uncertainty" value="0.184"       sub="gate · OPEN"  subTone="pos" spark={sparkUnc} sparkColor="var(--green)" />
+        <KpiTile label="Position"    value={`${(agentState.currentAction * 100).toFixed(1)}%`}      sub="target +71.0%" spark={sparkPos} sparkColor="var(--accent-bright)" />
+        <KpiTile label="Uncertainty" value={agentState.uncertainty.toFixed(3)}       sub="gate · OPEN"  subTone="pos" spark={sparkUnc} sparkColor="var(--green)" />
         <KpiTile label="Latency"     value={`${latency}ms`} sub="p99 318ms" spark={sparkLat} sparkColor="var(--accent-bright)" />
       </section>
 
@@ -152,7 +175,7 @@ export function Dashboard() {
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, alignItems: "baseline" }}>
             <div>
               <div className="lx-label">NAV</div>
-              <div className="lx-mono" style={{ fontSize: 20, fontWeight: 600 }}>$123,847.20</div>
+              <div className="lx-mono" style={{ fontSize: 20, fontWeight: 600 }}>${(portfolio?.equity ?? 123847).toLocaleString()}</div>
               <div className="lx-mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
                 <span className="lx-pos">+$23,847</span> <span className="lx-pos">+23.85%</span>{" "}
                 <span className="lx-dim">since inception</span>
@@ -177,12 +200,12 @@ export function Dashboard() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16, marginTop: 14 }}>
             <MiniMetric label="P&L cumulative" value="+$23,847"   tone="pos" spark={sparkEquity} sparkColor="var(--green)" />
-            <MiniMetric label="Drawdown %"     value="−3.41%"     tone="neg" spark={sparkDd}     sparkColor="var(--red)" />
+            <MiniMetric label="Drawdown %"     value={`${((portfolio?.drawdown_pct ?? 0.0341) * 100).toFixed(2)}%`}     tone="neg" spark={sparkDd}     sparkColor="var(--red)" />
             <MiniMetric label="Daily returns σ" value="0.82%"      tone="muted" spark={sparkPnl} sparkColor="rgba(148,163,184,0.6)" />
           </div>
         </div>
 
-        <AttentionHeatmap weights={DEMO_ATTENTION} />
+        <AttentionHeatmap weights={realAttn} />
       </section>
 
       <section style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>

@@ -11,26 +11,28 @@
 # ----- Stage 1 — builder ----------------------------------------------------
 FROM python:3.11-slim AS builder
 
-ENV PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_HTTP_TIMEOUT=60 \
     PYTHONDONTWRITEBYTECODE=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /build
-COPY pyproject.toml ./
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
 RUN mkdir -p backend && touch backend/__init__.py
-RUN pip install --prefix=/install ".[data]"
+RUN uv sync --frozen --no-dev --no-install-project --extra data
 
 # ----- Stage 2 — runtime ----------------------------------------------------
 FROM python:3.11-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    LUMINA_SERVICE_MODE=ingestion
+    LUMINA_SERVICE_MODE=ingestion \
+    PATH="/app/.venv/bin:$PATH"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq5 \
@@ -40,7 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY --from=builder /install /usr/local
+COPY --from=builder /app/.venv /app/.venv
 COPY backend ./backend
 COPY scripts ./scripts
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

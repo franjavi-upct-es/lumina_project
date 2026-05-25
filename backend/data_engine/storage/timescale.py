@@ -7,14 +7,17 @@ import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
+from uuid import UUID
 
 import asyncpg
-import polars as pl
 from loguru import logger
 from pydantic import BaseModel, Field
 
 from backend.config.settings import get_settings
+
+if TYPE_CHECKING:
+    import polars as pl
 
 Frequency = Literal["1m", "5m", "1h", "1d"]
 _BUCKET_MAP: dict[Frequency, timedelta] = {
@@ -23,6 +26,22 @@ _BUCKET_MAP: dict[Frequency, timedelta] = {
     "1h": timedelta(hours=1),
     "1d": timedelta(days=1),
 }
+
+_OHLCV_WINDOW_QUERY = """
+    SELECT
+        time_bucket($1::interval, time) AS time,
+        first(open, time) AS open,
+        max(high) AS high,
+        min(low) AS low,
+        last(close, time) AS close,
+        sum(volume) AS volume,
+        avg(vwap) AS vwap,
+        sum(trade_count) AS trade_count
+    FROM ohlcv_1m
+    WHERE ticker = $2 AND time >= $3 AND time < $4
+    GROUP BY 1
+    ORDER BY 1
+"""
 
 
 class OHLCVRow(BaseModel):
@@ -115,24 +134,9 @@ class TimescaleStore:
         end: datetime,
         freq: Frequency = "1m",
     ) -> pl.DataFrame:
-        bucket = _BUCKET_MAP[freq]
-        query = """
-            SELECT
-                time_bucket($1::interval, time) AS time,
-                first(open, time) AS open,
-                max(high) AS high,
-                min(low) AS low,
-                last(close, time) AS close,
-                sum(volume) AS volume,
-                avg(vwap) AS vwap,
-                sum(trade_count) AS trade_count
-            FROM ohlcv_1m
-            WHERE ticker = $2 AND time >= $3 AND time < $4
-            GROUP BY 1
-            ORDER BY 1
-        """
-        async with self._conn() as conn:
-            rows = await conn.fetch(query, bucket, ticker, start, end)
+        import polars as pl
+
+        rows = await self.get_historical_window_rows(ticker, start, end, freq)
         if not rows:
             return pl.DataFrame(
                 schema={
@@ -146,7 +150,20 @@ class TimescaleStore:
                     "trade_count": pl.Int64,
                 }
             )
-        return pl.DataFrame([dict(r) for r in rows])
+        return pl.DataFrame(rows)
+
+    async def get_historical_window_rows(
+        self,
+        ticker: str,
+        start: datetime,
+        end: datetime,
+        freq: Frequency = "1m",
+    ) -> list[dict[str, Any]]:
+        """Return aggregated OHLCV rows without importing Polars."""
+        bucket = _BUCKET_MAP[freq]
+        async with self._conn() as conn:
+            rows = await conn.fetch(_OHLCV_WINDOW_QUERY, bucket, ticker, start, end)
+        return [dict(r) for r in rows]
 
     async def insert_news_event(self, event: NewsEvent) -> UUID | None:
         query = """
@@ -220,6 +237,43 @@ class TimescaleStore:
         edges = [(r["source_ticker"], r["target_ticker"], float(r["weight"])) for r in rows]
         nodes = sorted({n for e in edges for n in (e[0], e[1])})
         return nodes, edges
+
+    async def insert_portfolio_record(self, time: datetime, equity: float, cash: float) -> None:
+        async with self._conn() as conn:
+            await conn.execute(
+                "INSERT INTO portfolio_history (time, equity, cash) VALUES ($1, $2, $3)",
+                time, float(equity), float(cash)
+            )
+
+    async def get_portfolio_history(self, start: datetime, end: datetime, interval: timedelta) -> list[dict[str, Any]]:
+        query = """
+            SELECT time_bucket($1, time) as time_bucket, last(equity, time) as equity, last(cash, time) as cash
+            FROM portfolio_history
+            WHERE time >= $2 AND time <= $3
+            GROUP BY 1 ORDER BY 1 ASC
+        """
+        async with self._conn() as conn:
+            rows = await conn.fetch(query, interval, start, end)
+        return [dict(r) for r in rows]
+
+    async def upsert_backtest_run(self, run_id: str, status: str, sharpe: float=None, max_drawdown: float=None, total_return: float=None) -> None:
+        query = """
+            INSERT INTO backtest_runs (run_id, status, sharpe, max_drawdown, total_return)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (run_id) DO UPDATE SET 
+                status = EXCLUDED.status, 
+                sharpe = COALESCE(EXCLUDED.sharpe, backtest_runs.sharpe),
+                max_drawdown = COALESCE(EXCLUDED.max_drawdown, backtest_runs.max_drawdown),
+                total_return = COALESCE(EXCLUDED.total_return, backtest_runs.total_return)
+        """
+        async with self._conn() as conn:
+            await conn.execute(query, run_id, status, sharpe, max_drawdown, total_return)
+
+    async def get_backtest_runs(self, limit: int = 50) -> list[dict[str, Any]]:
+        query = "SELECT * FROM backtest_runs ORDER BY created_at DESC LIMIT $1"
+        async with self._conn() as conn:
+            rows = await conn.fetch(query, limit)
+        return [dict(r) for r in rows]
 
     async def health_check(self) -> dict:
         t0 = time.perf_counter()

@@ -51,9 +51,6 @@ docs/
 tests/
 notebooks/
 
-# --- Frontend (built separately)
-frontend/
-
 # --- Local env files
 .env
 .env.local

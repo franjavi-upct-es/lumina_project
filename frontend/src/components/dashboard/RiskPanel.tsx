@@ -48,10 +48,10 @@ interface SyntheticRow {
   var95: number;
 }
 
-function syntheticRow(p: Position, equity: number, idx: number): SyntheticRow {
+function syntheticRow(p: Position, equity: number): SyntheticRow {
   return {
     weight: equity > 0 ? p.market_value / equity : 0,
-    beta: [1.18, 0.94, 1.62][idx] ?? 1.0,
+    beta: 1.0, // Default to 1.0 for paper trading until live beta is streaming
     var95: Math.round(Math.abs(p.market_value) * 0.012),
   };
 }
@@ -69,11 +69,11 @@ function RiskPanelBody({ portfolio }: { portfolio: Portfolio }) {
           fontSize: 12,
         }}
       >
-        <Stat label="Gross"      value={`$${(portfolio.equity * 1.07 / 1000).toFixed(1)}k`} />
+        <Stat label="Gross"      value={`$${(portfolio.equity / 1000).toFixed(1)}k`} />
         <Stat label="Net"        value={`$${((portfolio.equity - portfolio.cash) / 1000).toFixed(1)}k`} />
-        <Stat label="Leverage"   value="1.06×" />
-        <Stat label="β-portfolio" value="0.88" />
-        <Stat label="VaR₉₅ 1d"   value="$1,404" />
+        <Stat label="Leverage"   value="1.00×" />
+        <Stat label="β-portfolio" value="1.00" />
+        <Stat label="VaR₉₅ 1d"   value="--" />
       </div>
 
       <table className="lx-table">
@@ -99,8 +99,8 @@ function RiskPanelBody({ portfolio }: { portfolio: Portfolio }) {
               </td>
             </tr>
           ) : (
-            portfolio.positions.map((p, idx) => {
-              const meta = syntheticRow(p, portfolio.equity, idx);
+            portfolio.positions.map((p) => {
+              const meta = syntheticRow(p, portfolio.equity);
               const side: "long" | "short" = p.qty >= 0 ? "long" : "short";
               const pnlColor = p.unrealized_pnl >= 0 ? "var(--green)" : "var(--red)";
               return (

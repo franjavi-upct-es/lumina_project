@@ -48,19 +48,14 @@ class HealthResponse(BaseModel):
 
 # ----- Agent ----------------------------------------------------------------
 class AgentStatusResponse(BaseModel):
-    """Snapshot of the live agent surfaced to the dashboard.
-
-    The ``current_action`` field is the *direction* component of the
-    4-D action vector (``action[0]``); the dashboard mainly cares about
-    the resulting portfolio fraction. The full vector is available via
-    the WebSocket stream on ``/api/agent/stream``.
-    """
+    """Snapshot of the live agent surfaced to the dashboard."""
 
     current_action: float = Field(ge=-1, le=1)
     uncertainty: float = Field(ge=0, le=1)
     gate_active: bool
     last_update: datetime
     consecutive_vetoes: int = 0
+    attention_weights: list[float] | None = None # [Price, News, Graph]
 
 
 class AgentStreamMessage(BaseModel):
@@ -107,6 +102,13 @@ class PortfolioResponse(BaseModel):
     peak_equity: float
     drawdown_pct: float = Field(ge=0, le=1)
 
+class EquityPoint(BaseModel):
+    time: datetime
+    equity: float
+    benchmark: float | None = None
+
+class PortfolioHistoryResponse(BaseModel):
+    history: list[EquityPoint]
 
 # ----- Risk -----------------------------------------------------------------
 class KillSwitchRequest(BaseModel):

@@ -377,13 +377,15 @@ async def live_stream(websocket: WebSocket, run_id: UUID) -> None:
             if isinstance(data, bytes):
                 data = data.decode("utf-8", errors="replace")
             await websocket.send_text(data)
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, RuntimeError):
         pass
     except Exception:
         logger.exception("Arena WS for run {} crashed", run_id)
     finally:
         with contextlib.suppress(Exception):
             await pubsub.unsubscribe(channel_name)
+        with contextlib.suppress(Exception):
+            await pubsub.aclose()
 
 
 # ----------------------------------------------------------------------

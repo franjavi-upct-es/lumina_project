@@ -9,6 +9,8 @@ services.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -42,6 +44,20 @@ def fake_redis() -> AsyncMock:
 def fake_timescale() -> AsyncMock:
     t = AsyncMock()
     t.health_check = AsyncMock(return_value={"connected": True, "latency_ms": 1.2})
+    t.get_historical_window_rows = AsyncMock(
+        return_value=[
+            {
+                "time": datetime(2024, 1, 2, 14, 30, tzinfo=UTC),
+                "open": Decimal("100.10"),
+                "high": Decimal("101.20"),
+                "low": Decimal("99.90"),
+                "close": Decimal("100.80"),
+                "volume": Decimal("1234"),
+                "vwap": Decimal("100.70"),
+                "trade_count": Decimal("42"),
+            }
+        ]
+    )
     return t
 
 
@@ -127,6 +143,31 @@ def test_portfolio_endpoint_returns_account_snapshot(client: TestClient) -> None
     assert 0.0 <= body["drawdown_pct"] <= 1.0
     assert len(body["positions"]) == 1
     assert body["positions"][0]["ticker"] == "AAPL"
+
+
+def test_ohlcv_endpoint_returns_lightweight_rows(
+    client: TestClient,
+    fake_timescale: AsyncMock,
+) -> None:
+    response = client.get(
+        "/api/data/ohlcv/AAPL",
+        params={
+            "start": "2024-01-02T14:00:00Z",
+            "end": "2024-01-02T15:00:00Z",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "time": "2024-01-02T14:30:00Z",
+            "open": 100.1,
+            "high": 101.2,
+            "low": 99.9,
+            "close": 100.8,
+            "volume": 1234,
+        }
+    ]
+    fake_timescale.get_historical_window_rows.assert_awaited_once()
 
 
 def test_metrics_endpoint_returns_prometheus_text(client: TestClient) -> None:

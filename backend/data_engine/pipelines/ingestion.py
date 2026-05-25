@@ -298,3 +298,34 @@ class IngestionPipeline:
             "news_paused": self._news_paused,
             "tickers_subscribed": len(self._tickers),
         }
+
+
+async def _amain() -> None:
+    redis = RedisCache()
+    timescale = TimescaleStore()
+    pipeline = IngestionPipeline(timescale, redis)
+    await pipeline.start()
+    try:
+        await pipeline._shutdown_event.wait()
+    finally:
+        await pipeline.stop()
+        await redis.disconnect()
+        await timescale.disconnect()
+
+
+def main() -> int:
+    from backend.config.logging import configure_logging
+
+    configure_logging()
+    try:
+        asyncio.run(_amain())
+    except Exception:
+        logger.exception("Ingestion pipeline crashed")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(main())

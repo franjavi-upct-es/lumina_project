@@ -64,3 +64,78 @@ class TFTInferenceService:
         with torch.no_grad():
             emb, _ = self.model(x)
         await self.writer.write("price", ticker, emb.cpu().numpy().squeeze(0))
+
+
+_TFT_CHECKPOINT = "models/temporal/best.pt"
+
+
+def _pick_device() -> str:
+    if not torch.cuda.is_available():
+        return "cpu"
+    try:
+        torch.zeros(1, device="cuda") + 1
+        return "cuda"
+    except RuntimeError as exc:
+        logger.warning(f"CUDA reports available but probe failed ({exc}); falling back to CPU.")
+        return "cpu"
+
+
+async def _amain() -> None:
+    import asyncio
+    from pathlib import Path
+
+    device = _pick_device()
+    model = TemporalFusionTransformer()
+    ckpt_path = Path(_TFT_CHECKPOINT)
+    if ckpt_path.is_file():
+        ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
+        model.load_state_dict(ckpt["model"])
+        logger.info(f"Loaded TFT weights from {ckpt_path} (device={device})")
+    else:
+        logger.warning(
+            f"TFT checkpoint {ckpt_path} not found — running with random weights. "
+            "Train via backend.perception.temporal.trainer first."
+        )
+
+    redis = RedisCache()
+    await redis.connect()
+    service = TFTInferenceService(model, redis, device=device)
+    logger.info("TFTInferenceService starting (window={}).", service.window)
+    stop_event = asyncio.Event()
+
+    import signal
+
+    loop = asyncio.get_running_loop()
+
+    def _request_stop() -> None:
+        stop_event.set()
+        asyncio.create_task(service.stop())
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, _request_stop)
+
+    try:
+        await service.run(list(TARGET_TICKERS))
+    finally:
+        await redis.disconnect()
+
+
+def main() -> int:
+    import asyncio
+    import sys
+
+    from backend.config.logging import configure_logging
+
+    configure_logging()
+    try:
+        asyncio.run(_amain())
+    except Exception:
+        logger.exception("TFTInferenceService crashed")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(main())

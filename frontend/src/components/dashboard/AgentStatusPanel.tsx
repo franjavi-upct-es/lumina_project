@@ -117,7 +117,7 @@ export function AgentStatusPanel() {
         vetoed: polled.gate_active,
       };
     }
-    return { currentAction: 0.624, uncertainty: 0.184, vetoed: false };
+    return { currentAction: 0, uncertainty: 0, vetoed: false };
   }, [wsState, polled, lastWsUpdateMs]);
 
   const directionColor = effective.currentAction >= 0 ? "var(--accent-bright)" : "var(--red)";

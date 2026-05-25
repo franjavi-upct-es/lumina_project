@@ -19,33 +19,30 @@
 # ----- Stage 1 — builder ----------------------------------------------------
 FROM python:3.11-slim AS builder
 
-ENV PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_HTTP_TIMEOUT=60 \
     PYTHONDONTWRITEBYTECODE=1
 
-# Build-time deps. gcc + libpq-dev are needed for asyncpg's C extensions;
-# curl stays in the *runtime* stage (it's used by HEALTHCHECK).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /build
+WORKDIR /app
 
-# Install dependencies from the project metadata. We copy pyproject.toml
-# AND a minimal `backend/__init__.py` so setuptools' package-discovery
-# finds an installable "backend" package and `pip install ".[api]"`
-# resolves the extra. Source code is then mounted in the runtime stage.
-COPY pyproject.toml ./
+# Install dependencies from the project metadata.
+COPY pyproject.toml uv.lock ./
 RUN mkdir -p backend && touch backend/__init__.py
-RUN pip install --prefix=/install ".[api]"
+RUN uv sync --frozen --no-dev --no-install-project --extra api
 
 # ----- Stage 2 — runtime ----------------------------------------------------
 FROM python:3.11-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    LUMINA_SERVICE_MODE=api
+    LUMINA_SERVICE_MODE=api \
+    PATH="/app/.venv/bin:$PATH"
 
 # libpq5 is the runtime shared object for asyncpg; curl powers HEALTHCHECK.
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -57,7 +54,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Copy the resolved environment from the builder stage.
-COPY --from=builder /install /usr/local
+COPY --from=builder /app/.venv /app/.venv
 
 # Copy application code last so source edits don't bust the deps layer.
 COPY backend ./backend

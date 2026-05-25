@@ -65,7 +65,7 @@ def get_kill_switch(redis: RedisCache = Depends(get_redis)) -> KillSwitch:
     return KillSwitch(redis)
 
 
-def get_broker(settings: Settings = Depends(get_settings)) -> BaseBroker:
+def get_broker(settings: Settings | None = None) -> BaseBroker:
     """Return the configured broker.
 
     Selection logic
@@ -81,7 +81,12 @@ def get_broker(settings: Settings = Depends(get_settings)) -> BaseBroker:
     global _BROKER_SINGLETON
     if _BROKER_SINGLETON is not None:
         return _BROKER_SINGLETON
-    if settings.BROKER_MODE == "alpaca":
+
+    # If called manually (e.g. from background tasks), use the singleton settings.
+    # If called by FastAPI, the settings should be passed in.
+    effective_settings = settings or get_settings()
+
+    if effective_settings.BROKER_MODE == "alpaca":
         # Lazy import: keeps the alpaca-py dependency optional in
         # environments that only exercise the paper broker.
         from backend.execution.broker.alpaca_adapter import AlpacaBroker
@@ -104,22 +109,28 @@ def reset_broker_singleton() -> None:
     _BROKER_SINGLETON = None
 
 
+from typing import Literal
+from pydantic import BaseModel
+
+class UserContext(BaseModel):
+    """Context object carrying multi-tenant identity and subscription tier."""
+    user_id: str
+    tier: Literal["free", "pro", "enterprise"]
+
 def require_api_key(
     x_api_key: str | None = Header(default=None),
     settings: Settings = Depends(get_settings),
-) -> None:
+) -> UserContext:
     """Reject the request unless the ``x-api-key`` header matches settings.
 
-    When ``settings.API_KEY`` is empty (development default) the check is
-    skipped entirely. This keeps the local developer experience friction-
-    free while making it impossible to deploy without authentication —
-    the production deployment is expected to set ``API_KEY`` via the
-    environment.
+    Returns a UserContext object to lay the foundation for multi-tenant SaaS
+    routing and subscription-tier quotas.
     """
     if not settings.API_KEY:
-        return
+        return UserContext(user_id="dev_user", tier="enterprise")
     if x_api_key != settings.API_KEY:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",
         )
+    return UserContext(user_id="admin_user", tier="enterprise")

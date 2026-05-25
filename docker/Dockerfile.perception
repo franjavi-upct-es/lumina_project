@@ -24,15 +24,17 @@
 #     semantic_inference
 #     graph_inference
 
-ARG CUDA_PYTORCH_TAG=2.4.0-cuda12.4-cudnn9-runtime
-ARG TORCH_VERSION=2.4.0
-ARG PYG_INDEX_URL=https://data.pyg.org/whl/torch-2.4.0+cu124.html
+ARG CUDA_PYTORCH_TAG=2.7.1-cuda12.8-cudnn9-runtime
+ARG TORCH_VERSION=2.7.1
+ARG PYG_INDEX_URL=https://data.pyg.org/whl/torch-2.7.0+cu128.html
 
 # ----- Stage 1 — builder ----------------------------------------------------
 FROM pytorch/pytorch:${CUDA_PYTORCH_TAG} AS builder
 
-ENV PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_HTTP_TIMEOUT=60 \
     PYTHONDONTWRITEBYTECODE=1
 
 ARG PYG_INDEX_URL
@@ -41,29 +43,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /build
-COPY pyproject.toml ./
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
 RUN mkdir -p backend && touch backend/__init__.py
 
-# 1. Install the perception extras + the GPU quantisation helpers.
-# 2. Install torch-geometric and its companion C-ext wheels from the
-#    official PyG index built specifically for this torch+CUDA combo.
-#    These wheels MUST match the base image's torch version exactly;
-#    otherwise the package imports but its CUDA kernels are absent and
-#    every gather/scatter silently runs on a slow Python fallback.
-RUN pip install --prefix=/install ".[perception,gpu]" \
-    && pip install --prefix=/install \
+# We use uv pip install because we need the --find-links flag for PyG wheels
+# and we want to install into a specific path for the multi-stage copy.
+RUN uv venv /install
+RUN VIRTUAL_ENV=/install uv pip install --no-cache ".[perception,gpu]" \
+    && VIRTUAL_ENV=/install uv pip install --no-cache \
         torch-scatter torch-sparse torch-cluster \
         -f "${PYG_INDEX_URL}" \
-    && pip install --prefix=/install "torch-geometric>=2.5"
+    && VIRTUAL_ENV=/install uv pip install --no-cache "torch-geometric>=2.5"
 
 # ----- Stage 2 — runtime ----------------------------------------------------
 FROM pytorch/pytorch:${CUDA_PYTORCH_TAG} AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    LUMINA_SERVICE_MODE=tft_inference
+    LUMINA_SERVICE_MODE=tft_inference \
+    PATH="/app/.venv/bin:$PATH"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq5 \
@@ -73,7 +72,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY --from=builder /install /opt/conda
+# Copy the virtualenv from builder to .venv in runtime
+COPY --from=builder /install /app/.venv
 COPY backend ./backend
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh \

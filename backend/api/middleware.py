@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 
 from fastapi import Request
+from fastapi.responses import JSONResponse
 from loguru import logger
 from prometheus_client import Counter, Histogram
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -42,3 +44,24 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
         response.headers["x-request-id"] = request_id
         response.headers["x-response-time-ms"] = f"{duration * 1000:.2f}"
         return response
+
+
+class CongestionControlMiddleware(BaseHTTPMiddleware):
+    """Simple concurrency limiter for multi-tenant safety.
+    
+    Prevents the backend from being overwhelmed by too many simultaneous
+    requests, returning 429 Too Many Requests when saturated.
+    """
+    def __init__(self, app, max_concurrent_requests: int = 100):
+        super().__init__(app)
+        self.semaphore = asyncio.Semaphore(max_concurrent_requests)
+
+    async def dispatch(self, request: Request, call_next):
+        if self.semaphore.locked():
+            logger.warning("Congestion control engaged: rejecting request")
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many concurrent requests. Please try again later."},
+            )
+        async with self.semaphore:
+            return await call_next(request)

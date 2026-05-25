@@ -139,23 +139,27 @@ export function Backtest() {
     return () => clearInterval(id);
   }, [result?.run_id, result?.status]);
 
-  const liveHistory = useMemo<HistoryRow[]>(() => {
-    if (!result) return DEMO_HISTORY;
-    const row: HistoryRow = {
-      id: result.run_id,
-      days: Math.max(
-        1,
-        Math.round((new Date(form.end).getTime() - new Date(form.start).getTime()) / 86_400_000),
-      ),
-      ret: result.total_return ?? 0,
-      sharpe: result.sharpe ?? 0,
-      drawdown: result.max_drawdown ?? 0,
-      status:
-        result.status === "completed" ? "complete" :
-        result.status === "failed"    ? "failed"   : "running",
-    };
-    return [row, ...DEMO_HISTORY];
-  }, [result, form.end, form.start]);
+  const [liveHistory, setLiveHistory] = useState<HistoryRow[]>(DEMO_HISTORY);
+
+  useEffect(() => {
+    let cancelled = false;
+    backtestApi.getRuns().then((runs) => {
+      if (cancelled) return;
+      if (runs && runs.length > 0) {
+        setLiveHistory(
+          runs.map(r => ({
+            id: r.run_id,
+            days: 30, // Mock days since we don't have start/end in the result yet
+            ret: r.total_return ?? 0,
+            sharpe: r.sharpe ?? 0,
+            drawdown: r.max_drawdown ?? 0,
+            status: r.status as any,
+          }))
+        );
+      }
+    }).catch(err => console.warn("Failed to load backtests", err));
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

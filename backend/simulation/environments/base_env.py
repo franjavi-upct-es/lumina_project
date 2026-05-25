@@ -51,6 +51,8 @@ import numpy as np
 from gymnasium import spaces
 
 from backend.config.constants import ACTION_DIM, NEXUS_OUTPUT_DIM
+from backend.execution.safety.arbitrator import SafetyArbitrator, SafetyConfig
+from backend.execution.safety.rules import SafetyContext
 
 
 @dataclass
@@ -71,6 +73,8 @@ class EnvConfig:
     from triggering during the 2020-crisis drill."""
     reward_scaling: float = 100.0
     risk_penalty_coef: float = 0.1
+    veto_penalty: float = 5.0
+    """Penalty subtracted from reward whenever the Safety Arbitrator vetoes."""
     portfolio_state_dim: int = 4
     """Number of bookkeeping features appended to the market_state."""
 
@@ -92,10 +96,17 @@ class LuminaTradingEnv(gym.Env):
 
     metadata: dict[str, list[str]] = {"render_modes": []}
 
-    def __init__(self, episode_generator, config: EnvConfig | None = None):
+    def __init__(
+        self,
+        episode_generator,
+        config: EnvConfig | None = None,
+        arbitrator: SafetyArbitrator | None = None,
+    ):
         super().__init__()
         self.gen = episode_generator
         self.config = config or EnvConfig()
+        # Injected arbitrator (e.g. for Spartan curriculum Phase B)
+        self.arbitrator = arbitrator or SafetyArbitrator()
         self.obs_dim = NEXUS_OUTPUT_DIM + self.config.portfolio_state_dim
         self.observation_space = spaces.Box(
             low=-np.inf,
@@ -161,6 +172,29 @@ class LuminaTradingEnv(gym.Env):
     def step(self, action: np.ndarray):
         ep = self._episode
         assert ep is not None
+
+        # --- Safety Arbitration (Live-alignment) -----------------------
+        uncertainty = float(ep["uncertainties"][min(self._t, len(ep["uncertainties"]) - 1)])
+        # Current position is needed by rules; build a minimal context.
+        ctx = SafetyContext(
+            proposed_action=action,
+            current_position=self._position,
+            equity=self._equity,
+            peak_equity=self._peak_equity,
+            uncertainty=uncertainty,
+            kill_switch_state="NORMAL", # Always normal in training unless forced
+        )
+        decision = self.arbitrator.evaluate(ctx)
+        
+        # If vetoed, we replace the action with the arbitrator's safe target.
+        # Note: the decoder is still called so we can simulate the trade.
+        if not decision.approved:
+            # Override target direction in the raw action for trade simulation.
+            # We assume direction=0 sizing=0 (flat) from the arbitrator.
+            action = action.copy()
+            action[0] = 0.0 
+            action[2] = -1.0 # factor -> 0
+
         direction, urgency, size_factor, stop_atr = self._decode_action(action)
         target_position = direction * size_factor
 
@@ -182,7 +216,7 @@ class LuminaTradingEnv(gym.Env):
 
         # Apply trade
         self._position = target_position
-        # Update stop price (long only — extend logic for shorts as needed)
+        # Update stop price
         if self._position > 0:
             self._stop_price = price_now * (1.0 - stop_atr * recent_vol)
         elif self._position < 0:
@@ -209,6 +243,10 @@ class LuminaTradingEnv(gym.Env):
         # --- Reward -----------------------------------------------------
         risk_pen = self.config.risk_penalty_coef * abs(self._position) * recent_vol
         reward = self.config.reward_scaling * (pnl / self.config.initial_capital) - risk_pen
+        
+        # Apply Arbitrator penalty if vetoed
+        if not decision.approved:
+            reward -= self.config.veto_penalty
 
         # --- Termination conditions ------------------------------------
         drawdown = 1.0 - self._equity / self._peak_equity
@@ -224,6 +262,7 @@ class LuminaTradingEnv(gym.Env):
             "drawdown": drawdown,
             "n_trades": self._n_trades,
             "stop_price": self._stop_price,
-            "uncertainty": float(ep["uncertainties"][min(self._t, len(ep["uncertainties"]) - 1)]),
+            "uncertainty": uncertainty,
+            "vetoed": not decision.approved
         }
         return self._build_obs(), reward, terminated, truncated, info

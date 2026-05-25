@@ -69,3 +69,71 @@ class SemanticInferenceService:
         vec = emb.cpu().numpy().squeeze(0).astype(np.float32)
         for t in tickers:
             await self.writer.write("semantic", t, vec)
+
+
+_SEMANTIC_CHECKPOINT = "models/semantic/best.pt"
+
+
+def _pick_device() -> str:
+    if not torch.cuda.is_available():
+        return "cpu"
+    try:
+        torch.zeros(1, device="cuda") + 1
+        return "cuda"
+    except RuntimeError as exc:
+        logger.warning(f"CUDA reports available but probe failed ({exc}); falling back to CPU.")
+        return "cpu"
+
+
+async def _amain() -> None:
+    import asyncio
+    import signal
+    from pathlib import Path
+
+    device = _pick_device()
+    model = DistilledFinancialEncoder()
+    ckpt_path = Path(_SEMANTIC_CHECKPOINT)
+    if ckpt_path.is_file():
+        ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
+        model.load_state_dict(ckpt["model"])
+        logger.info(f"Loaded semantic encoder weights from {ckpt_path} (device={device})")
+    else:
+        logger.warning(
+            f"Semantic checkpoint {ckpt_path} not found — running with random weights. "
+            "Train via backend.perception.semantic.trainer first."
+        )
+
+    redis = RedisCache()
+    await redis.connect()
+    service = SemanticInferenceService(model, redis, device=device)
+    logger.info("SemanticInferenceService starting (subscribed to channel:news.global)")
+
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, lambda: asyncio.create_task(service.stop()))
+
+    try:
+        await service.run()
+    finally:
+        await redis.disconnect()
+
+
+def main() -> int:
+    import asyncio
+    import sys
+
+    from backend.config.logging import configure_logging
+
+    configure_logging()
+    try:
+        asyncio.run(_amain())
+    except Exception:
+        logger.exception("SemanticInferenceService crashed")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(main())

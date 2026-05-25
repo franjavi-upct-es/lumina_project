@@ -24,7 +24,7 @@ async def get_ohlcv(
     end: datetime,
     ts: TimescaleStore = Depends(get_timescale),
 ) -> list[OHLCVResponse]:
-    df = await ts.get_historical_window(ticker, start, end)
+    rows = await ts.get_historical_window_rows(ticker, start, end)
     return [
         OHLCVResponse(
             time=row["time"],
@@ -34,7 +34,7 @@ async def get_ohlcv(
             close=row["close"],
             volume=int(row["volume"]),
         )
-        for row in df.iter_rows(named=True)
+        for row in rows
     ]
 
 

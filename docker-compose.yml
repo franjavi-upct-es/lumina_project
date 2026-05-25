@@ -55,6 +55,22 @@ services:
       timeout: 3s
       retries: 10
 
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: lumina_mlflow
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:///mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+      --host 0.0.0.0
+      --port 5000
+    networks: [lumina_net]
+
   # ----- One-shot migration ------------------------------------------------
   migrate:
     build:
@@ -184,9 +200,23 @@ services:
       perception_graph:    { condition: service_started }
     networks: [lumina_net]
 
+  # ----- Dashboard (Frontend) ---------------------------------------------
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: lumina_dashboard
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      api: { condition: service_started }
+    networks: [lumina_net]
+
 volumes:
   redis_data:
   timescale_data:
+  mlflow_data:
 
 networks:
   lumina_net:

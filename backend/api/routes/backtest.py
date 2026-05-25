@@ -31,9 +31,10 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.api.deps import get_redis, require_api_key
+from backend.api.deps import get_redis, get_timescale, require_api_key
 from backend.api.schemas import BacktestRequest, BacktestResultResponse
 from backend.data_engine.storage.redis_cache import RedisCache
+from backend.data_engine.storage.timescale import TimescaleStore
 
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 
@@ -54,6 +55,7 @@ def _result_key(run_id: str) -> str:
 async def run_backtest(
     req: BacktestRequest,
     redis: RedisCache = Depends(get_redis),
+    ts: TimescaleStore = Depends(get_timescale),
 ) -> BacktestResultResponse:
     """Enqueue a backtest job.
 
@@ -68,7 +70,30 @@ async def run_backtest(
         json.dumps({"status": "pending"}),
         ex=24 * 3600,
     )
+    # Save to TimescaleDB for history
+    await ts.upsert_backtest_run(run_id, "pending")
     return BacktestResultResponse(run_id=run_id, status="pending")
+
+
+@router.get(
+    "/runs",
+    response_model=list[BacktestResultResponse],
+    dependencies=[Depends(require_api_key)],
+)
+async def list_backtest_runs(
+    ts: TimescaleStore = Depends(get_timescale),
+) -> list[BacktestResultResponse]:
+    """List historical backtest runs."""
+    rows = await ts.get_backtest_runs()
+    return [
+        BacktestResultResponse(
+            run_id=r["run_id"],
+            status=r["status"],
+            sharpe=r["sharpe"],
+            max_drawdown=r["max_drawdown"],
+            total_return=r["total_return"],
+        ) for r in rows
+    ]
 
 
 @router.get(
@@ -79,16 +104,26 @@ async def run_backtest(
 async def get_results(
     run_id: str,
     redis: RedisCache = Depends(get_redis),
+    ts: TimescaleStore = Depends(get_timescale),
 ) -> BacktestResultResponse:
     """Return the current status / results of a previously-submitted backtest."""
     raw = await redis.client.get(_result_key(run_id))
     if raw is None:
         raise HTTPException(status_code=404, detail=f"Unknown run_id: {run_id}")
     data = json.loads(raw)
+    
+    status = data.get("status", "pending")
+    sharpe = data.get("sharpe")
+    max_drawdown = data.get("max_drawdown")
+    total_return = data.get("total_return")
+    
+    # Keep Timescale synced
+    await ts.upsert_backtest_run(run_id, status, sharpe, max_drawdown, total_return)
+    
     return BacktestResultResponse(
         run_id=run_id,
-        status=data.get("status", "pending"),
-        sharpe=data.get("sharpe"),
-        max_drawdown=data.get("max_drawdown"),
-        total_return=data.get("total_return"),
+        status=status,
+        sharpe=sharpe,
+        max_drawdown=max_drawdown,
+        total_return=total_return,
     )

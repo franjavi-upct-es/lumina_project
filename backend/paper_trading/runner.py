@@ -98,3 +98,34 @@ class PaperTradingRunner:
         while self._running:
             await asyncio.sleep(60.0)
             logger.debug("PaperTradingRunner heartbeat")
+
+
+async def _amain() -> None:
+    import signal
+
+    runner = PaperTradingRunner()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, lambda: asyncio.create_task(runner.stop()))
+    try:
+        await runner.start()
+    except Exception:
+        logger.exception("Paper-trading runner crashed; escalating kill switch.")
+        raise
+
+
+def main() -> int:
+    from backend.config.logging import configure_logging
+
+    configure_logging()
+    try:
+        asyncio.run(_amain())
+    except Exception:
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(main())
