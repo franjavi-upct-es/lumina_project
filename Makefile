@@ -8,7 +8,7 @@ UV_RUN := $(UV) run
         migrate up up-8gb up-blackwell down restart logs ps clean \
         docker-build docker-build-api docker-build-data \
         docker-build-perception docker-build-brain docker-build-brain-blackwell \
-        backfill-yfinance backfill-polygon
+        backfill-yfinance backfill-polygon run-arena
 
 help:
 	@echo "Lumina V3 — available targets:"
@@ -39,9 +39,10 @@ help:
 	@echo "    logs                 tail logs across all services"
 	@echo "    ps                   show service status"
 	@echo ""
-	@echo "  Data + notebooks:"
+	@echo "  Data + Simulation:"
 	@echo "    backfill-yfinance    daily bars (free)"
 	@echo "    backfill-polygon     1-min bars (paid)"
+	@echo "    run-arena            execute a Spartan Arena simulation run"
 
 install:
 	$(UV) sync --all-extras
@@ -113,8 +114,13 @@ ps:
 
 backfill-yfinance:
 	$(UV_RUN) python -m scripts.backfill_historical --source yfinance \
-	    --start 2018-01-01 --end 2024-12-31
+	    --start 1980-01-01 --end 2024-12-31
 
 backfill-polygon:
 	$(UV_RUN) python -m scripts.backfill_historical --source polygon \
-	    --start 2018-01-01 --end 2024-12-31
+	    --start 1980-01-01 --end 2024-12-31
+
+run-arena:
+	$(UV_RUN) python scripts/run_arena.py \
+	    --ticker AAPL --start 1980-01-01 --end 2024-01-01 \
+	    --n-trajectories 10 --n-steps 200 --output-dir ./artifacts/arena
