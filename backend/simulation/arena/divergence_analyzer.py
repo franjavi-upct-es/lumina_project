@@ -37,12 +37,17 @@ class DivergenceAnalyzer:
     ``finalize_step`` from the same coroutine.
     """
 
-    def __init__(self, n_trajectories: int) -> None:
+    def __init__(
+        self,
+        n_trajectories: int,
+        annualization_periods: float = _BARS_PER_YEAR,
+    ) -> None:
         if n_trajectories < 2:
             raise ValueError(
                 f"DivergenceAnalyzer needs at least 2 trajectories, got {n_trajectories}"
             )
         self.n_trajectories = n_trajectories
+        self._annualizer = math.sqrt(max(float(annualization_periods), 1.0))
         self._buffer: dict[int, dict[int, DecisionRecord]] = {}
         self._sim_timestamps: dict[int, datetime] = {}
         self._emitted: list[DivergencePoint] = []
@@ -90,7 +95,7 @@ class DivergenceAnalyzer:
         sharpe_by_traj: dict[int, float] = {}
         for tid in traj_ids:
             returns = subsequent_returns.get(tid, [])
-            sharpe_by_traj[tid] = _sharpe_ratio(returns)
+            sharpe_by_traj[tid] = _sharpe_ratio(returns, annualizer=self._annualizer)
 
         best_tid = max(sharpe_by_traj, key=lambda t: sharpe_by_traj[t])
         worst_tid = min(sharpe_by_traj, key=lambda t: sharpe_by_traj[t])
@@ -143,10 +148,10 @@ class DivergenceAnalyzer:
         return sorted(self._buffer.keys())
 
 
-def _sharpe_ratio(returns: Iterable[float]) -> float:
+def _sharpe_ratio(returns: Iterable[float], annualizer: float = _SHARPE_ANNUALIZER) -> float:
     arr = np.asarray(list(returns), dtype=np.float64)
     if arr.size == 0:
         return 0.0
     std = float(arr.std(ddof=0))
     mean = float(arr.mean())
-    return (mean / (std + 1e-9)) * _SHARPE_ANNUALIZER
+    return (mean / (std + 1e-9)) * annualizer

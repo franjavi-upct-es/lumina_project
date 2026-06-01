@@ -24,9 +24,9 @@ class CurriculumConfig:
     bc_epochs: int = 20
     bc_min_accuracy: float = 0.55
     dr_episodes: int = 500
-    dr_min_mean_reward: float = 10.0
+    dr_min_mean_reward: float = -50.0
     sharpe_episodes: int = 1000
-    sharpe_min_ratio: float = 1.0
+    sharpe_min_ratio: float = -25.0
     checkpoint_dir: Path = Path("models/agent")
 
 

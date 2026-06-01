@@ -73,7 +73,7 @@ class EnvConfig:
     from triggering during the 2020-crisis drill."""
     reward_scaling: float = 100.0
     risk_penalty_coef: float = 0.1
-    veto_penalty: float = 5.0
+    veto_penalty: float = 1.0
     """Penalty subtracted from reward whenever the Safety Arbitrator vetoes."""
     portfolio_state_dim: int = 4
     """Number of bookkeeping features appended to the market_state."""
@@ -265,4 +265,10 @@ class LuminaTradingEnv(gym.Env):
             "uncertainty": uncertainty,
             "vetoed": not decision.approved,
         }
+        for key in ("open", "high", "low", "close", "volume"):
+            if key in ep:
+                values = ep[key]
+                info[key] = float(values[min(self._t, len(values) - 1)])
+        if "close" not in info:
+            info["close"] = price_now
         return self._build_obs(), reward, terminated, truncated, info

@@ -107,6 +107,15 @@ class ArenaRunner:
         explanations are dropped and ``arena_explanations_dropped_total`` is
         incremented. This guarantees that the per-step latency budget of
         the arena loop is independent of sink throughput.
+    policy_uses_full_observation
+        When ``False`` (default), the agent receives only the Nexus market
+        state, matching the existing live policy shape. Article/retraining
+        runs can set this to ``True`` so the policy receives and logs the
+        full environment observation, including portfolio bookkeeping.
+    divergence_annualization_periods
+        Number of periods per year used by divergence Sharpe calculations.
+        Defaults to the minute-bar arena setting; daily article runs pass
+        ``252``.
     """
 
     def __init__(
@@ -117,6 +126,8 @@ class ArenaRunner:
         state_builder: StateAssembler | None = None,
         timescale: TimescaleStore | None = None,
         explanation_sink: Callable[[StepExplanation], asyncio.Future | None] | None = None,
+        policy_uses_full_observation: bool = False,
+        divergence_annualization_periods: float | None = None,
     ) -> None:
         self.metadata = run_metadata
         self.agent = agent
@@ -124,6 +135,7 @@ class ArenaRunner:
         self.state_builder = state_builder
         self._timescale = timescale
         self._explanation_sink = explanation_sink
+        self.policy_uses_full_observation = bool(policy_uses_full_observation)
         self._cancel_event = asyncio.Event()
         self._envs: list[LuminaTradingEnv] = []
         self._latest_obs: list[np.ndarray] = []
@@ -150,7 +162,13 @@ class ArenaRunner:
             artifact_root=self.artifact_root,
             timescale=timescale,
         )
-        self.divergence_analyzer = DivergenceAnalyzer(n_trajectories=self.metadata.n_trajectories)
+        divergence_kwargs = {}
+        if divergence_annualization_periods is not None:
+            divergence_kwargs["annualization_periods"] = divergence_annualization_periods
+        self.divergence_analyzer = DivergenceAnalyzer(
+            n_trajectories=self.metadata.n_trajectories,
+            **divergence_kwargs,
+        )
         self.time_controller = AdaptiveStepController(
             playback_multiplier=self.metadata.playback_multiplier
         )
@@ -336,12 +354,9 @@ class ArenaRunner:
     ) -> DecisionRecord:
         env = self._envs[t_id]
         obs = self._latest_obs[t_id]
-        # The env appends 4 bookkeeping fields after the market state vector; the
-        # policy network expects only the market state, so we slice the
-        # observation before handing it to the agent.
-        market_state = obs[: _market_state_dim(obs)]
+        policy_state = self._policy_state(obs)
 
-        action_array, _log_prob, _value, uncertainty, vetoed = self.agent.act(market_state)
+        action_array, _log_prob, _value, uncertainty, vetoed = self.agent.act(policy_state)
         action_array = np.asarray(action_array, dtype=np.float32).reshape(-1)
         if action_array.size != ACTION_DIM:
             raise RuntimeError(
@@ -378,7 +393,7 @@ class ArenaRunner:
             mc_seed=int(self.metadata.mc_seeds[t_id]),
         )
 
-        super_state = torch.from_numpy(obs[: _market_state_dim(obs)]).float()
+        super_state = torch.from_numpy(policy_state).float()
         record = await self.logger.log_decision(record, super_state)
 
         # Update reward asynchronously — does not block the step.
@@ -477,6 +492,11 @@ class ArenaRunner:
         # slot (set by the env's ``_build_obs``).
         obs = self._latest_obs[t_id]
         return float(obs[_market_state_dim(obs)])
+
+    def _policy_state(self, obs: np.ndarray) -> np.ndarray:
+        if self.policy_uses_full_observation:
+            return obs.astype(np.float32, copy=False)
+        return obs[: _market_state_dim(obs)].astype(np.float32, copy=False)
 
 
 # ----------------------------------------------------------------------

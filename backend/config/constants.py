@@ -109,6 +109,9 @@ TARGET_TICKERS: frozenset[str] = frozenset(
         "ORCL",
         "ADBE",
         "NFLX",
+        "QCOM",
+        "CSCO",
+        "TXN",
         # Financials
         "JPM",
         "BAC",
@@ -116,19 +119,34 @@ TARGET_TICKERS: frozenset[str] = frozenset(
         "MS",
         "V",
         "MA",
+        "WFC",
+        "C",
+        "BLK",
         # Energy
         "XOM",
         "CVX",
         "COP",
+        "SLB",
+        "EOG",
         # Healthcare
         "JNJ",
         "PFE",
         "UNH",
         "ABBV",
+        "LLY",
+        "MRK",
+        "TMO",
         # Consumer
         "WMT",
         "COST",
         "HD",
+        "PG",
+        "KO",
+        "PEP",
+        "SBUX",
+        "NKE",
+        "MCD",
+        "LOW",
         # Indices (used as macro context features)
         "SPY",
         "QQQ",
@@ -154,22 +172,40 @@ TICKER_TO_SECTOR: dict[str, str] = {
     "ORCL": "tech",
     "ADBE": "tech",
     "NFLX": "tech",
+    "QCOM": "tech",
+    "CSCO": "tech",
+    "TXN": "tech",
     "JPM": "financials",
     "BAC": "financials",
     "GS": "financials",
     "MS": "financials",
     "V": "financials",
     "MA": "financials",
+    "WFC": "financials",
+    "C": "financials",
+    "BLK": "financials",
     "XOM": "energy",
     "CVX": "energy",
     "COP": "energy",
+    "SLB": "energy",
+    "EOG": "energy",
     "JNJ": "healthcare",
     "PFE": "healthcare",
     "UNH": "healthcare",
     "ABBV": "healthcare",
+    "LLY": "healthcare",
+    "MRK": "healthcare",
+    "TMO": "healthcare",
     "WMT": "consumer_staples",
     "COST": "consumer_staples",
+    "PG": "consumer_staples",
+    "KO": "consumer_staples",
+    "PEP": "consumer_staples",
     "HD": "consumer_discretionary",
+    "SBUX": "consumer_discretionary",
+    "NKE": "consumer_discretionary",
+    "MCD": "consumer_discretionary",
+    "LOW": "consumer_discretionary",
     "SPY": "index",
     "QQQ": "index",
 }
@@ -219,11 +255,11 @@ ARENA_DIVERGENCE_HORIZON_BARS: int = 30
 """Sliding window (in bars) used by the divergence analyzer to evaluate
 subsequent PnL after a decision point. Used to label "good" vs "bad" action."""
 
-ARENA_DIVERGENCE_ACTION_THRESHOLD: float = 0.25
+ARENA_DIVERGENCE_ACTION_THRESHOLD: float = 0.15
 """Minimum L2 distance between two trajectories' action vectors at the same
 timestep to be considered a "divergence" worth analyzing."""
 
-ARENA_PIVOTAL_SHARPE_DELTA: float = 0.30
+ARENA_PIVOTAL_SHARPE_DELTA: float = 0.15
 """Minimum Sharpe-ratio differential between the best and worst trajectories'
 subsequent windows to consider a divergence "pivotal" (worth feedback)."""
 

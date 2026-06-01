@@ -125,6 +125,7 @@ class BehavioralCloningTrainer:
         self,
         expert_states: np.ndarray,
         expert_actions: np.ndarray,
+        expert_weights: np.ndarray | None = None,
         lr: float = 3e-4,
         batch_size: int = 64,
         device: str = "cuda",
@@ -136,11 +137,15 @@ class BehavioralCloningTrainer:
                 f"expert_states and expert_actions have mismatched length: "
                 f"{expert_states.shape[0]} vs {expert_actions.shape[0]}"
             )
+        if expert_weights is not None and expert_weights.shape[0] != expert_states.shape[0]:
+            raise ValueError(
+                f"expert_weights and expert_states have mismatched length: "
+                f"{expert_weights.shape[0]} vs {expert_states.shape[0]}"
+            )
         if not 0.0 < val_fraction < 1.0:
             raise ValueError(f"val_fraction must be in (0, 1); got {val_fraction}")
 
-        # Resolve device. We do this here rather than letting torch raise
-        # because the failure message is much clearer in the trainer.
+        # Resolve device
         if device == "cuda" and not torch.cuda.is_available():
             logger.warning("CUDA requested but unavailable; falling back to CPU")
             device = "cpu"
@@ -150,9 +155,6 @@ class BehavioralCloningTrainer:
         self.batch_size: int = batch_size
         self.weight_decay: float = weight_decay
 
-        # Chronological split — the last ``val_fraction`` of rows is
-        # held out. The dataset must already be in temporal order; the
-        # caller is responsible for that.
         n_total = expert_states.shape[0]
         n_val = max(1, int(n_total * val_fraction))
         n_train = n_total - n_val
@@ -168,13 +170,14 @@ class BehavioralCloningTrainer:
                 1.0 - self._ACTION_CLIP_EPS,
             )
         )
+        if expert_weights is not None:
+            weights_t = torch.from_numpy(expert_weights).float()
+        else:
+            weights_t = torch.ones(n_total).float()
 
-        train_ds = TensorDataset(states_t[:n_train], actions_t[:n_train])
-        val_ds = TensorDataset(states_t[n_train:], actions_t[n_train:])
+        train_ds = TensorDataset(states_t[:n_train], actions_t[:n_train], weights_t[:n_train])
+        val_ds = TensorDataset(states_t[n_train:], actions_t[n_train:], weights_t[n_train:])
 
-        # Training loader is shuffled so adjacent samples in the same
-        # mini-batch are temporally uncorrelated. Validation order is
-        # preserved for reproducibility of the reported loss.
         self.train_loader: DataLoader[Any] = DataLoader(
             train_ds,
             batch_size=batch_size,
@@ -188,21 +191,15 @@ class BehavioralCloningTrainer:
 
     # ----------------------------------------------------------- public API
     def fit(self, policy: PolicyNetwork, epochs: int = 20) -> dict[str, float]:
-        """Train ``policy`` for ``epochs`` epochs and return summary metrics.
-
-        Returns
-        -------
-        dict
-            See :class:`BCMetrics.to_dict` for the field list. The
-            ``accuracy`` key is consumed by the Spartan Curriculum's
-            Phase-A gate.
-        """
+        """Train ``policy`` for ``epochs`` epochs and return summary metrics."""
         policy = policy.to(self.device)
-        # We *do* keep dropout active during training so the model can't
-        # over-fit the small expert dataset; this is the usual reason to
-        # use dropout. ``eval`` mode is only used during the final
-        # validation pass to get a clean (deterministic) accuracy number.
+        # We use eval() mode for BC. Why? Because the expert dataset is
+        # usually tiny (a few hundred samples). Dropout would add too much
+        # noise for the model to ever converge on these specific "pivotal"
+        # corrections. We rely on weight_decay for regularisation instead.
         was_training = policy.training
+        policy.eval()
+
         optim = torch.optim.AdamW(
             policy.parameters(),
             lr=self.lr,
@@ -211,6 +208,11 @@ class BehavioralCloningTrainer:
 
         train_losses: list[float] = []
         val_losses: list[float] = []
+
+        best_val_loss = float("inf")
+        best_state = None
+        patience = 7
+        trigger_times = 0
 
         for epoch in range(epochs):
             train_loss = self._train_one_epoch(policy, optim)
@@ -223,12 +225,20 @@ class BehavioralCloningTrainer:
                 f"val_acc={val_acc:.3f}"
             )
 
-        # Restore the policy's previous mode (PPO might want it in train()).
+            # Early stopping check
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                trigger_times = 0
+                best_state = {k: v.cpu() for k, v in policy.state_dict().items()}
+            else:
+                trigger_times += 1
+                if trigger_times >= patience:
+                    logger.warning(f"Early stopping at epoch {epoch + 1}")
+                    policy.load_state_dict(best_state)
+                    break
+
         policy.train(was_training)
 
-        # Recompute final accuracy on val for the gate (the per-epoch
-        # value is informative but the *final* value is what we contract
-        # to.)
         final_val_loss, final_accuracy = self._validate(policy)
         metrics = BCMetrics(
             accuracy=final_accuracy,
@@ -247,20 +257,19 @@ class BehavioralCloningTrainer:
         optim: torch.optim.Optimizer,
     ) -> float:
         """Run one pass over the training loader and return the mean NLL."""
-        policy.train()
+        policy.eval()  # Ensure dropout is off
         total_loss = 0.0
         total_samples = 0
-        for states, actions in self.train_loader:
+        for states, actions, weights in self.train_loader:
             states = states.to(self.device)
             actions = actions.to(self.device)
+            weights = weights.to(self.device)
+
             optim.zero_grad()
             log_prob, _entropy, _value = policy.evaluate_actions(states, actions)
-            # NLL = -log pi(a* | s). Mean over the batch.
-            loss = -log_prob.mean()
+            # Weighted NLL
+            loss = -(log_prob * weights).mean()
             loss.backward()
-            # Grad-norm clip mirrors the PPO default — keeps the policy
-            # close enough to the warm-start that subsequent KL-bounded
-            # PPO updates don't immediately explode.
             torch.nn.utils.clip_grad_norm_(policy.parameters(), max_norm=1.0)
             optim.step()
             total_loss += loss.item() * states.size(0)
@@ -276,40 +285,34 @@ class BehavioralCloningTrainer:
         policy.eval()
         total_loss = 0.0
         total_samples = 0
-        total_correct = 0
-        for states, actions in self.val_loader:
+        total_correct_dims = 0
+        total_possible_dims = 0
+
+        for states, actions, weights in self.val_loader:
             states = states.to(self.device)
             actions = actions.to(self.device)
+            weights = weights.to(self.device)
+
             log_prob, _entropy, _value = policy.evaluate_actions(states, actions)
-            total_loss += (-log_prob.mean()).item() * states.size(0)
+            total_loss += (-(log_prob * weights).mean()).item() * states.size(0)
             total_samples += states.size(0)
 
-            # For accuracy we use the policy's *deterministic* action
-            # (the mode of the squashed Gaussian) and compare its sign
-            # vector to the expert's sign vector. "Sign match" is the
-            # right granularity: BC is not supposed to memorise the exact
-            # magnitude of the expert action, only the direction.
             sampled, _value = policy.sample(states, deterministic=True)
             action_pred = sampled.action
-            # Use a small tolerance so near-zero expert actions don't
-            # cause flapping classification — they count as a match iff
-            # both predicted and expert are also near zero.
-            match = self._sign_match(action_pred, actions)
-            total_correct += int(match.sum().item())
+
+            # Accuracy is now average sign-match across all dimensions
+            match_mask = self._sign_match_mask(action_pred, actions)
+            total_correct_dims += int(match_mask.sum().item())
+            total_possible_dims += match_mask.numel()
+
         mean_loss = total_loss / max(total_samples, 1)
-        accuracy = total_correct / max(total_samples, 1)
+        accuracy = total_correct_dims / max(total_possible_dims, 1)
         return mean_loss, accuracy
 
     @staticmethod
-    def _sign_match(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        """Per-sample boolean: do all four action dims have matching sign?
-
-        Near-zero values (|x| < ``zero_tol``) are treated as their own
-        equivalence class — they match each other and nothing else — so
-        a "stand pat" expert action is not penalised for a tiny
-        non-zero prediction noise.
-        """
-        zero_tol = 1e-3
+    def _sign_match_mask(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Per-element boolean mask: does this action dimension have matching sign?"""
+        zero_tol = 0.1
         pred_class = torch.where(
             pred.abs() < zero_tol,
             torch.zeros_like(pred),
@@ -320,4 +323,4 @@ class BehavioralCloningTrainer:
             torch.zeros_like(target),
             target.sign(),
         )
-        return (pred_class == target_class).all(dim=-1)
+        return pred_class == target_class

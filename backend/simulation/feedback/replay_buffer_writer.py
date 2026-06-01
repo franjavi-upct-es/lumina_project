@@ -35,15 +35,16 @@ class BCDatasetWriter:
     def append_pairs(self, pairs: list[CounterfactualPair], artifact_root: Path) -> int:
         """Load super-states for each pair and append to the on-disk dataset.
 
-        Returns the number of *training samples* added (= sum of duplication
-        counts), not the number of pairs.
+        Returns the number of pairs added. Each sample is stored once with
+        an associated weight in [1.0, 5.0] derived from confidence_score.
         """
         if not pairs:
             return 0
 
         new_states: list[np.ndarray] = []
         new_actions: list[np.ndarray] = []
-        added_samples = 0
+        new_weights: list[float] = []
+        added_count = 0
         for pair in pairs:
             state_path = Path(artifact_root) / pair.state_artifact_path
             if not state_path.exists():
@@ -55,25 +56,57 @@ class BCDatasetWriter:
                 logger.warning("BC: failed to load state {} ({})", state_path, exc)
                 continue
             action = np.asarray(pair.good_action_vector, dtype=np.float32).reshape(-1)
-            copies = max(1, 1 + round(4.0 * pair.confidence_score))
-            for _ in range(copies):
-                new_states.append(state)
-                new_actions.append(action)
-                added_samples += 1
+
+            # Weight scaling: confidence_score is in [0, 1].
+            # Final weight is in [1.0, 5.0].
+            weight = 1.0 + 4.0 * float(pair.confidence_score)
+
+            new_states.append(state)
+            new_actions.append(action)
+            new_weights.append(weight)
+            added_count += 1
 
         if not new_states:
             return 0
 
         states_arr = np.stack(new_states)
         actions_arr = np.stack(new_actions)
+        weights_arr = np.array(new_weights, dtype=np.float32)
 
         if self.output_path.exists():
             existing = np.load(self.output_path)
-            states_arr = np.concatenate([existing["states"], states_arr], axis=0)
-            actions_arr = np.concatenate([existing["actions"], actions_arr], axis=0)
+            e_states = existing["states"]
+            
+            # Handle dimension mismatch by padding with zeros
+            if e_states.shape[1] != states_arr.shape[1]:
+                max_dim = max(e_states.shape[1], states_arr.shape[1])
+                logger.info("BC: dimension mismatch ({} vs {}). Padding to {}.", 
+                            e_states.shape[1], states_arr.shape[1], max_dim)
+                
+                if e_states.shape[1] < max_dim:
+                    pad = np.zeros((e_states.shape[0], max_dim - e_states.shape[1]), dtype=e_states.dtype)
+                    e_states = np.concatenate([e_states, pad], axis=1)
+                
+                if states_arr.shape[1] < max_dim:
+                    pad = np.zeros((states_arr.shape[0], max_dim - states_arr.shape[1]), dtype=states_arr.dtype)
+                    states_arr = np.concatenate([states_arr, pad], axis=1)
 
-        np.savez_compressed(self.output_path, states=states_arr, actions=actions_arr)
-        return added_samples
+            states_arr = np.concatenate([e_states, states_arr], axis=0)
+            actions_arr = np.concatenate([existing["actions"], actions_arr], axis=0)
+            # Support backward compatibility if weights weren't there before
+            if "weights" in existing:
+                weights_arr = np.concatenate([existing["weights"], weights_arr], axis=0)
+            else:
+                old_weights = np.ones(existing["states"].shape[0], dtype=np.float32)
+                weights_arr = np.concatenate([old_weights, weights_arr], axis=0)
+
+        np.savez_compressed(
+            self.output_path,
+            states=states_arr,
+            actions=actions_arr,
+            weights=weights_arr,
+        )
+        return added_count
 
     def finalize(self) -> Path:
         return self.output_path

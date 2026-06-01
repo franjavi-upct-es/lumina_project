@@ -39,8 +39,8 @@ class DeepFusionNexus(nn.Module):
 
     def __init__(
         self,
-        num_heads: int = 4,
-        d_head: int = 32,
+        num_heads: int = 8,
+        d_head: int = 64,
         num_layers: int = 2,
         dropout: float = 0.15,
         mc_dropout_p: float = 0.2,
@@ -54,18 +54,21 @@ class DeepFusionNexus(nn.Module):
             dropout=dropout,
         )
         # Sigmoid "gate" that lets the model up- or down-weight any region
-        # of the 224-d super-vector. This is a learned soft mask; it is
-        # *additional* to the attention re-weighting because attention can
-        # only redistribute, not zero-out.
+        # of the 224-d super-vector. This is a learned soft mask.
         self.gate = nn.Sequential(
             nn.Linear(DIM_FUSED, DIM_FUSED),
             nn.Sigmoid(),
         )
+        # Deepened head for better latent feature extraction
         self.head = nn.Sequential(
-            nn.Linear(DIM_FUSED, DIM_FUSED),
+            nn.Linear(DIM_FUSED, 512),
+            nn.LayerNorm(512),
             nn.GELU(),
             nn.Dropout(dropout),
-            nn.Linear(DIM_FUSED, output_dim),
+            nn.Linear(512, 512),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(512, output_dim),
             nn.LayerNorm(output_dim),
         )
         self.mc_dropout = nn.Dropout(mc_dropout_p)
@@ -92,7 +95,9 @@ class DeepFusionNexus(nn.Module):
             return_attention=return_attention,
         )
         gate = self.gate(fused)
-        gated = fused * gate
+        # Residual gating: (1 + gate) * fused ensures signal doesn't vanish
+        gated = fused * (1.0 + gate)
+
         if mc_sample or self.training:
             gated = self.mc_dropout(gated)
         state = self.head(gated)

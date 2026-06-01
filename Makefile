@@ -8,7 +8,7 @@ UV_RUN := $(UV) run
         migrate up up-8gb up-blackwell down restart logs ps clean \
         docker-build docker-build-api docker-build-data \
         docker-build-perception docker-build-brain docker-build-brain-blackwell \
-        backfill-yfinance backfill-polygon run-arena
+        docker-build-frontend backfill-yfinance backfill-polygon run-arena deploy
 
 help:
 	@echo "Lumina V3 — available targets:"
@@ -23,14 +23,16 @@ help:
 	@echo "    lint                 uv run ruff check + uv run ruff format --check"
 	@echo "    type                 uv run mypy backend"
 	@echo "    migrate              uv run alembic upgrade head"
+	@echo "    deploy               build all images, migrate, and start services"
 	@echo ""
 	@echo "  Docker — build:"
-	@echo "    docker-build                     all four service images"
+	@echo "    docker-build                     all service images (including frontend)"
 	@echo "    docker-build-api                 API image only"
 	@echo "    docker-build-data                data-engine image only"
 	@echo "    docker-build-perception          perception image only"
 	@echo "    docker-build-brain               brain image (CUDA 12.4)"
 	@echo "    docker-build-brain-blackwell     brain image (CUDA 12.8 for Blackwell)"
+	@echo "    docker-build-frontend            frontend dashboard image only"
 	@echo ""
 	@echo "  Docker — run:"
 	@echo "    up                   full stack (default)"
@@ -75,8 +77,11 @@ type:
 migrate:
 	$(UV_RUN) alembic upgrade head
 
+deploy:
+	bash scripts/deploy.sh
+
 # ----- Docker — build -----------------------------------------------------
-docker-build: docker-build-api docker-build-data docker-build-perception docker-build-brain
+docker-build: docker-build-api docker-build-data docker-build-perception docker-build-brain docker-build-frontend
 
 docker-build-api:
 	docker build -f docker/Dockerfile.api  -t lumina/api:latest         .
@@ -93,6 +98,9 @@ docker-build-brain:
 docker-build-brain-blackwell:
 	docker build -f docker/Dockerfile.brain.blackwell \
 	             -t lumina/brain:blackwell .
+
+docker-build-frontend:
+	docker build -f docker/Dockerfile.frontend -t lumina/frontend:latest .
 
 # ----- Docker — run -------------------------------------------------------
 up:
@@ -118,13 +126,13 @@ ps:
 
 backfill-yfinance:
 	$(UV_RUN) python -m scripts.backfill_historical --source yfinance \
-	    --start 1980-01-01 --end 2024-12-31
+	    --start 1900-01-01 --end 2024-12-31
 
 backfill-polygon:
 	$(UV_RUN) python -m scripts.backfill_historical --source polygon \
-	    --start 1980-01-01 --end 2024-12-31
+	    --start 1900-01-01 --end 2024-12-31
 
 run-arena:
 	$(UV_RUN) python scripts/run_arena.py \
-	    --ticker AAPL --start 1980-01-01 --end 2024-01-01 \
+	    --ticker AAPL --start 1900-01-01 --end 2024-01-01 \
 	    --n-trajectories 10 --n-steps 200 --output-dir ./artifacts/arena

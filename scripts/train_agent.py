@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from loguru import logger
 
@@ -40,6 +41,11 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         type=int,
         default=20,
         help="Number of epochs for the Behavioural Cloning warm-start.",
+    )
+    parser.add_argument(
+        "--bc-dataset",
+        type=Path,
+        help="Path to a feedback .npz dataset for Behavioral Cloning.",
     )
     parser.add_argument(
         "--episodes-dr",
@@ -67,6 +73,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         final_path = train_full_curriculum(
             bc_epochs=args.bc_epochs,
+            bc_dataset_path=args.bc_dataset,
             episodes_dr=args.episodes_dr,
             episodes_sharpe=args.episodes_sharpe,
             device=args.device,

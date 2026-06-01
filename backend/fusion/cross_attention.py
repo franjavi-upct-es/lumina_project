@@ -72,12 +72,12 @@ class CrossModalAttention(nn.Module):
     """
 
     def __init__(
-        self, num_heads: int = 4, d_head: int = 32, num_layers: int = 2, dropout: float = 0.1
+        self, num_heads: int = 8, d_head: int = 64, num_layers: int = 2, dropout: float = 0.1
     ):
         super().__init__()
         self.num_heads = num_heads
         self.d_head = d_head
-        self.d_attn = num_heads * d_head  # working dim inside attn
+        self.d_attn = num_heads * d_head  # working dim inside attn: 8 * 64 = 512
         self.num_layers = num_layers
 
         # Per-modality "read" projections: native dim → d_attn
@@ -96,7 +96,7 @@ class CrossModalAttention(nn.Module):
                 nn.TransformerEncoderLayer(
                     d_model=self.d_attn,
                     nhead=num_heads,
-                    dim_feedforward=self.d_attn * 4,
+                    dim_feedforward=self.d_attn * 2,  # 1024
                     dropout=dropout,
                     activation="gelu",
                     batch_first=True,
@@ -105,10 +105,11 @@ class CrossModalAttention(nn.Module):
                 for _ in range(num_layers)
             ]
         )
+        self.seq_norm = nn.LayerNorm(self.d_attn)
 
         # Modality-type embeddings: tells the model "this token is price"
         # vs "this token is semantic", separately from the values.
-        self.modality_embed = nn.Parameter(torch.randn(3, self.d_attn) * 0.02)
+        self.modality_embed = nn.Parameter(torch.randn(3, self.d_attn) * (self.d_attn**-0.5))
 
         # Layer-norms on the native-dim residuals
         self.norm_price = nn.LayerNorm(DIM_PRICE)
@@ -145,6 +146,7 @@ class CrossModalAttention(nn.Module):
         attn_weights: dict | None = None
         for layer in self.layers:
             seq = layer(seq)
+        seq = self.seq_norm(seq)
 
         last_attn = cast(nn.MultiheadAttention, self.layers[-1].self_attn)
 

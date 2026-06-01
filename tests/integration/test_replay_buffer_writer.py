@@ -69,4 +69,25 @@ def test_high_confidence_pairs_weighted(tmp_path: Path) -> None:
     n_high = n_high_writer.append_pairs([high], artifact_root)
 
     assert n_low == 1, "confidence=0.0 should yield exactly 1 sample"
-    assert n_high == 5, "confidence=1.0 should yield exactly 5 samples"
+    assert n_high == 1, "confidence=1.0 should yield exactly 1 sample"
+
+    data_low = np.load(writer.output_path)
+    data_high = np.load(n_high_writer.output_path)
+    
+    assert data_low["weights"][0] == 1.0, "confidence=0.0 should have weight 1.0"
+    assert data_high["weights"][0] == 5.0, "confidence=1.0 should have weight 5.0"
+
+
+@pytest.mark.integration
+def test_writer_preserves_full_observation_state_dim(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "artifacts"
+    pair = _pair(0.5)
+    abs_path = artifact_root / pair.state_artifact_path
+    abs_path.parent.mkdir(parents=True, exist_ok=True)
+    np.save(abs_path, np.ones(260, dtype=np.float32))
+
+    writer = BCDatasetWriter(tmp_path / "bc_full_obs")
+    writer.append_pairs([pair], artifact_root)
+    data = np.load(writer.finalize())
+
+    assert data["states"].shape[1] == 260

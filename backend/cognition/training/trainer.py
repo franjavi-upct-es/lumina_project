@@ -119,6 +119,7 @@ def train_full_curriculum(
     bc_epochs: int = 20,
     device: str | None = None,
     use_historical_bc: bool = False,
+    bc_dataset_path: Path | None = None,
     timescale_store=None,
     encoders: dict | None = None,
 ) -> Path:
@@ -131,14 +132,40 @@ def train_full_curriculum(
     _MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
     # ----- 1. Build the policy + agent --------------------------------
-    policy = PolicyNetwork(state_dim=NEXUS_OUTPUT_DIM + 4, distribution="gaussian")
+    # Default to 260 if dataset is provided, or 256+4
+    if bc_dataset_path and bc_dataset_path.exists():
+        data = np.load(bc_dataset_path)
+        expert_states = data["states"]
+        expert_actions = data["actions"]
+        expert_weights = data.get("weights")
+        state_dim = expert_states.shape[1]
+        logger.info("Using feedback dataset {} (N={}, dim={})", 
+                    bc_dataset_path, expert_states.shape[0], state_dim)
+    else:
+        expert_weights = None
+        if use_historical_bc and timescale_store and encoders:
+            # Pull a few episodes to get real states for BC
+            logger.info("Collecting historical states for Behavioral Cloning...")
+            from backend.simulation.generators.scenario_loader import HistoricalEpisodeGenerator
+            clean_gen = HistoricalEpisodeGenerator(
+                timescale_store=timescale_store, encoders=encoders, episode_length_min=390
+            )
+            all_states = []
+            for _ in range(10):
+                ep = next(iter(clean_gen))
+                all_states.append(ep["market_states"])
+            market_states = np.vstack(all_states)
+            expert_states, expert_actions = _build_expert_trajectories(market_states=market_states)
+        else:
+            expert_states, expert_actions = _build_expert_trajectories()
+        state_dim = expert_states.shape[1]
+
+    policy = PolicyNetwork(state_dim=state_dim, distribution="gaussian")
     gate = UncertaintyGate(UncertaintyGateConfig())
     agent = PPOAgent(policy, gate, PPOConfig(), device=device)
 
     # ----- 2. Episode generators --------------------------------------
     if use_historical_bc and timescale_store and encoders:
-        from backend.simulation.generators.scenario_loader import HistoricalEpisodeGenerator
-
         clean_gen = HistoricalEpisodeGenerator(
             timescale_store=timescale_store, encoders=encoders, episode_length_min=390
         )
@@ -149,19 +176,12 @@ def train_full_curriculum(
     env = LuminaTradingEnv(clean_gen, EnvConfig())
 
     # ----- 3. Trainers for each phase ---------------------------------
-    if use_historical_bc and timescale_store and encoders:
-        # Pull a few episodes to get real states for BC
-        logger.info("Collecting historical states for Behavioral Cloning...")
-        all_states = []
-        for _ in range(10):
-            ep = next(iter(clean_gen))
-            all_states.append(ep["market_states"])
-        market_states = np.vstack(all_states)
-        expert_states, expert_actions = _build_expert_trajectories(market_states=market_states)
-    else:
-        expert_states, expert_actions = _build_expert_trajectories()
-
-    bc_trainer = BehavioralCloningTrainer(expert_states, expert_actions, device=device)
+    bc_trainer = BehavioralCloningTrainer(
+        expert_states,
+        expert_actions,
+        expert_weights=expert_weights,
+        device=device,
+    )
     dr_runner = DomainRandomizationRunner(env, clean_gen, adv_gen, DRConfig())
     sharpe_opt = SharpeOptimizer(env, clean_gen, SharpeOptimizerConfig())
 

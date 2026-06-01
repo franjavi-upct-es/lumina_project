@@ -80,7 +80,7 @@ class TrajectoryLogger:
         relative_path = f"{self.run_id}/states/{record.trajectory_id}/{record.step_index}.npy"
         absolute_path = self.artifact_root / relative_path
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
-        await asyncio.to_thread(_save_npy_sync, absolute_path, super_state.detach().cpu().numpy())
+        _save_npy_sync(absolute_path, super_state.detach().cpu().numpy())
 
         final_record = record.model_copy(update={"state_artifact_path": relative_path})
 
