@@ -73,7 +73,7 @@ def test_high_confidence_pairs_weighted(tmp_path: Path) -> None:
 
     data_low = np.load(writer.output_path)
     data_high = np.load(n_high_writer.output_path)
-    
+
     assert data_low["weights"][0] == 1.0, "confidence=0.0 should have weight 1.0"
     assert data_high["weights"][0] == 5.0, "confidence=1.0 should have weight 5.0"
 

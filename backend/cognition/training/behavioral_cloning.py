@@ -234,7 +234,8 @@ class BehavioralCloningTrainer:
                 trigger_times += 1
                 if trigger_times >= patience:
                     logger.warning(f"Early stopping at epoch {epoch + 1}")
-                    policy.load_state_dict(best_state)
+                    if best_state is not None:
+                        policy.load_state_dict(best_state)
                     break
 
         policy.train(was_training)

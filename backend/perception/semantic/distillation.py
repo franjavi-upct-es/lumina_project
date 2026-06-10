@@ -84,4 +84,4 @@ class DistillationTrainer:
                 logger.info(f"Epoch {epoch}: train={train_loss:.4f} val={val_loss:.4f}")
                 if val_loss < best:
                     best = val_loss
-                    torch.save(self.student.state_dict(), self.ckpt_dir / "best.pt")
+                    torch.save({"model": self.student.state_dict()}, self.ckpt_dir / "best.pt")

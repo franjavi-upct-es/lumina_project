@@ -19,7 +19,7 @@
 #
 # What this override does:
 #   * perception_semantic — removes the GPU reservation entirely.
-#   * brain               — narrows GPU access to a single GPU (in case
+#   * state_assembler     — narrows GPU access to a single GPU (in case
 #                            the host happens to have multiple).
 #   * Sets ``CUDA_VISIBLE_DEVICES=""`` on perception_semantic so torch
 #     never picks up the GPU even by accident.
@@ -49,7 +49,16 @@ services:
               count: 1
               capabilities: [gpu]
 
-  brain:
+  state_assembler:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  agent_loop:
     deploy:
       resources:
         reservations:

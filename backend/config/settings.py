@@ -41,6 +41,18 @@ class Settings(BaseSettings):
 
     # ---------- Environment ----------
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
+    LIVE_TICKERS: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["SPY", "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "TSLA", "QQQ"]
+    )
+    ALLOW_RANDOM_MODELS: bool = False
+    GRAPH_INFERENCE_INTERVAL_SECONDS: float = 24 * 3600
+    AGENT_TICK_INTERVAL_SECONDS: float = 1.0
+
+    # ---------- Synthetic feed ----------
+    SYNTHETIC_FEED_BOOTSTRAP_DAYS: int = 90
+    SYNTHETIC_FEED_TICK_INTERVAL_SECONDS: float = 1.0
+    SYNTHETIC_FEED_NEWS_INTERVAL_SECONDS: float = 30.0
+    SYNTHETIC_FEED_SEED: int = 7
 
     # ---------- Data sources ----------
     POLYGON_API_KEY: str = ""
@@ -97,6 +109,13 @@ class Settings(BaseSettings):
         if isinstance(value, list):
             return value
         return [origin.strip() for origin in value.split(",") if origin.strip()]
+
+    @field_validator("LIVE_TICKERS", mode="before")
+    @classmethod
+    def parse_live_tickers(cls, value: str | list[str]) -> list[str]:
+        if isinstance(value, list):
+            return [str(t).strip().upper() for t in value if str(t).strip()]
+        return [ticker.strip().upper() for ticker in value.split(",") if ticker.strip()]
 
     # Nested settings group for the Spartan Arena subsystem. Uses its own
     # env_prefix ("ARENA_") so it can be tuned independently in deployment.

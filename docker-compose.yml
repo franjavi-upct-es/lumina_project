@@ -11,9 +11,8 @@
 # and they write to disjoint Redis keys via their respective
 # LUMINA_SERVICE_MODE values.
 #
-# Finding 3.1 (VRAM saturation) is addressed by `docker-compose.gpu-8gb.yml`
-# in this directory, which is an override file that pins
-# perception_semantic to CPU on 8GB hosts. Use as:
+# GPU reservations live in `docker-compose.gpu-8gb.yml` so the default
+# composition can start on CPU-only developer machines. Use the override as:
 #     docker compose -f docker-compose.yml -f docker-compose.gpu-8gb.yml up
 
 services:
@@ -105,6 +104,7 @@ services:
 
   # ----- Data engine -------------------------------------------------------
   data:
+    profiles: ["trading"]
     build:
       context: .
       dockerfile: docker/Dockerfile.data
@@ -119,11 +119,57 @@ services:
       migrate:   { condition: service_completed_successfully }
     networks: [lumina_net]
 
+  price_stream:
+    profiles: ["real-feed"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.data
+    container_name: lumina_price_stream
+    restart: unless-stopped
+    environment:
+      LUMINA_SERVICE_MODE: price_stream
+    env_file: [.env]
+    depends_on:
+      redis: { condition: service_healthy }
+    networks: [lumina_net]
+
+  news_collector:
+    profiles: ["real-feed"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.data
+    container_name: lumina_news_collector
+    restart: unless-stopped
+    environment:
+      LUMINA_SERVICE_MODE: news_collector
+    env_file: [.env]
+    depends_on:
+      redis: { condition: service_healthy }
+    networks: [lumina_net]
+
+  synthetic_feed:
+    profiles: ["synthetic-feed"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.data
+    container_name: lumina_synthetic_feed
+    restart: unless-stopped
+    environment:
+      LUMINA_SERVICE_MODE: synthetic_feed
+      ALLOW_RANDOM_MODELS: "true"
+    env_file: [.env]
+    depends_on:
+      redis:     { condition: service_healthy }
+      timescale: { condition: service_healthy }
+      migrate:   { condition: service_completed_successfully }
+    networks: [lumina_net]
+
   # ----- Perception layer (3 modalities, one container each) ----------------
   # Each container subscribes to Redis pub/sub channels for its inputs
   # and publishes its embedding to a modality-specific Redis key. The
   # State Assembler (running inside `brain`) reads all three.
   perception_tft:
+    profiles: ["trading"]
     build:
       context: .
       dockerfile: docker/Dockerfile.perception
@@ -136,16 +182,9 @@ services:
       redis:     { condition: service_healthy }
       timescale: { condition: service_healthy }
     networks: [lumina_net]
-    # Uncomment on a CUDA host:
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
 
   perception_semantic:
+    profiles: ["trading"]
     build:
       context: .
       dockerfile: docker/Dockerfile.perception
@@ -158,16 +197,9 @@ services:
       redis:     { condition: service_healthy }
       timescale: { condition: service_healthy }
     networks: [lumina_net]
-    # Uncomment on a CUDA host (see also docker-compose.gpu-8gb.yml override):
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
 
   perception_graph:
+    profiles: ["trading"]
     build:
       context: .
       dockerfile: docker/Dockerfile.perception
@@ -181,15 +213,16 @@ services:
       timescale: { condition: service_healthy }
     networks: [lumina_net]
 
-  # ----- Brain (fusion + cognition + execution + state assembler) ----------
-  brain:
+  # ----- Fusion state assembler ---------------------------------------------
+  state_assembler:
+    profiles: ["trading"]
     build:
       context: .
       dockerfile: docker/Dockerfile.brain
-    container_name: lumina_brain
+    container_name: lumina_state_assembler
     restart: unless-stopped
     environment:
-      LUMINA_SERVICE_MODE: paper_trading
+      LUMINA_SERVICE_MODE: state_assembler
     env_file: [.env]
     depends_on:
       redis:               { condition: service_healthy }
@@ -198,6 +231,22 @@ services:
       perception_tft:      { condition: service_started }
       perception_semantic: { condition: service_started }
       perception_graph:    { condition: service_started }
+    networks: [lumina_net]
+
+  agent_loop:
+    profiles: ["trading"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.brain
+    container_name: lumina_agent_loop
+    restart: unless-stopped
+    environment:
+      LUMINA_SERVICE_MODE: agent_loop
+    env_file: [.env]
+    depends_on:
+      redis:            { condition: service_healthy }
+      timescale:        { condition: service_healthy }
+      state_assembler:  { condition: service_started }
     networks: [lumina_net]
 
   # ----- Dashboard (Frontend) ---------------------------------------------

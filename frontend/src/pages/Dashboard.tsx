@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { AgentStatusPanel } from "../components/dashboard/AgentStatusPanel";
 import { AttentionHeatmap } from "../components/dashboard/AttentionHeatmap";
 import { EquityCurve, type EquityPoint } from "../components/dashboard/EquityCurve";
+import { KillSwitchButton } from "../components/dashboard/KillSwitchButton";
 import { RiskPanel } from "../components/dashboard/RiskPanel";
 import { usePortfolio, usePortfolioHistory } from "../hooks/usePortfolio";
 import { useAgentStore } from "../store/agentSlice";
@@ -210,7 +211,10 @@ export function Dashboard() {
 
       <section style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
         <RiskPanel />
-        <AgentStatusPanel />
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <AgentStatusPanel />
+          <KillSwitchButton />
+        </div>
       </section>
     </div>
   );

@@ -22,7 +22,7 @@ class GraphTrainer:
         data: Data,
         lr: float = 1e-3,
         device: str = "cuda",
-        checkpoint_dir: Path = Path("models/graph"),
+        checkpoint_dir: Path = Path("models/structural"),
         val_ratio: float = 0.1,
     ):
         self.model = model.to(device)
@@ -86,4 +86,4 @@ class GraphTrainer:
                     logger.info(f"Epoch {epoch}: train={loss.item():.4f} val={val_loss:.4f}")
                     if val_loss < best:
                         best = val_loss
-                        torch.save(self.model.state_dict(), self.ckpt_dir / "best.pt")
+                        torch.save({"model": self.model.state_dict()}, self.ckpt_dir / "best.pt")

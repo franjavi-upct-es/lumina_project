@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import UTC, datetime
 from pathlib import Path
 
 import torch
@@ -18,7 +17,7 @@ import torch.nn as nn
 from loguru import logger
 from torch.utils.data import DataLoader, Dataset
 
-from backend.config.constants import DIM_PRICE, OHLCV_WINDOW_MINUTES, TARGET_TICKERS, DIM_SEMANTIC, DIM_GRAPH
+from backend.config.constants import DIM_GRAPH, OHLCV_WINDOW_MINUTES
 from backend.config.logging import configure_logging
 from backend.fusion.nexus import DeepFusionNexus
 from backend.fusion.parity_check import ParityCheck, save_parity_report
@@ -59,8 +58,11 @@ class ParityDataset(Dataset):
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
         # Synthetic data for the parity check script to run
+        ohlcv = torch.randn(OHLCV_WINDOW_MINUTES, 5)
+        indicators = torch.randn(OHLCV_WINDOW_MINUTES, 4)
         return {
-            "ohlcv_window": torch.randn(OHLCV_WINDOW_MINUTES, 5),
+            "ohlcv_window": torch.cat([ohlcv, indicators], dim=-1),
+            "v2_ohlcv_window": ohlcv,
             "news_input_ids": torch.randint(0, 30522, (512,)),
             "news_attention_mask": torch.ones(512),
             "graph_emb": torch.randn(DIM_GRAPH),
@@ -88,20 +90,32 @@ def main() -> int:
         return 2
 
     logger.info(f"Loading encoders on {args.device}...")
-    
+
     # Load Models
     tft = TemporalFusionTransformer()
     # Handle the fact that some checkpoints might be raw state_dicts or wrapped in metadata dicts
-    tft_data = torch.load(_REQUIRED_CHECKPOINTS["temporal"], map_location=args.device, weights_only=True)
+    tft_data = torch.load(
+        _REQUIRED_CHECKPOINTS["temporal"], map_location=args.device, weights_only=True
+    )
     tft.load_state_dict(tft_data.get("model", tft_data) if isinstance(tft_data, dict) else tft_data)
 
     semantic = DistilledFinancialEncoder()
-    semantic_data = torch.load(_REQUIRED_CHECKPOINTS["semantic"], map_location=args.device, weights_only=True)
-    semantic.load_state_dict(semantic_data.get("model", semantic_data) if isinstance(semantic_data, dict) else semantic_data)
+    semantic_data = torch.load(
+        _REQUIRED_CHECKPOINTS["semantic"], map_location=args.device, weights_only=True
+    )
+    semantic.load_state_dict(
+        semantic_data.get("model", semantic_data)
+        if isinstance(semantic_data, dict)
+        else semantic_data
+    )
 
     graph = GraphEncoder()
-    graph_data = torch.load(_REQUIRED_CHECKPOINTS["structural"], map_location=args.device, weights_only=True)
-    graph.load_state_dict(graph_data.get("model", graph_data) if isinstance(graph_data, dict) else graph_data)
+    graph_data = torch.load(
+        _REQUIRED_CHECKPOINTS["structural"], map_location=args.device, weights_only=True
+    )
+    graph.load_state_dict(
+        graph_data.get("model", graph_data) if isinstance(graph_data, dict) else graph_data
+    )
 
     nexus = DeepFusionNexus()
     # V3 fusion stack check typically assumes we are checking the encoders + nexus against a baseline.
@@ -109,10 +123,14 @@ def main() -> int:
     # For now, we'll initialize it fresh if no specific checkpoint is listed for it in the docstring,
     # but the script docstring says "loads frozen encoder checkpoints".
     # Actually, ParityCheck trains a fresh V3FusionHead on top of the Nexus.
-    
+
     v2_model = V2LSTM()
-    v2_data = torch.load(_REQUIRED_CHECKPOINTS["v2_baseline"], map_location=args.device, weights_only=True)
-    v2_model.load_state_dict(v2_data.get("model", v2_data) if isinstance(v2_data, dict) else v2_data)
+    v2_data = torch.load(
+        _REQUIRED_CHECKPOINTS["v2_baseline"], map_location=args.device, weights_only=True
+    )
+    v2_model.load_state_dict(
+        v2_data.get("model", v2_data) if isinstance(v2_data, dict) else v2_data
+    )
 
     # In a real scenario, we'd use actual data from TimescaleDB
     logger.info("Building data loaders (synthetic mode)...")

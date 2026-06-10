@@ -36,6 +36,7 @@ import json
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import torch
@@ -54,6 +55,7 @@ from backend.cognition.training.sharpe_optimizer import SharpeOptimizer, SharpeO
 from backend.config.constants import ACTION_DIM, NEXUS_OUTPUT_DIM
 from backend.simulation.environments.base_env import EnvConfig, LuminaTradingEnv
 from backend.simulation.generators.adversarial import AdversarialGenerator
+from backend.simulation.generators.scenario_loader import HistoricalEpisodeGenerator
 from backend.simulation.generators.synthetic_data import SyntheticEpisodeGenerator
 
 _MODELS_DIR: Path = Path("models/agent")
@@ -139,20 +141,23 @@ def train_full_curriculum(
         expert_actions = data["actions"]
         expert_weights = data.get("weights")
         state_dim = expert_states.shape[1]
-        logger.info("Using feedback dataset {} (N={}, dim={})", 
-                    bc_dataset_path, expert_states.shape[0], state_dim)
+        logger.info(
+            "Using feedback dataset {} (N={}, dim={})",
+            bc_dataset_path,
+            expert_states.shape[0],
+            state_dim,
+        )
     else:
         expert_weights = None
         if use_historical_bc and timescale_store and encoders:
             # Pull a few episodes to get real states for BC
             logger.info("Collecting historical states for Behavioral Cloning...")
-            from backend.simulation.generators.scenario_loader import HistoricalEpisodeGenerator
-            clean_gen = HistoricalEpisodeGenerator(
+            bc_gen = HistoricalEpisodeGenerator(
                 timescale_store=timescale_store, encoders=encoders, episode_length_min=390
             )
             all_states = []
             for _ in range(10):
-                ep = next(iter(clean_gen))
+                ep = next(iter(bc_gen))
                 all_states.append(ep["market_states"])
             market_states = np.vstack(all_states)
             expert_states, expert_actions = _build_expert_trajectories(market_states=market_states)
@@ -165,6 +170,7 @@ def train_full_curriculum(
     agent = PPOAgent(policy, gate, PPOConfig(), device=device)
 
     # ----- 2. Episode generators --------------------------------------
+    clean_gen: Any
     if use_historical_bc and timescale_store and encoders:
         clean_gen = HistoricalEpisodeGenerator(
             timescale_store=timescale_store, encoders=encoders, episode_length_min=390

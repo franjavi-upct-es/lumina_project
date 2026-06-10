@@ -26,7 +26,7 @@ from datetime import UTC, datetime
 from itertools import pairwise
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import numpy as np
 import torch
@@ -1817,7 +1817,7 @@ def _oracle_action_from_return(value: float) -> np.ndarray:
 
 
 def _fallback_pairs_from_records(
-    run_id: str,
+    run_id: UUID,
     runner: ArenaRunner,
     episode: dict[str, Any],
     *,

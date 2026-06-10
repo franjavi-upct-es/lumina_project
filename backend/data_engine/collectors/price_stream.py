@@ -7,6 +7,7 @@ import asyncio
 import contextlib
 import json
 import random
+import signal
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -209,3 +210,41 @@ class PolygonPriceStream:
             except (KeyError, TypeError) as exc:
                 logger.warning(f"Skipped malformed bar: {exc}")
         return rows
+
+
+async def _amain() -> None:
+    from backend.config.logging import configure_logging
+
+    configure_logging()
+    settings = get_settings()
+    if not settings.POLYGON_API_KEY:
+        raise RuntimeError("POLYGON_API_KEY is required for LUMINA_SERVICE_MODE=price_stream")
+
+    redis = RedisCache()
+    await redis.connect()
+    circuit_breaker = CircuitBreaker(redis)
+    await circuit_breaker.start()
+    stream = PolygonPriceStream(redis, circuit_breaker=circuit_breaker)
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, lambda: asyncio.create_task(stream.stop()))
+    try:
+        await stream.run(settings.LIVE_TICKERS)
+    finally:
+        await circuit_breaker.stop()
+        await redis.disconnect()
+
+
+def main() -> int:
+    try:
+        asyncio.run(_amain())
+    except Exception:
+        logger.exception("PolygonPriceStream crashed")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(main())

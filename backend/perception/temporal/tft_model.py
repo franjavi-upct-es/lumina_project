@@ -9,6 +9,18 @@ import torch.nn.functional as F
 
 from backend.config.constants import DIM_PRICE, OHLCV_WINDOW_MINUTES
 
+DEFAULT_TFT_FEATURE_NAMES: tuple[str, ...] = (
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "rsi_14",
+    "macd_atr_norm",
+    "bollinger_pct_b",
+    "market_cap_tier",
+)
+
 
 class GatedResidualNetwork(nn.Module):
     def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, dropout: float = 0.1):
@@ -48,7 +60,7 @@ class VariableSelectionNetwork(nn.Module):
 class TemporalFusionTransformer(nn.Module):
     def __init__(
         self,
-        num_features: int = 5,
+        num_features: int = len(DEFAULT_TFT_FEATURE_NAMES),
         hidden_dim: int = 128,
         num_heads: int = 4,
         lstm_layers: int = 2,
@@ -59,11 +71,12 @@ class TemporalFusionTransformer(nn.Module):
     ):
         super().__init__()
         self.num_features = num_features
-        self.feature_names = (
-            list(feature_names)
-            if feature_names is not None
-            else [f"feature_{i}" for i in range(num_features)]
-        )
+        if feature_names is not None:
+            self.feature_names = list(feature_names)
+        elif num_features == len(DEFAULT_TFT_FEATURE_NAMES):
+            self.feature_names = list(DEFAULT_TFT_FEATURE_NAMES)
+        else:
+            self.feature_names = [f"feature_{i}" for i in range(num_features)]
         if len(self.feature_names) != num_features:
             raise ValueError(
                 f"feature_names length {len(self.feature_names)} != num_features {num_features}"

@@ -76,19 +76,27 @@ class BCDatasetWriter:
         if self.output_path.exists():
             existing = np.load(self.output_path)
             e_states = existing["states"]
-            
+
             # Handle dimension mismatch by padding with zeros
             if e_states.shape[1] != states_arr.shape[1]:
                 max_dim = max(e_states.shape[1], states_arr.shape[1])
-                logger.info("BC: dimension mismatch ({} vs {}). Padding to {}.", 
-                            e_states.shape[1], states_arr.shape[1], max_dim)
-                
+                logger.info(
+                    "BC: dimension mismatch ({} vs {}). Padding to {}.",
+                    e_states.shape[1],
+                    states_arr.shape[1],
+                    max_dim,
+                )
+
                 if e_states.shape[1] < max_dim:
-                    pad = np.zeros((e_states.shape[0], max_dim - e_states.shape[1]), dtype=e_states.dtype)
+                    pad = np.zeros(
+                        (e_states.shape[0], max_dim - e_states.shape[1]), dtype=e_states.dtype
+                    )
                     e_states = np.concatenate([e_states, pad], axis=1)
-                
+
                 if states_arr.shape[1] < max_dim:
-                    pad = np.zeros((states_arr.shape[0], max_dim - states_arr.shape[1]), dtype=states_arr.dtype)
+                    pad = np.zeros(
+                        (states_arr.shape[0], max_dim - states_arr.shape[1]), dtype=states_arr.dtype
+                    )
                     states_arr = np.concatenate([states_arr, pad], axis=1)
 
             states_arr = np.concatenate([e_states, states_arr], axis=0)

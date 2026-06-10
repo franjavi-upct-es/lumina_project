@@ -16,8 +16,10 @@ simulation) and lets the live path skip the schema work entirely.
 from __future__ import annotations
 
 import asyncio
+import signal
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -26,6 +28,7 @@ from loguru import logger
 from prometheus_client import Counter, Histogram
 
 from backend.config.constants import TARGET_TICKERS
+from backend.config.settings import Settings, get_settings
 from backend.data_engine.storage.redis_cache import RedisCache
 from backend.feature_store.client import FeatureStoreClient
 from backend.fusion.nexus import DeepFusionNexus
@@ -81,6 +84,10 @@ INCOMPLETE_BUNDLES = Counter(
 )
 
 CHANNEL_STATE_UPDATES = "channel:state.updates"
+_NEXUS_CHECKPOINT_CANDIDATES = (
+    Path("models/fusion/best.pt"),
+    Path("models/fusion/best_nexus.pt"),
+)
 
 
 def _k_market_state(ticker: str) -> str:
@@ -360,3 +367,84 @@ class StateAssembler:
             CHANNEL_STATE_UPDATES,
             f'{{"n": {len(ready_tickers)}, "ts": "{now}"}}',
         )
+
+
+def _pick_device() -> str:
+    if not torch.cuda.is_available():
+        return "cpu"
+    try:
+        torch.zeros(1, device="cuda") + 1
+        return "cuda"
+    except RuntimeError as exc:
+        logger.warning(f"CUDA reports available but probe failed ({exc}); falling back to CPU.")
+        return "cpu"
+
+
+def _load_nexus_checkpoint(model: DeepFusionNexus, device: str, settings: Settings) -> None:
+    for ckpt_path in _NEXUS_CHECKPOINT_CANDIDATES:
+        if not ckpt_path.is_file():
+            continue
+        ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
+        state_dict = ckpt.get("model", ckpt) if isinstance(ckpt, dict) else ckpt
+        try:
+            model.load_state_dict(state_dict)
+            logger.info(f"Loaded Nexus weights from {ckpt_path} (device={device})")
+            return
+        except RuntimeError as exc:
+            if not settings.ALLOW_RANDOM_MODELS:
+                raise
+            logger.error(f"Nexus checkpoint {ckpt_path} is incompatible: {exc}.")
+    if settings.ALLOW_RANDOM_MODELS:
+        logger.warning(
+            "No compatible Nexus checkpoint found under models/fusion; running with random weights."
+        )
+        return
+    raise FileNotFoundError(
+        "No compatible Nexus checkpoint found under models/fusion. "
+        "Set ALLOW_RANDOM_MODELS=true only for synthetic smoke tests."
+    )
+
+
+async def _amain() -> None:
+    settings = get_settings()
+    device = _pick_device()
+    redis = RedisCache()
+    await redis.connect()
+
+    model = DeepFusionNexus()
+    _load_nexus_checkpoint(model, device, settings)
+    feature_client = FeatureStoreClient(mode="online", redis=redis)
+    service = StateAssembler(model, redis, feature_client, device=device)
+    stop_tasks: set[asyncio.Task[None]] = set()
+    loop = asyncio.get_running_loop()
+
+    def _request_stop() -> None:
+        task = asyncio.create_task(service.stop())
+        stop_tasks.add(task)
+        task.add_done_callback(stop_tasks.discard)
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, _request_stop)
+
+    try:
+        await service.run(settings.LIVE_TICKERS or list(TARGET_TICKERS))
+    finally:
+        await redis.disconnect()
+
+
+def main() -> int:
+    from backend.config.logging import configure_logging
+
+    configure_logging()
+    try:
+        asyncio.run(_amain())
+    except Exception:
+        logger.exception("StateAssembler crashed")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(main())

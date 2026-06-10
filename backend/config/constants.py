@@ -147,6 +147,10 @@ TARGET_TICKERS: frozenset[str] = frozenset(
         "NKE",
         "MCD",
         "LOW",
+        # Cryptocurrencies (High volatility assets)
+        "BTC-USD",
+        "ETH-USD",
+        "SOL-USD",
         # Indices (used as macro context features)
         "SPY",
         "QQQ",
@@ -206,6 +210,9 @@ TICKER_TO_SECTOR: dict[str, str] = {
     "NKE": "consumer_discretionary",
     "MCD": "consumer_discretionary",
     "LOW": "consumer_discretionary",
+    "BTC-USD": "crypto",
+    "ETH-USD": "crypto",
+    "SOL-USD": "crypto",
     "SPY": "index",
     "QQQ": "index",
 }
@@ -214,6 +221,7 @@ TICKER_TO_SECTOR: dict[str, str] = {
 SECTORS: tuple[str, ...] = (
     "consumer_discretionary",
     "consumer_staples",
+    "crypto",
     "energy",
     "financials",
     "healthcare",

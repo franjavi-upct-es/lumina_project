@@ -27,22 +27,14 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi import Depends, Header, HTTPException, status
-from loguru import logger
 from pydantic import BaseModel
 
 from backend.config.settings import Settings, get_settings
 from backend.data_engine.storage.redis_cache import RedisCache, get_redis_cache
 from backend.data_engine.storage.timescale import TimescaleStore, get_timescale_store
+from backend.execution.broker import factory as broker_factory
 from backend.execution.broker.base import BaseBroker
-from backend.execution.broker.paper_adapter import PaperBroker
 from backend.execution.safety.kill_switch import KillSwitch
-
-# Process-wide singleton — instantiated lazily on first call to
-# :func:`get_broker`. We keep it here (rather than inside ``broker/``)
-# because the *choice* of broker is an API-level concern: the broker
-# implementation is selected from settings and any test fixture can
-# override the dependency via FastAPI's ``app.dependency_overrides``.
-_BROKER_SINGLETON: BaseBroker | None = None
 
 
 async def get_redis() -> RedisCache:
@@ -69,47 +61,13 @@ def get_kill_switch(redis: RedisCache = Depends(get_redis)) -> KillSwitch:
 
 
 def get_broker(settings: Settings | None = None) -> BaseBroker:
-    """Return the configured broker.
-
-    Selection logic
-    ---------------
-    * ``BROKER_MODE=paper`` → :class:`PaperBroker` (default; no network).
-    * ``BROKER_MODE=alpaca`` → :class:`AlpacaBroker` (imported lazily so
-      tests that never hit Alpaca don't pay the heavy import cost).
-
-    The instance is cached at module scope so subsequent calls within the
-    same process return the *same* object — this is required for the
-    :class:`PaperBroker` whose state (cash, positions) lives in memory.
-    """
-    global _BROKER_SINGLETON
-    if _BROKER_SINGLETON is not None:
-        return _BROKER_SINGLETON
-
-    # If called manually (e.g. from background tasks), use the singleton settings.
-    # If called by FastAPI, the settings should be passed in.
-    effective_settings = settings or get_settings()
-
-    if effective_settings.BROKER_MODE == "alpaca":
-        # Lazy import: keeps the alpaca-py dependency optional in
-        # environments that only exercise the paper broker.
-        from backend.execution.broker.alpaca_adapter import AlpacaBroker
-
-        _BROKER_SINGLETON = AlpacaBroker()
-        logger.info("Broker singleton initialised: AlpacaBroker")
-    else:
-        _BROKER_SINGLETON = PaperBroker()
-        logger.info("Broker singleton initialised: PaperBroker")
-    return _BROKER_SINGLETON
+    """Return the configured process-local broker."""
+    return broker_factory.get_broker(settings)
 
 
 def reset_broker_singleton() -> None:
-    """Test helper — clear the cached broker so the next call rebuilds it.
-
-    Only intended for use from pytest fixtures; never call this from
-    production code.
-    """
-    global _BROKER_SINGLETON
-    _BROKER_SINGLETON = None
+    """Test helper — clear the cached broker so the next call rebuilds it."""
+    broker_factory.reset_broker_singleton()
 
 
 class UserContext(BaseModel):

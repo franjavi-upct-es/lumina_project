@@ -10,6 +10,7 @@ import torch
 from loguru import logger
 from torch_geometric.data import Data
 
+from backend.config.settings import get_settings
 from backend.data_engine.storage.redis_cache import RedisCache
 from backend.perception.common.embedding_writer import EmbeddingWriter
 from backend.perception.structural.gat_model import GraphEncoder
@@ -62,17 +63,24 @@ async def _amain() -> None:
     from backend.data_engine.storage.timescale import TimescaleStore
     from backend.perception.structural.graph_builder import build_graph_data
 
+    settings = get_settings()
     device = _pick_device()
     model = GraphEncoder()
     ckpt_path = Path(_GRAPH_CHECKPOINT)
     if ckpt_path.is_file():
         ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
-        model.load_state_dict(ckpt["model"])
+        state_dict = ckpt.get("model", ckpt) if isinstance(ckpt, dict) else ckpt
+        model.load_state_dict(state_dict)
         logger.info(f"Loaded Graph encoder weights from {ckpt_path} (device={device})")
-    else:
+    elif settings.ALLOW_RANDOM_MODELS:
         logger.warning(
             f"Graph checkpoint {ckpt_path} not found — running with random weights. "
             "Train via backend.perception.structural.trainer first."
+        )
+    else:
+        raise FileNotFoundError(
+            f"Graph checkpoint {ckpt_path} not found. "
+            "Set ALLOW_RANDOM_MODELS=true only for synthetic smoke tests."
         )
 
     redis = RedisCache()
@@ -90,13 +98,27 @@ async def _amain() -> None:
     try:
         while not stop_event.is_set():
             try:
-                data = await build_graph_data(datetime.now(UTC), timescale)
+                data = await build_graph_data(
+                    datetime.now(UTC),
+                    timescale,
+                    universe=settings.LIVE_TICKERS,
+                )
+                if data.x.shape[0] == 0 and not settings.ALLOW_RANDOM_MODELS:
+                    raise RuntimeError(
+                        "Graph inference has no historical OHLCV. Run a backfill first, "
+                        "or use the synthetic-feed profile."
+                    )
                 tickers_order = list(getattr(data, "ticker", []))
                 await service.run_once(data, tickers_order)
             except Exception as exc:
                 logger.exception(f"Graph inference iteration failed: {exc}")
+                if not settings.ALLOW_RANDOM_MODELS:
+                    raise
             with contextlib.suppress(TimeoutError):
-                await asyncio.wait_for(stop_event.wait(), timeout=_DAILY_INTERVAL_S)
+                await asyncio.wait_for(
+                    stop_event.wait(),
+                    timeout=settings.GRAPH_INFERENCE_INTERVAL_SECONDS or _DAILY_INTERVAL_S,
+                )
     finally:
         await redis.disconnect()
         await timescale.disconnect()

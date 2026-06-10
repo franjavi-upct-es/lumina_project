@@ -23,7 +23,7 @@ class TFTTrainer:
         val_loader: DataLoader,
         lr: float = 3e-4,
         device: str = "cuda",
-        checkpoint_dir: Path = Path("models/tft"),
+        checkpoint_dir: Path = Path("models/temporal"),
     ):
         self.model = model.to(device)
         self.train_loader = train_loader

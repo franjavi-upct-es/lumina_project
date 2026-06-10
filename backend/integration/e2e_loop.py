@@ -35,7 +35,8 @@ from loguru import logger
 from prometheus_client import Counter, Histogram
 
 from backend.cognition.agent.ppo_agent import PPOAgent
-from backend.data_engine.storage.redis_cache import RedisCache
+from backend.config.settings import get_settings
+from backend.data_engine.storage.redis_cache import RedisCache, k_tick_latest
 from backend.execution.orchestrator import ExecutionOrchestrator
 from backend.execution.safety.kill_switch import LocalKillSwitch
 from backend.feature_store.client import FeatureStoreClient
@@ -77,6 +78,10 @@ class EndToEndLoop:
         self.redis = redis
         self.device = device
         self.interval = tick_interval_s
+        settings = get_settings()
+        self._peak_equity = settings.INITIAL_CAPITAL
+        self._last_equity: float | None = None
+        self._consecutive_losses = 0
         # The latch defaults to the process-wide singleton so different
         # EndToEndLoop instances (one per ticker) share the same latch
         # without explicit wiring. Tests can inject a fresh instance.
@@ -132,9 +137,29 @@ class EndToEndLoop:
         t_fusion = time.perf_counter()
         E2E_LATENCY.labels(stage="fusion").observe(t_fusion - t_fetch)
 
+        latest_price = await self._latest_price(ticker)
+        if latest_price is None:
+            return
+        self._update_broker_price(ticker, latest_price)
+        acct = await self.orch.broker.get_account()
+        self._peak_equity = max(self._peak_equity, acct.equity)
+        position = acct.positions.get(ticker)
+        position_fraction = (
+            (position.qty * latest_price / acct.equity) if position and acct.equity > 0 else 0.0
+        )
+        drawdown = 1.0 - acct.equity / self._peak_equity if self._peak_equity > 0 else 0.0
+
         # --- Stage 3: Agent forward (target: ≤ 10 ms) ------------------
         state_np = state_mean.cpu().numpy().squeeze(0)
-        portfolio_state = np.zeros(4, dtype=np.float32)  # filled by orchestrator from broker
+        portfolio_state = np.asarray(
+            [
+                np.clip(position_fraction, -1.0, 1.0),
+                acct.equity / get_settings().INITIAL_CAPITAL,
+                np.clip(drawdown, 0.0, 1.0),
+                0.0,
+            ],
+            dtype=np.float32,
+        )
         full_state = np.concatenate([state_np, portfolio_state]).astype(np.float32)
         action, _log_prob, _value, action_uncertainty, vetoed = self.agent.act(
             full_state,
@@ -148,7 +173,11 @@ class EndToEndLoop:
             ticker=ticker,
             proposed_action=action,
             uncertainty=action_uncertainty,
+            latest_price=latest_price,
+            peak_equity=self._peak_equity,
+            consecutive_losses=self._consecutive_losses,
         )
+        await self._update_loss_streak()
         total_s = time.perf_counter() - t0
         E2E_LATENCY.labels(stage="total").observe(total_s)
 
@@ -158,6 +187,7 @@ class EndToEndLoop:
             )
 
         # --- Persist + publish for the dashboard -----------------------
+        ts = datetime.now(UTC).isoformat()
         payload = {
             "ticker": ticker,
             "action": action.tolist() if hasattr(action, "tolist") else list(action),
@@ -168,10 +198,39 @@ class EndToEndLoop:
                 if hasattr(result.final_action, "tolist")
                 else result.final_action
             ),
-            "ts": datetime.now(UTC).isoformat(),
+            "ts": ts,
             "latency_ms": total_s * 1000,
         }
         await self.redis.client.set("agent:last_action", json.dumps(payload))
         await self.redis.client.lpush("agent:history", json.dumps(payload))
         await self.redis.client.ltrim("agent:history", 0, 999)
-        await self.redis.client.publish("channel:agent.action", json.dumps(payload))
+        await self.redis.client.publish(
+            "channel:agent.action",
+            json.dumps({"type": "action", "ts": ts, "payload": payload}),
+        )
+
+    async def _latest_price(self, ticker: str) -> float | None:
+        raw = await self.redis.client.get(k_tick_latest(ticker))
+        if raw is None:
+            return None
+        tick = json.loads(raw)
+        price = tick.get("c")
+        if price is None:
+            return None
+        price_f = float(price)
+        return price_f if price_f > 0 else None
+
+    def _update_broker_price(self, ticker: str, price: float) -> None:
+        update = getattr(self.orch.broker, "update_price", None)
+        if callable(update):
+            update(ticker, price)
+
+    async def _update_loss_streak(self) -> None:
+        acct = await self.orch.broker.get_account()
+        if self._last_equity is not None:
+            if acct.equity < self._last_equity - 1e-6:
+                self._consecutive_losses += 1
+            elif acct.equity > self._last_equity + 1e-6:
+                self._consecutive_losses = 0
+        self._last_equity = acct.equity
+        self._peak_equity = max(self._peak_equity, acct.equity)

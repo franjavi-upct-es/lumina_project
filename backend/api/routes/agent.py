@@ -17,6 +17,20 @@ from backend.data_engine.storage.redis_cache import RedisCache
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
 
+def _scalar_action(payload: dict) -> float:
+    """Return the dashboard-friendly target fraction from a loop payload."""
+    final_action = payload.get("final_action")
+    if isinstance(final_action, int | float):
+        return float(final_action)
+
+    action = payload.get("action", 0.0)
+    if isinstance(action, int | float):
+        return float(action)
+    if isinstance(action, list) and action:
+        return float(action[0])
+    return 0.0
+
+
 @router.get("/status", response_model=AgentStatusResponse, dependencies=[Depends(require_api_key)])
 async def get_status(redis: RedisCache = Depends(get_redis)) -> AgentStatusResponse:
     data_raw = await redis.client.get("agent:last_action")
@@ -31,9 +45,9 @@ async def get_status(redis: RedisCache = Depends(get_redis)) -> AgentStatusRespo
     if data_raw:
         d = json.loads(data_raw)
         return AgentStatusResponse(
-            current_action=d.get("action", 0.0),
+            current_action=_scalar_action(d),
             uncertainty=d.get("uncertainty", 0.0),
-            gate_active=d.get("gate_active", False),
+            gate_active=bool(d.get("gate_active", d.get("vetoed", False))),
             last_update=datetime.fromisoformat(d["ts"]),
             consecutive_vetoes=d.get("consecutive_vetoes", 0),
             attention_weights=attn_list,

@@ -5,13 +5,15 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 
-import numpy as np
+import polars as pl
 import torch
 from loguru import logger
 
 from backend.config.constants import OHLCV_WINDOW_MINUTES, TARGET_TICKERS
+from backend.config.settings import get_settings
 from backend.data_engine.storage.redis_cache import RedisCache
 from backend.perception.common.embedding_writer import EmbeddingWriter
+from backend.perception.temporal.preprocessor import preprocess_ohlcv_window
 from backend.perception.temporal.tft_model import TemporalFusionTransformer
 
 
@@ -58,9 +60,12 @@ class TFTInferenceService:
         buf = self._buffers[ticker]
         if len(buf) < self.window:
             return
-        arr = np.array(buf, dtype=np.float32)
-        arr = (arr - arr.min(0)) / (arr.max(0) - arr.min(0) + 1e-8)
-        x = torch.from_numpy(arr).unsqueeze(0).to(self.device)
+        df = pl.DataFrame(
+            list(buf),
+            schema=["open", "high", "low", "close", "volume"],
+            orient="row",
+        )
+        x = preprocess_ohlcv_window(df, ticker).unsqueeze(0).to(self.device)
         with torch.no_grad():
             emb, _ = self.model(x)
         await self.writer.write("price", ticker, emb.cpu().numpy().squeeze(0))
@@ -84,17 +89,31 @@ async def _amain() -> None:
     import asyncio
     from pathlib import Path
 
+    settings = get_settings()
     device = _pick_device()
     model = TemporalFusionTransformer()
     ckpt_path = Path(_TFT_CHECKPOINT)
     if ckpt_path.is_file():
         ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
-        model.load_state_dict(ckpt["model"])
-        logger.info(f"Loaded TFT weights from {ckpt_path} (device={device})")
-    else:
+        state_dict = ckpt.get("model", ckpt) if isinstance(ckpt, dict) else ckpt
+        try:
+            model.load_state_dict(state_dict)
+            logger.info(f"Loaded TFT weights from {ckpt_path} (device={device})")
+        except RuntimeError as exc:
+            if not settings.ALLOW_RANDOM_MODELS:
+                raise
+            logger.error(
+                f"TFT checkpoint {ckpt_path} is incompatible: {exc}. Using random weights."
+            )
+    elif settings.ALLOW_RANDOM_MODELS:
         logger.warning(
             f"TFT checkpoint {ckpt_path} not found — running with random weights. "
             "Train via backend.perception.temporal.trainer first."
+        )
+    else:
+        raise FileNotFoundError(
+            f"TFT checkpoint {ckpt_path} not found. "
+            "Set ALLOW_RANDOM_MODELS=true only for synthetic smoke tests."
         )
 
     redis = RedisCache()
@@ -118,7 +137,7 @@ async def _amain() -> None:
         loop.add_signal_handler(sig, _request_stop)
 
     try:
-        await service.run(list(TARGET_TICKERS))
+        await service.run(settings.LIVE_TICKERS or list(TARGET_TICKERS))
     finally:
         await redis.disconnect()
 

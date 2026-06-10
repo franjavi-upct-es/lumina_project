@@ -128,7 +128,8 @@ class ParityCheck:
         self.head.eval()
         for batch in self.val_loader:
             target = batch["target_return"].to(self.device)
-            v2_pred = self.v2(batch["ohlcv_window"].to(self.device))
+            v2_window = batch.get("v2_ohlcv_window", batch["ohlcv_window"][..., :5])
+            v2_pred = self.v2(v2_window.to(self.device))
             if v2_pred.dim() > 1:
                 v2_pred = v2_pred.squeeze(-1)
             v3_pred = self._v3_forward(batch)

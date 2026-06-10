@@ -13,10 +13,14 @@
 #   api                    → uvicorn backend.api.main:app
 #   migrate                → alembic upgrade head
 #   ingestion              → backend.data_engine.pipelines.ingestion
+#   price_stream           → backend.data_engine.collectors.price_stream
+#   news_collector         → backend.data_engine.collectors.news_stream
+#   synthetic_feed         → backend.data_engine.collectors.synthetic_feed
 #   tft_inference          → backend.perception.temporal.inference
 #   semantic_inference     → backend.perception.semantic.inference
 #   graph_inference        → backend.perception.structural.inference
 #   state_assembler        → backend.fusion.state_assembler
+#   agent_loop             → backend.integration.agent_loop
 #   paper_trading          → backend.paper_trading.runner
 #   train_agent            → scripts.train_agent
 #   sleep                  → infinite sleep (debug)
@@ -30,8 +34,9 @@ MODE="${LUMINA_SERVICE_MODE:-}"
 if [[ -z "${MODE}" ]]; then
     echo "[lumina-entrypoint] LUMINA_SERVICE_MODE is not set." >&2
     echo "[lumina-entrypoint] Set one of: api, migrate, ingestion," >&2
+    echo "[lumina-entrypoint]            price_stream, news_collector, synthetic_feed," >&2
     echo "[lumina-entrypoint]            tft_inference, semantic_inference," >&2
-    echo "[lumina-entrypoint]            graph_inference, state_assembler," >&2
+    echo "[lumina-entrypoint]            graph_inference, state_assembler, agent_loop," >&2
     echo "[lumina-entrypoint]            paper_trading, train_agent, sleep." >&2
     exit 64  # EX_USAGE
 fi
@@ -54,6 +59,15 @@ case "${MODE}" in
     ingestion)
         exec python -m backend.data_engine.pipelines.ingestion
         ;;
+    price_stream)
+        exec python -m backend.data_engine.collectors.price_stream
+        ;;
+    news_collector)
+        exec python -m backend.data_engine.collectors.news_stream
+        ;;
+    synthetic_feed)
+        exec python -m backend.data_engine.collectors.synthetic_feed
+        ;;
     tft_inference)
         exec python -m backend.perception.temporal.inference
         ;;
@@ -65,6 +79,9 @@ case "${MODE}" in
         ;;
     state_assembler)
         exec python -m backend.fusion.state_assembler
+        ;;
+    agent_loop)
+        exec python -m backend.integration.agent_loop
         ;;
     paper_trading)
         exec python -m backend.paper_trading.runner

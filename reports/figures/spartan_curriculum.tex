@@ -1,0 +1,62 @@
+\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, fit, arrows.meta, shapes, backgrounds}
+
+\begin{document}
+\begin{tikzpicture}[
+    font=\sffamily\small,
+    >=LaTeX,
+    stage/.style={rectangle, rounded corners, draw, thick, fill=blue!10, minimum width=4cm, minimum height=1.2cm, align=center},
+    db/.style={cylinder, draw, thick, shape border rotate=90, aspect=0.25, fill=gray!10, minimum width=2cm, minimum height=1cm, align=center},
+    gate/.style={diamond, aspect=2, draw, thick, fill=orange!10, align=center},
+    policybox/.style={rectangle, draw, dashed, fill=purple!5, align=center},
+    arrow/.style={->, thick},
+    dashed_arrow/.style={->, thick, dashed}
+]
+
+\node[stage] (bc) {\textbf{Phase A: Behavioral Cloning} \\ NLL Imitation of Oracle (LSTM/MA)};
+\node[db, left=2cm of bc] (dataset) {Expert \\ Trajectories};
+\draw[arrow] (dataset) -- (bc);
+
+\node[gate, below=1cm of bc] (gate_bc) {Accuracy \\ $\ge$ 0.55?};
+\draw[arrow] (bc) -- (gate_bc);
+
+\node[policybox, right=2cm of bc] (model_bc) {BC Policy};
+\draw[dashed_arrow] (bc) -- (model_bc);
+
+\node[stage, below=1cm of gate_bc] (dr) {\textbf{Phase B: Domain Randomization} \\ PPO on 70\% Clean / 30\% Warped};
+\draw[arrow] (gate_bc) -- node[right] {Yes} (dr);
+
+\node[db, left=2cm of dr] (env_dr) {Adversarial \\ Generator};
+\draw[arrow] (env_dr) -- node[above, font=\scriptsize] {Flash Crash, etc.} (dr);
+
+\node[gate, below=1cm of dr] (gate_dr) {Mean Reward \\ $\ge$ -50.0?};
+\draw[arrow] (dr) -- (gate_dr);
+
+\node[policybox, right=2cm of dr] (model_dr) {Randomized Policy};
+\draw[dashed_arrow] (dr) -- (model_dr);
+
+\node[stage, below=1cm of gate_dr] (sharpe) {\textbf{Phase C: Sharpe Optimization} \\ PPO with Sharpe Reward \& Entropy Annealing};
+\draw[arrow] (gate_dr) -- node[right] {Yes} (sharpe);
+
+\node[db, left=2cm of sharpe] (env_sharpe) {Incremental \\ Sharpe Env};
+\draw[arrow] (env_sharpe) -- (sharpe);
+
+\node[gate, below=1cm of sharpe] (gate_sharpe) {OOS Sharpe \\ $\ge$ -25.0?};
+\draw[arrow] (sharpe) -- (gate_sharpe);
+
+\node[policybox, right=2cm of sharpe] (model_final) {Best Sharpe Policy \\ \& Final Policy};
+\draw[dashed_arrow] (sharpe) -- (model_final);
+
+\node[rectangle, draw=red, thick, rounded corners, left=1cm of gate_bc] (fail) {\textbf{ABORT}};
+\draw[arrow, red] (gate_bc) -- node[above] {No} (fail);
+\draw[arrow, red] (gate_dr) -| (fail);
+\draw[arrow, red] (gate_sharpe) -| (fail);
+
+\begin{scope}[on background layer]
+    \node[draw=gray!50, fill=gray!5, rounded corners, fit=(bc)(dr)(sharpe)(gate_bc)(gate_dr)(gate_sharpe), inner sep=0.5cm] (curriculum) {};
+    \node[above left, text=gray!80] at (curriculum.south east) {\textbf{Spartan Curriculum Orchestrator}};
+\end{scope}
+
+\end{tikzpicture}
+\end{document}

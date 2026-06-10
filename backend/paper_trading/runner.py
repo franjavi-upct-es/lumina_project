@@ -1,9 +1,12 @@
 # backend/paper_trading/runner.py
-"""Paper-trading runner — the production daemon orchestrator.
+"""Paper-trading lifecycle scaffold.
 
-This is the long-running process that holds the entire Chimera stack
-alive against a live (or recorded) data feed. It composes the nine
-async services that make up the Phase-8 architecture described in
+This module keeps the shutdown and kill-switch lifecycle code that the
+full paper-trading daemon needs, but it does not yet compose the live
+price, inference, state, agent, broker, and risk services. It therefore
+fails closed by default instead of pretending to run production trading.
+
+The intended full daemon will compose the async services described in
 ``Lumina_V3_Deep_Fusion_Architecture.md``:
 
   1. Price stream (Polygon WebSocket *or* the yfinance polling fallback)
@@ -34,6 +37,7 @@ runner
 from __future__ import annotations
 
 import asyncio
+import os
 
 from loguru import logger
 
@@ -42,13 +46,14 @@ from backend.execution.safety.kill_switch import LocalKillSwitchListener
 
 
 class PaperTradingRunner:
-    """Lifecycle orchestrator for the nine async services."""
+    """Lifecycle orchestrator scaffold for the live trading daemon."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, allow_heartbeat_only: bool = False) -> None:
         self._tasks: list[asyncio.Task[None]] = []
         self._running: bool = False
         self._stop_event = asyncio.Event()
         self._kill_listener: LocalKillSwitchListener | None = None
+        self._allow_heartbeat_only = allow_heartbeat_only
 
     async def start(self) -> None:
         """Block forever, executing the wired services."""
@@ -64,11 +69,12 @@ class PaperTradingRunner:
         self._kill_listener = LocalKillSwitchListener(redis)
         await self._kill_listener.start()
 
-        await self._wire_tasks()
-        logger.info(f"PaperTradingRunner started with {len(self._tasks)} tasks.")
         try:
+            await self._wire_tasks()
+            logger.info(f"PaperTradingRunner started with {len(self._tasks)} tasks.")
             await self._stop_event.wait()
         finally:
+            self._running = False
             for t in self._tasks:
                 t.cancel()
             await asyncio.gather(*self._tasks, return_exceptions=True)
@@ -83,14 +89,15 @@ class PaperTradingRunner:
         self._stop_event.set()
 
     async def _wire_tasks(self) -> None:
-        """Hook for subclasses to schedule their concrete services.
-
-        The default implementation schedules a single idle heartbeat
-        task so a smoke-test still does *something*. Override in
-        production deployments to start the price stream, news collector,
-        ingestion pipeline, inference services, state assembler, risk
-        monitor and end-to-end loops.
-        """
+        """Hook for subclasses to schedule their concrete services."""
+        if not self._allow_heartbeat_only:
+            raise RuntimeError(
+                "PaperTradingRunner is only a lifecycle scaffold and no longer starts "
+                "a dummy production daemon. Use LUMINA_SERVICE_MODE=state_assembler "
+                "for the live fusion service, or set "
+                "LUMINA_PAPER_TRADING_HEARTBEAT_ONLY=1 for an explicit smoke test."
+            )
+        logger.warning("Starting PaperTradingRunner in heartbeat-only smoke-test mode.")
         self._tasks.append(asyncio.create_task(self._heartbeat(), name="heartbeat"))
 
     async def _heartbeat(self) -> None:
@@ -103,7 +110,9 @@ class PaperTradingRunner:
 async def _amain() -> None:
     import signal
 
-    runner = PaperTradingRunner()
+    runner = PaperTradingRunner(
+        allow_heartbeat_only=os.getenv("LUMINA_PAPER_TRADING_HEARTBEAT_ONLY") == "1"
+    )
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, lambda: asyncio.create_task(runner.stop()))

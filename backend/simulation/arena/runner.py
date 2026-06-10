@@ -28,6 +28,7 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Protocol
 
 import mlflow
 import numpy as np
@@ -35,7 +36,6 @@ import torch
 from loguru import logger
 from prometheus_client import Counter
 
-from backend.cognition.agent.ppo_agent import PPOAgent
 from backend.config.constants import (
     ACTION_DIM,
     ARENA_DIVERGENCE_HORIZON_BARS,
@@ -73,6 +73,16 @@ ARENA_EXPLANATIONS_EMITTED = Counter(
 
 EnvFactory = Callable[[int], LuminaTradingEnv]
 """A function ``seed -> LuminaTradingEnv``. The runner calls it once per trajectory."""
+
+
+class ArenaAgent(Protocol):
+    """Small policy interface consumed by the arena loop."""
+
+    def act(
+        self,
+        state: np.ndarray,
+        deterministic: bool = False,
+    ) -> tuple[np.ndarray, float, float, float, bool]: ...
 
 
 class ArenaRunner:
@@ -121,7 +131,7 @@ class ArenaRunner:
     def __init__(
         self,
         run_metadata: ArenaRunMetadata,
-        agent: PPOAgent,
+        agent: ArenaAgent,
         env_factory: EnvFactory,
         state_builder: StateAssembler | None = None,
         timescale: TimescaleStore | None = None,

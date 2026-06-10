@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import signal
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -124,3 +125,41 @@ class NewsCollector:
 
     async def _set_cursor(self, ts: datetime) -> None:
         await self._redis.client.set(_CURSOR_KEY, ts.isoformat())
+
+
+async def _amain() -> None:
+    from backend.config.logging import configure_logging
+
+    configure_logging()
+    settings = get_settings()
+    if not settings.NEWSAPI_KEY:
+        raise RuntimeError("NEWSAPI_KEY is required for LUMINA_SERVICE_MODE=news_collector")
+
+    redis = RedisCache()
+    await redis.connect()
+    circuit_breaker = CircuitBreaker(redis)
+    await circuit_breaker.start()
+    collector = NewsCollector(redis, circuit_breaker=circuit_breaker)
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, lambda: asyncio.create_task(collector.stop()))
+    try:
+        await collector.run()
+    finally:
+        await circuit_breaker.stop()
+        await redis.disconnect()
+
+
+def main() -> int:
+    try:
+        asyncio.run(_amain())
+    except Exception:
+        logger.exception("NewsCollector crashed")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(main())

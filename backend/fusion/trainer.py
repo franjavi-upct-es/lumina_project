@@ -19,6 +19,7 @@ from loguru import logger
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from backend.config.constants import NEXUS_OUTPUT_DIM
 from backend.fusion.nexus import DeepFusionNexus
 
 
@@ -41,7 +42,7 @@ class NexusTrainer:
 
         # Temporary classification head for the regime task.
         # We don't save this head; we only care about the Nexus backbone.
-        self.regime_head = nn.Linear(model.head[-2].out_features, 4).to(device)
+        self.regime_head = nn.Linear(NEXUS_OUTPUT_DIM, 4).to(device)
 
         self.optim = torch.optim.AdamW(
             list(self.model.parameters()) + list(self.regime_head.parameters()),

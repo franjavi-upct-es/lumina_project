@@ -28,7 +28,13 @@ from loguru import logger
 from backend.cognition.agent.policy_network import PolicyNetwork
 from backend.cognition.agent.ppo_agent import PPOAgent
 from backend.cognition.agent.uncertainty_gate import UncertaintyGate
-from backend.config.constants import ACTION_DIM, DIM_GRAPH, DIM_PRICE, DIM_SEMANTIC, NEXUS_OUTPUT_DIM
+from backend.config.constants import (
+    ACTION_DIM,
+    DIM_GRAPH,
+    DIM_PRICE,
+    DIM_SEMANTIC,
+    NEXUS_OUTPUT_DIM,
+)
 from backend.config.logging import configure_logging
 from backend.data_engine.storage.redis_cache import get_redis_cache
 from backend.execution.broker.paper_adapter import PaperBroker
@@ -37,7 +43,7 @@ from backend.execution.safety.arbitrator import SafetyArbitrator
 from backend.execution.safety.kill_switch import KillSwitch, LocalKillSwitch
 from backend.feature_store.client import FeatureStoreClient
 from backend.fusion.nexus import DeepFusionNexus
-from backend.integration.e2e_loop import EndToEndLoop, LATENCY_BUDGET_MS
+from backend.integration.e2e_loop import LATENCY_BUDGET_MS, EndToEndLoop
 
 _ITERATIONS: int = 10_000
 _TICKER: str = "SPY"
@@ -55,8 +61,21 @@ def _pctiles(latencies_ms: list[float]) -> tuple[float, float, float]:
 async def _populate_synthetic_features(redis, ticker: str) -> None:
     rng = np.random.default_rng(42)
     await redis.set_embedding("price", ticker, rng.standard_normal(DIM_PRICE).astype(np.float32))
-    await redis.set_embedding("semantic", ticker, rng.standard_normal(DIM_SEMANTIC).astype(np.float32))
+    await redis.set_embedding(
+        "semantic", ticker, rng.standard_normal(DIM_SEMANTIC).astype(np.float32)
+    )
     await redis.set_embedding("graph", ticker, rng.standard_normal(DIM_GRAPH).astype(np.float32))
+    await redis.publish_tick(
+        ticker,
+        {
+            "t": int(time.time() * 1000),
+            "o": 450.0,
+            "h": 451.0,
+            "l": 449.0,
+            "c": 450.0,
+            "v": 1_000_000,
+        },
+    )
 
 
 async def _benchmark() -> int:
@@ -66,7 +85,7 @@ async def _benchmark() -> int:
     # 1. Load Checkpoints
     agent_path = Path("models/agent/final.pt")
     fusion_path = Path("models/fusion/best.pt")
-    
+
     # Note: PolicyNetwork state_dim is NEXUS_OUTPUT_DIM + 4 (portfolio state)
     policy = PolicyNetwork(state_dim=NEXUS_OUTPUT_DIM + 4, action_dim=ACTION_DIM)
     if agent_path.exists():
@@ -77,7 +96,10 @@ async def _benchmark() -> int:
 
     nexus = DeepFusionNexus()
     if fusion_path.exists():
-        nexus.load_state_dict(torch.load(fusion_path, map_location=device, weights_only=True))
+        fusion_data = torch.load(fusion_path, map_location=device, weights_only=True)
+        nexus.load_state_dict(
+            fusion_data.get("model", fusion_data) if isinstance(fusion_data, dict) else fusion_data
+        )
     else:
         logger.warning(f"Fusion checkpoint missing at {fusion_path}. Using random weights.")
     nexus.to(device).eval()
@@ -90,7 +112,7 @@ async def _benchmark() -> int:
     fc = FeatureStoreClient(mode="online", redis=redis)
     broker = PaperBroker()
     broker.update_price(_TICKER, 450.0)
-    
+
     orchestrator = ExecutionOrchestrator(
         broker=broker,
         arbitrator=SafetyArbitrator(),
@@ -115,7 +137,7 @@ async def _benchmark() -> int:
     # 4. Measure
     logger.info(f"Running {_ITERATIONS} iterations...")
     latencies: list[float] = []
-    
+
     # We'll use a simplified version of _cycle to avoid Prometheus overhead if necessary,
     # but EndToEndLoop._cycle is what we want to benchmark.
     for _ in range(_ITERATIONS):

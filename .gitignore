@@ -18,7 +18,6 @@ build/
 logs/
 mlruns/
 models/
-reports/
 node_modules/
 dist/
 .vite/
@@ -27,3 +26,22 @@ artifacts/
 .ipynb_checkpoints
 .vscode/
 mlflow.db
+
+# Reports contain generated QA dumps, but the article source and figure assets
+# are repository deliverables.
+reports/*
+!reports/article/
+reports/article/*
+!reports/article/*.tex
+!reports/article/*.bib
+!reports/figures/
+reports/figures/*
+!reports/figures/*.tex
+!reports/figures/*.pdf
+!reports/figures/*.png
+reports/**/*.aux
+reports/**/*.log
+reports/**/*.out
+reports/**/*.fls
+reports/**/*.fdb_latexmk
+reports/**/*.synctex.gz

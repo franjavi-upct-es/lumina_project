@@ -1,23 +1,5 @@
 # scripts/run_arena.py
-"""CLI launcher for the Spartan Arena.
-
-This is the development / CI-smoke entry point. The production
-deployment fires runs via ``POST /arena/run`` and a Celery worker picks
-them up; this script runs a self-contained arena in-process against
-synthetic data and an untrained policy, primarily so reviewers can
-exercise the pipeline end-to-end without standing up the whole
-infrastructure.
-
-Example
--------
-    python scripts/run_arena.py \\
-        --ticker AAPL \\
-        --start 2024-01-01 \\
-        --end  2024-01-05 \\
-        --n-trajectories 4 \\
-        --playback-multiplier 1.0 \\
-        --output-dir ./artifacts/arena
-"""
+"""CLI launcher for the Spartan Arena."""
 
 from __future__ import annotations
 
@@ -26,6 +8,7 @@ import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from loguru import logger
@@ -33,7 +16,7 @@ from loguru import logger
 from backend.cognition.agent.policy_network import PolicyNetwork
 from backend.cognition.agent.ppo_agent import PPOAgent
 from backend.cognition.agent.uncertainty_gate import UncertaintyGate
-from backend.config.constants import NEXUS_OUTPUT_DIM, ACTION_DIM
+from backend.config.constants import ACTION_DIM, NEXUS_OUTPUT_DIM
 from backend.simulation.arena.runner import ArenaRunner, make_random_seeds
 from backend.simulation.arena.schemas import ArenaRunMetadata
 from backend.simulation.environments.base_env import LuminaTradingEnv
@@ -160,7 +143,7 @@ async def _main_async(args: argparse.Namespace) -> int:
     agent = _build_agent(state_dim=args.state_dim, checkpoint=args.checkpoint, device=args.device)
     if args.action_boost != 1.0:
         agent = BoostedAgent(agent, args.action_boost)
-        
+
     env_factory = _build_env_factory(args.n_steps)
     runner = ArenaRunner(
         run_metadata=metadata,
@@ -171,15 +154,12 @@ async def _main_async(args: argparse.Namespace) -> int:
     )
 
     result = await runner.run()
-    
+
     # Generate feedback artifacts (BC dataset)
     divergences = runner.divergence_analyzer.all_divergences()
     pairs = build_pairs(result.run_id, divergences, runner._records_by_trajectory)
     if pairs:
         bc_writer = BCDatasetWriter(args.output_dir)
-        # In run_arena.py, the TrajectoryLogger writes states relative to args.output_dir.
-        # Decisions have state_artifact_path = "{run_id}/states/...".
-        # So artifact_root for BCDatasetWriter is args.output_dir.
         bc_writer.append_pairs(pairs, args.output_dir)
         logger.info("BC dataset updated with {} pairs", len(pairs))
 
@@ -197,7 +177,37 @@ async def _main_async(args: argparse.Namespace) -> int:
     print(f"avg step (ms)    : {runner.time_controller.average_duration_ms:.2f}")
     print(f"p95 step (ms)    : {runner.time_controller.p95_duration_ms:.2f}")
     print(f"artifact dir     : {args.output_dir}")
+
+    _save_arena_plot(runner, args.output_dir, result.run_id)
     return 0 if result.status.value == "COMPLETED" else 1
+
+
+def _save_arena_plot(runner: ArenaRunner, output_dir: Path, run_id: str) -> None:
+    plt.figure(figsize=(12, 6))
+
+    # Plot equity for each trajectory
+    for tid, records in runner._records_by_trajectory.items():
+        steps = [r.step_index for r in records]
+        # Simpler: Plot the cumulative rewards as a proxy for PnL
+        rewards = np.array(
+            [r.realized_reward if r.realized_reward is not None else 0.0 for r in records]
+        )
+        cum_returns = np.cumsum(rewards / 100.0)  # Back to fractional
+        plt.plot(steps, 1.0 + cum_returns, alpha=0.6, label=f"Seed {runner.metadata.mc_seeds[tid]}")
+
+    plt.axhline(y=1.0, color="black", linestyle="--", alpha=0.3)
+    plt.title(
+        f"Spartan Arena: {runner.metadata.ticker} Performance across {len(runner._envs)} Seeds"
+    )
+    plt.xlabel("Step")
+    plt.ylabel("Normalized Equity (1.0 = Initial)")
+    plt.grid(True, alpha=0.3)
+    if len(runner._envs) <= 8:
+        plt.legend(loc="upper left", fontsize="small", ncol=2)
+
+    plot_path = output_dir / f"arena_{run_id}_equity.png"
+    plt.savefig(plot_path, dpi=300)
+    logger.success(f"Arena visualization saved to {plot_path}")
 
 
 def main() -> int:

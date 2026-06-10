@@ -93,6 +93,8 @@ class ExecutionOrchestrator:
         ticker: str,
         proposed_action: np.ndarray,
         uncertainty: float,
+        latest_price: float | None = None,
+        peak_equity: float | None = None,
         consecutive_losses: int = 0,
     ) -> ExecutionResult:
         """Run one safety-arbitrated execution cycle for ``ticker``."""
@@ -101,8 +103,14 @@ class ExecutionOrchestrator:
         with EXECUTION_LATENCY.time():
             acct = await self.broker.get_account()
             positions = acct.positions
-            pos_qty = positions[ticker].qty if ticker in positions else 0.0
-            current_position = pos_qty / (acct.equity / 100.0) if acct.equity > 0 else 0.0
+            position = positions.get(ticker)
+            pos_qty = position.qty if position else 0.0
+            if latest_price is None and position and position.avg_entry_price > 0:
+                latest_price = position.avg_entry_price
+            if latest_price is not None and latest_price <= 0:
+                raise ValueError(f"latest_price must be positive for {ticker}, got {latest_price}")
+            current_notional = pos_qty * float(latest_price or 0.0)
+            current_position = current_notional / acct.equity if acct.equity > 0 else 0.0
             ks_state = await self.ks.get_state()
 
             # Hard fast-path: kill switch armed → liquidate everything.
@@ -125,7 +133,7 @@ class ExecutionOrchestrator:
                 proposed_action=action_arr,
                 current_position=current_position,
                 equity=acct.equity,
-                peak_equity=acct.equity,
+                peak_equity=peak_equity or acct.equity,
                 uncertainty=uncertainty,
                 kill_switch_state=ks_state.value,
                 consecutive_losses=consecutive_losses,
@@ -149,9 +157,12 @@ class ExecutionOrchestrator:
                 )
 
             # Translate the position delta into a broker order.
-            delta = target_position - current_position
-            side: OrderSide = "buy" if delta > 0 else "sell"
-            qty = abs(delta) * (acct.equity / 100.0)
+            if latest_price is None:
+                raise ValueError(f"latest_price is required to size live orders for {ticker}")
+            target_notional = target_position * acct.equity
+            delta_notional = target_notional - current_notional
+            side: OrderSide = "buy" if delta_notional > 0 else "sell"
+            qty = abs(delta_notional) / latest_price
             order = await self.broker.submit_order(
                 ticker=ticker,
                 qty=qty,
