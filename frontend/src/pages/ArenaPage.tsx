@@ -12,31 +12,33 @@
 //   │ Run summary narrative                                           │
 //   └──────────────────────────────────────────────────────────────────┘
 
-import { useEffect, useMemo, useState } from "react";
-import { cancelArenaRun, getRunSummary, startArenaRun } from "../api/arena";
+import { useEffect, useState } from "react";
+import { cancelArenaRun, getArenaRun, getDecisions, getRunSummary, startArenaRun } from "../api/arena";
 import { ArenaTrajectoriesPanel } from "../components/panels/ArenaTrajectoriesPanel";
 import { CounterfactualPairsPanel } from "../components/panels/CounterfactualPairsPanel";
 import { DivergenceTimelinePanel } from "../components/panels/DivergenceTimelinePanel";
 import { useArenaStore } from "../store/arenaSlice";
-import type { RunSummary } from "../types/arena.types";
+import type { ArenaRunStatus, DecisionRecord, RunSummary } from "../types/arena.types";
+
+const SUMMARY_POLL_INTERVAL_MS = 3_000;
+const RUN_POLL_INTERVAL_MS = 2_000;
+const PALETTE = [
+  "var(--accent-bright)",
+  "var(--accent)",
+  "var(--purple)",
+  "rgba(148,163,184,0.7)",
+  "var(--green)",
+  "var(--amber)",
+];
 
 interface LeaderboardEntry {
   rank: number;
   name: string;
-  equity: number;
-  retPct: number;
+  reward: number;
   ddPct: number;
   winPct: number;
   color: string;
-  isLumina?: boolean;
 }
-
-const DEMO_LEADERBOARD: LeaderboardEntry[] = [
-  { rank: 1, name: "Lumina v3.2",  equity: 124_700, retPct: 0.247, ddPct: -0.034, winPct: 0.582, color: "var(--accent-bright)", isLumina: true },
-  { rank: 2, name: "Lumina v3.1",  equity: 118_400, retPct: 0.184, ddPct: -0.048, winPct: 0.541, color: "var(--accent)",          isLumina: true },
-  { rank: 3, name: "Baseline (BL-12)", equity: 112_800, retPct: 0.128, ddPct: -0.062, winPct: 0.510, color: "var(--purple)" },
-  { rank: 4, name: "Random walk",  equity: 101_200, retPct: 0.012, ddPct: -0.081, winPct: 0.494, color: "rgba(148,163,184,0.7)" },
-];
 
 function fmtTime(secs: number): string {
   const m = Math.floor(secs / 60);
@@ -58,20 +60,59 @@ export function ArenaPage() {
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
-  const [tick, setTick] = useState(3482);
-  const [wallElapsed, setWallElapsed] = useState(261);
-  const [simTime, setSimTime] = useState(new Date("2026-04-12T14:32:00Z"));
+  const [tick, setTick] = useState(0);
+  const [wallElapsed, setWallElapsed] = useState(0);
+  const [simTime, setSimTime] = useState<Date | null>(null);
+  const [runStatus, setRunStatus] = useState<ArenaRunStatus | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
-  // Drive demo clocks so the transport row never reads as frozen.
   useEffect(() => {
     if (!playing) return;
-    const id = setInterval(() => {
-      setTick((t) => t + playbackMultiplier);
-      setWallElapsed((e) => e + 1);
-      setSimTime((d) => new Date(d.getTime() + 60_000 * playbackMultiplier));
-    }, 1000);
+    const id = setInterval(() => setWallElapsed((e) => e + 1), 1000);
     return () => clearInterval(id);
-  }, [playing, playbackMultiplier]);
+  }, [playing]);
+
+  useEffect(() => {
+    if (!activeRunId) {
+      setRunStatus(null);
+      setLeaderboard([]);
+      setTick(0);
+      setSimTime(null);
+      return;
+    }
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const load = async () => {
+      try {
+        const [run, decisions] = await Promise.all([
+          getArenaRun(activeRunId),
+          getDecisions(activeRunId, undefined, { limit: 10_000 }),
+        ]);
+        if (cancelled) return;
+        setRunStatus(run.status);
+        setLeaderboard(buildLeaderboard(decisions));
+        if (decisions.length > 0) {
+          const last = decisions.reduce((a, b) => (a.step_index > b.step_index ? a : b));
+          setTick(last.step_index);
+          setSimTime(new Date(last.sim_timestamp));
+        }
+        if (["COMPLETED", "FAILED", "CANCELLED"].includes(run.status)) {
+          setPlaying(false);
+          return;
+        }
+      } catch (err) {
+        if (!cancelled) console.warn("[arena] run poll failed", err);
+      }
+      if (!cancelled) timer = window.setTimeout(() => void load(), RUN_POLL_INTERVAL_MS);
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [activeRunId]);
 
   useEffect(() => {
     if (!activeRunId) {
@@ -79,16 +120,35 @@ export function ArenaPage() {
       return;
     }
     let cancelled = false;
-    getRunSummary(activeRunId).then((s) => {
-      if (!cancelled) setSummary(s);
-    }).catch(() => {});
-    return () => { cancelled = true; };
+    let timer: number | undefined;
+
+    const load = async () => {
+      try {
+        const s = await getRunSummary(activeRunId);
+        if (!cancelled) setSummary(s);
+      } catch {
+        if (!cancelled) {
+          timer = window.setTimeout(() => void load(), SUMMARY_POLL_INTERVAL_MS);
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
   }, [activeRunId]);
 
   async function handleStart() {
     setStartError(null);
     setStarting(true);
     setPlaying(true);
+    setTick(0);
+    setWallElapsed(0);
+    setSimTime(null);
+    setRunStatus(null);
+    setLeaderboard([]);
     try {
       const today = new Date();
       const startDate = new Date(today);
@@ -139,7 +199,7 @@ export function ArenaPage() {
 
       <section style={{ display: "grid", gridTemplateColumns: "minmax(0, 2.2fr) minmax(320px, 1fr)", gap: 16 }}>
         <EquityRaceCard runId={activeRunId} />
-        <Leaderboard rows={DEMO_LEADERBOARD} />
+        <Leaderboard rows={leaderboard} status={runStatus} />
       </section>
 
       {activeRunId && (
@@ -176,7 +236,7 @@ function TransportBar({
   onStart: () => void;
   onPause: () => void;
   onReset: () => void;
-  simTime: Date;
+  simTime: Date | null;
   tick: number;
   wallElapsed: number;
 }) {
@@ -217,8 +277,8 @@ function TransportBar({
       <div style={{ flex: 1 }} />
 
       <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-        <Stat label="Sim time" value={`${simTime.toISOString().slice(0, 10)} ${fmtClock(simTime)}`} />
-        <Stat label="Tick" value={`#${tick.toLocaleString()} / 9,600`} />
+        <Stat label="Sim time" value={simTime ? `${simTime.toISOString().slice(0, 10)} ${fmtClock(simTime)}` : "—"} />
+        <Stat label="Tick" value={tick > 0 ? `#${tick.toLocaleString()}` : "—"} />
         <Stat label="Wall" value={fmtTime(wallElapsed)} />
       </div>
 
@@ -247,7 +307,7 @@ function EquityRaceCard({ runId }: { runId: string | null }) {
         <div>
           <div className="lx-label">Arena · Equity Race</div>
           <div style={{ marginTop: 4, fontSize: 11, color: "var(--text-dim)" }}>
-            NOW · tick 3482
+            recorded trajectory rewards
           </div>
         </div>
         <Legend />
@@ -272,15 +332,24 @@ function EquityRaceCard({ runId }: { runId: string | null }) {
   );
 }
 
-function Leaderboard({ rows }: { rows: LeaderboardEntry[] }) {
+function Leaderboard({ rows, status }: { rows: LeaderboardEntry[]; status: ArenaRunStatus | null }) {
   return (
     <section className="lx-panel" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <header className="lx-label">Leaderboard</header>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {rows.map((row) => (
-          <LeaderboardRow key={row.name} row={row} />
-        ))}
-      </div>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span className="lx-label">Leaderboard</span>
+        <span className="lx-mono lx-dim" style={{ fontSize: 11 }}>{status ?? "—"}</span>
+      </header>
+      {rows.length === 0 ? (
+        <div className="lx-dim" style={{ padding: 18, textAlign: "center", fontSize: 12 }}>
+          No trajectory decisions recorded yet.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {rows.map((row) => (
+            <LeaderboardRow key={row.name} row={row} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -320,50 +389,24 @@ function LeaderboardRow({ row }: { row: LeaderboardEntry }) {
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 600 }}>{row.name}</div>
           <div className="lx-mono" style={{ fontSize: 10, color: "var(--text-dim)", letterSpacing: "0.04em" }}>
-            LIVE · {(row.winPct * 100).toFixed(1)}% win
+            {(row.winPct * 100).toFixed(1)}% positive steps
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
           <div className="lx-mono" style={{ fontSize: 14, fontWeight: 600 }}>
-            ${(row.equity / 1000).toFixed(1)}k
+            {row.reward >= 0 ? "+" : ""}{row.reward.toFixed(2)}
           </div>
-          <div className="lx-mono" style={{ fontSize: 10, color: row.retPct >= 0 ? "var(--green)" : "var(--red)" }}>
-            {row.retPct >= 0 ? "+" : ""}{(row.retPct * 100).toFixed(1)}% · DD {(row.ddPct * 100).toFixed(1)}%
+          <div className="lx-mono" style={{ fontSize: 10, color: row.reward >= 0 ? "var(--green)" : "var(--red)" }}>
+            max drawdown {(row.ddPct * 100).toFixed(1)}%
           </div>
         </div>
       </div>
-      <MiniRaceLine color={row.color} variance={row.rank} />
     </div>
   );
 }
 
-function MiniRaceLine({ color, variance }: { color: string; variance: number }) {
-  const points = useMemo(() => {
-    const w = 260;
-    const h = 22;
-    const pts: string[] = [];
-    let y = h / 2;
-    for (let i = 0; i < 36; i++) {
-      const wiggle = Math.sin((i + variance) / 2) * (1 + variance * 0.4);
-      y = h / 2 + wiggle + (variance % 2 === 0 ? -i * 0.18 : -i * 0.10);
-      pts.push(`${(i / 35) * w},${Math.max(3, Math.min(h - 3, y))}`);
-    }
-    return pts.join(" ");
-  }, [variance]);
-  return (
-    <svg width="100%" height={22} viewBox="0 0 260 22" preserveAspectRatio="none">
-      <polyline points={points} fill="none" stroke={color} strokeWidth={1.2} />
-    </svg>
-  );
-}
-
 function Legend() {
-  const items = [
-    { color: "var(--accent-bright)", label: "Lumina v3.2" },
-    { color: "var(--accent)",        label: "Lumina v3.1" },
-    { color: "var(--purple)",        label: "Baseline (BL-12)" },
-    { color: "rgba(148,163,184,0.7)", label: "Random walk" },
-  ];
+  const items = PALETTE.slice(0, 4).map((color, i) => ({ color, label: `T${i}` }));
   return (
     <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--text-secondary)" }}>
       {items.map((it) => (
@@ -421,4 +464,40 @@ function SummaryBlock({ summary }: { summary: RunSummary | null }) {
       </pre>
     </section>
   );
+}
+
+function buildLeaderboard(decisions: DecisionRecord[]): LeaderboardEntry[] {
+  const byTrajectory = new Map<number, DecisionRecord[]>();
+  for (const decision of decisions) {
+    const bucket = byTrajectory.get(decision.trajectory_id) ?? [];
+    bucket.push(decision);
+    byTrajectory.set(decision.trajectory_id, bucket);
+  }
+
+  const rows = Array.from(byTrajectory.entries()).map(([trajectoryId, records]) => {
+    const sorted = [...records].sort((a, b) => a.step_index - b.step_index);
+    let cumulative = 0;
+    let peak = 0;
+    let maxDrawdown = 0;
+    let positive = 0;
+    for (const record of sorted) {
+      const reward = record.realized_reward ?? 0;
+      cumulative += reward;
+      peak = Math.max(peak, cumulative);
+      maxDrawdown = Math.max(maxDrawdown, peak - cumulative);
+      if (reward > 0) positive += 1;
+    }
+    return {
+      rank: 0,
+      name: `Trajectory T${trajectoryId}`,
+      reward: cumulative,
+      ddPct: peak > 0 ? maxDrawdown / peak : 0,
+      winPct: sorted.length > 0 ? positive / sorted.length : 0,
+      color: PALETTE[trajectoryId % PALETTE.length],
+    };
+  });
+
+  return rows
+    .sort((a, b) => b.reward - a.reward)
+    .map((row, index) => ({ ...row, rank: index + 1 }));
 }

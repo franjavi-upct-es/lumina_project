@@ -397,7 +397,7 @@ class ArenaRunner:
             action_vector=action_array.tolist(),
             confidence=confidence,
             uncertainty=float(min(max(uncertainty, 0.0), 1.0)),
-            realized_reward=None,
+            realized_reward=float(reward),
             state_artifact_path="",  # rewritten inside logger
             attribution=attribution,
             mc_seed=int(self.metadata.mc_seeds[t_id]),
@@ -405,9 +405,6 @@ class ArenaRunner:
 
         super_state = torch.from_numpy(policy_state).float()
         record = await self.logger.log_decision(record, super_state)
-
-        # Update reward asynchronously — does not block the step.
-        await self.logger.update_realized_reward(record.record_id, float(reward))
         bar_return = _per_bar_return(reward)
         self._returns_history[t_id].append(bar_return)
 

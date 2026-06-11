@@ -6,6 +6,7 @@ export interface AgentStatus {
   last_update: string;
   consecutive_vetoes: number;
   attention_weights?: number[] | null;
+  has_action: boolean;
 }
 
 export interface AgentStreamMessage {

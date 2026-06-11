@@ -92,6 +92,14 @@ class Settings(BaseSettings):
     # ---------- MLflow ----------
     MLFLOW_TRACKING_URI: str = "http://mlflow:5000"
     MLFLOW_EXPERIMENT_NAME: str = "lumina_v3_arena"
+    MLFLOW_BACKTEST_EXPERIMENT_NAME: str = "lumina_v3_backtests"
+
+    # ---------- Dashboard simulation workers ----------
+    BACKTEST_WORKER_POLL_SECONDS: float = 1.0
+    BACKTEST_SYNTHETIC_STEPS: int = 252
+    ARENA_WORKER_POLL_SECONDS: float = 1.0
+    ARENA_SYNTHETIC_STEPS: int = 240
+    ALLOW_SYNTHETIC_SIMULATION_FALLBACK: bool = False
 
     # ---------- Safety ----------
     UNCERTAINTY_THRESHOLD: float = 0.85

@@ -51,6 +51,7 @@ async def get_status(redis: RedisCache = Depends(get_redis)) -> AgentStatusRespo
             last_update=datetime.fromisoformat(d["ts"]),
             consecutive_vetoes=d.get("consecutive_vetoes", 0),
             attention_weights=attn_list,
+            has_action=True,
         )
     return AgentStatusResponse(
         current_action=0.0,
@@ -58,6 +59,7 @@ async def get_status(redis: RedisCache = Depends(get_redis)) -> AgentStatusRespo
         gate_active=False,
         last_update=datetime.now(UTC),
         attention_weights=attn_list,
+        has_action=False,
     )
 
 

@@ -4,8 +4,9 @@
 The router intentionally mirrors the existing backtest route's pattern
 (see ``backtest.py``): the API surface enqueues work and stores the run
 request in Redis, but does not block on the run itself. A worker
-(``scripts/run_arena.py`` for now; a Celery task in production) picks
-up the request and produces records.
+(``backend.simulation.arena.worker`` in the composed runtime) picks up
+the request, executes :class:`ArenaRunner`, logs metrics to MLflow, and
+produces dashboard records.
 
 Endpoints
 ---------

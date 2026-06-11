@@ -56,6 +56,7 @@ class AgentStatusResponse(BaseModel):
     last_update: datetime
     consecutive_vetoes: int = 0
     attention_weights: list[float] | None = None  # [Price, News, Graph]
+    has_action: bool = False
 
 
 class AgentStreamMessage(BaseModel):
@@ -142,6 +143,7 @@ class BacktestResultResponse(BaseModel):
     sharpe: float | None = None
     max_drawdown: float | None = None
     total_return: float | None = None
+    failure_reason: str | None = None
 
 
 # ----- Data -----------------------------------------------------------------

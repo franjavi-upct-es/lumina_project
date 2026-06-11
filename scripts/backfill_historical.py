@@ -32,6 +32,7 @@ import argparse
 import asyncio
 import sys
 from datetime import date, datetime
+from urllib.parse import urlsplit, urlunsplit
 
 from loguru import logger
 
@@ -40,6 +41,34 @@ from backend.config.logging import configure_logging
 from backend.config.settings import get_settings
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
 from backend.data_engine.storage.timescale import get_timescale_store
+
+
+def _mask_url(url: str) -> str:
+    parts = urlsplit(url)
+    if "@" not in parts.netloc:
+        return url
+    userinfo, hostinfo = parts.netloc.rsplit("@", 1)
+    username = userinfo.split(":", 1)[0]
+    return urlunsplit((parts.scheme, f"{username}:***@{hostinfo}", parts.path, parts.query, ""))
+
+
+def _connection_hint(exc: BaseException) -> str:
+    settings = get_settings()
+    timescale_url = _mask_url(settings.TIMESCALE_URL)
+    host = urlsplit(settings.TIMESCALE_URL).hostname
+    hint = f"Cannot connect to TimescaleDB at {timescale_url}: {exc}"
+    if host == "timescale":
+        hint += (
+            "\nThe hostname 'timescale' only resolves inside Docker Compose. "
+            "For host-side commands, use "
+            "TIMESCALE_URL=postgresql://lumina:lumina@localhost:5432/lumina "
+            "or run `make backfill-yfinance`, which sets that override."
+        )
+    else:
+        hint += (
+            "\nMake sure the database is running, for example: `docker compose up -d timescale`."
+        )
+    return hint
 
 
 async def _backfill_yfinance(tickers: list[str], start: date, end: date) -> int:
@@ -115,8 +144,8 @@ def main(argv: list[str] | None = None) -> int:
     runner = _backfill_yfinance if args.source == "yfinance" else _backfill_polygon
     try:
         inserted = asyncio.run(runner(tickers, args.start, args.end))
-    except RuntimeError as exc:
-        logger.error(str(exc))
+    except (RuntimeError, OSError) as exc:
+        logger.error(_connection_hint(exc) if isinstance(exc, OSError) else str(exc))
         return 1
     logger.success(f"Backfill complete: {inserted} rows")
     return 0

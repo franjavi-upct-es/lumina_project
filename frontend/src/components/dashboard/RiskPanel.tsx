@@ -29,19 +29,6 @@ function ExposureBar({ pct, side }: { pct: number; side: "long" | "short" }) {
   );
 }
 
-const DEMO_PORTFOLIO: Portfolio = {
-  equity: 123_847,
-  cash: 12_001,
-  buying_power: 40_002,
-  peak_equity: 128_200,
-  drawdown_pct: 0.0341,
-  positions: [
-    { ticker: "AAPL", qty: 240, avg_entry_price: 187.42, unrealized_pnl: 1247, market_value: 44_980 },
-    { ticker: "MSFT", qty: 84,  avg_entry_price: 422.18, unrealized_pnl: 612,  market_value: 35_463 },
-    { ticker: "NVDA", qty: 12,  avg_entry_price: 1248.50, unrealized_pnl: -284, market_value: 14_982 },
-  ],
-};
-
 interface SyntheticRow {
   weight: number;
   beta: number;
@@ -138,7 +125,6 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 export function RiskPanel() {
   const { portfolio, error } = usePortfolio();
-  const effective = portfolio ?? DEMO_PORTFOLIO;
   return (
     <section className="lx-panel">
       <header
@@ -167,10 +153,16 @@ export function RiskPanel() {
             border: "1px solid rgba(239,68,68,0.4)",
           }}
         >
-          Live broker feed unreachable ({error.message}) · showing last snapshot.
+          Live broker feed unreachable ({error.message}).
         </div>
       )}
-      <RiskPanelBody portfolio={effective} />
+      {portfolio ? (
+        <RiskPanelBody portfolio={portfolio} />
+      ) : (
+        <div className="lx-dim" style={{ padding: 24, textAlign: "center", fontSize: 13 }}>
+          No real portfolio snapshot available yet.
+        </div>
+      )}
     </section>
   );
 }

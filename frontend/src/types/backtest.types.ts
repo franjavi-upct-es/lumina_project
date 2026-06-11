@@ -12,4 +12,5 @@ export interface BacktestResult {
   sharpe?: number;
   max_drawdown?: number;
   total_return?: number;
+  failure_reason?: string | null;
 }

@@ -6,9 +6,8 @@
 // Risk / Review). Body renders the current run summary and a clickable
 // run-history list.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { backtestApi } from "../api/backtest";
-import { EquityCurve } from "../components/dashboard/EquityCurve";
 import type { BacktestRequest, BacktestResult } from "../types/backtest.types";
 
 const POLL_INTERVAL_MS = 2_000;
@@ -44,27 +43,15 @@ function formatPct(n: number | undefined): string {
   return `${(n * 100).toFixed(2)}%`;
 }
 
-// ─── Local demo history ────────────────────────────────────────────────
-//
-// Until the API exposes a /api/backtest/history endpoint we render a
-// frozen history list so the page is never empty. The currently-running
-// result is prepended on top.
 interface HistoryRow {
   id: string;
-  days: number;
-  ret: number;
-  sharpe: number;
-  drawdown: number;
-  status: "complete" | "failed" | "running";
+  days?: number;
+  ret?: number;
+  sharpe?: number;
+  drawdown?: number;
+  status: BacktestResult["status"];
+  failureReason?: string | null;
 }
-
-const DEMO_HISTORY: HistoryRow[] = [
-  { id: "R-2049", days: 90,  ret: 0.2385, sharpe: 2.18, drawdown: -0.0341, status: "complete" },
-  { id: "R-2048", days: 180, ret: 0.1921, sharpe: 1.94, drawdown: -0.0482, status: "complete" },
-  { id: "R-2047", days: 90,  ret: 0.1404, sharpe: 1.62, drawdown: -0.0610, status: "complete" },
-  { id: "R-2046", days: 365, ret: 0.2892, sharpe: 2.41, drawdown: -0.0284, status: "complete" },
-  { id: "R-2045", days: 90,  ret: 0.0412, sharpe: 0.62, drawdown: -0.0941, status: "failed" },
-];
 
 export function Backtest() {
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
@@ -73,7 +60,8 @@ export function Backtest() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [activeStep, setActiveStep] = useState<number>(1);
-  const [selectedHistoryId, setSelectedHistoryId] = useState<string>("R-2049");
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+  const [liveHistory, setLiveHistory] = useState<HistoryRow[]>([]);
 
   const validationError = validateForm(form);
 
@@ -139,27 +127,21 @@ export function Backtest() {
     return () => clearInterval(id);
   }, [result?.run_id, result?.status]);
 
-  const [liveHistory, setLiveHistory] = useState<HistoryRow[]>(DEMO_HISTORY);
-
   useEffect(() => {
     let cancelled = false;
     backtestApi.getRuns().then((runs) => {
       if (cancelled) return;
-      if (runs && runs.length > 0) {
-        setLiveHistory(
-          runs.map(r => ({
-            id: r.run_id,
-            days: 30, // Mock days since we don't have start/end in the result yet
-            ret: r.total_return ?? 0,
-            sharpe: r.sharpe ?? 0,
-            drawdown: r.max_drawdown ?? 0,
-            status: r.status as any,
-          }))
-        );
-      }
+      const rows = runs.map((run) => resultToHistoryRow(run));
+      setLiveHistory(rows);
+      if (!selectedHistoryId && rows.length > 0) setSelectedHistoryId(rows[0].id);
     }).catch(err => console.warn("Failed to load backtests", err));
     return () => { cancelled = true; };
-  }, []);
+  }, [selectedHistoryId]);
+
+  useEffect(() => {
+    if (!result) return;
+    setLiveHistory((rows) => upsertHistoryRow(rows, resultToHistoryRow(result, form)));
+  }, [result, form]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -345,11 +327,20 @@ function RunChartCard({
   history,
   liveResult,
 }: {
-  runId: string;
+  runId: string | null;
   history: HistoryRow[];
   liveResult: BacktestResult | null;
 }) {
-  const row = history.find((h) => h.id === runId) ?? history[0];
+  const row = runId ? history.find((h) => h.id === runId) : undefined;
+  if (!row) {
+    return (
+      <section className="lx-panel">
+        <div className="lx-dim" style={{ padding: 24, textAlign: "center", fontSize: 13 }}>
+          No real backtest run selected. Start a run or wait for history to load.
+        </div>
+      </section>
+    );
+  }
   const ret = liveResult?.run_id === runId ? liveResult.total_return ?? row.ret : row.ret;
   const sharpe = liveResult?.run_id === runId ? liveResult.sharpe ?? row.sharpe : row.sharpe;
   const dd = liveResult?.run_id === runId ? liveResult.max_drawdown ?? row.drawdown : row.drawdown;
@@ -364,18 +355,33 @@ function RunChartCard({
         }}
       >
         <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
-          <span className="lx-label">{row.id} · {row.days}D BACKTEST</span>
+          <span className="lx-label">{row.id} · {row.days ? `${row.days}D` : "WINDOW —"} BACKTEST</span>
           <StatusTag status={row.status} />
         </div>
         <div style={{ display: "flex", gap: 24, fontSize: 11 }}>
-          <Stat label="Return"   value={formatPct(ret)}   tone={ret >= 0 ? "pos" : "neg"} />
-          <Stat label="Sharpe"   value={sharpe.toFixed(2)} />
+          <Stat label="Return"   value={formatPct(ret)}   tone={(ret ?? 0) >= 0 ? "pos" : "neg"} />
+          <Stat label="Sharpe"   value={formatNumber(sharpe)} />
           <Stat label="Max DD"   value={formatPct(dd)}    tone="neg" />
-          <Stat label="Win"      value="58.2%"             tone="pos" />
-          <Stat label="Trades"   value="482" />
         </div>
       </header>
-      <EquityCurve data={[]} height={280} />
+      {(liveResult?.run_id === runId ? liveResult.failure_reason : row.failureReason) && (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: "8px 10px",
+            background: "var(--red-soft)",
+            color: "var(--red)",
+            border: "1px solid rgba(239,68,68,0.4)",
+            borderRadius: 6,
+            fontSize: 12,
+          }}
+        >
+          {liveResult?.run_id === runId ? liveResult.failure_reason : row.failureReason}
+        </div>
+      )}
+      <div className="lx-dim" style={{ padding: "50px 12px", textAlign: "center", fontSize: 13 }}>
+        Aggregate metrics are real. Equity-curve samples are not exposed by the backtest API yet.
+      </div>
     </section>
   );
 }
@@ -386,16 +392,22 @@ function RunHistoryTable({
   onSelect,
 }: {
   rows: HistoryRow[];
-  selectedId: string;
+  selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
+  if (rows.length === 0) {
+    return (
+      <div className="lx-dim" style={{ padding: 24, textAlign: "center", fontSize: 13 }}>
+        No backtest runs recorded yet.
+      </div>
+    );
+  }
   return (
     <table className="lx-table">
       <thead>
         <tr>
           <th>Run</th>
           <th className="r">Window</th>
-          <th>Equity</th>
           <th className="r">Return</th>
           <th className="r">Sharpe</th>
           <th className="r">Max DD</th>
@@ -414,12 +426,11 @@ function RunHistoryTable({
             <td style={{ color: r.id === selectedId ? "var(--accent-bright)" : "var(--text-primary)", fontWeight: 600 }}>
               {r.id}
             </td>
-            <td className="r">{r.days}d</td>
-            <td><MiniSpark seed={r.id.length + r.days} positive={r.ret >= 0} /></td>
-            <td className="r" style={{ color: r.ret >= 0 ? "var(--green)" : "var(--red)" }}>
+            <td className="r">{r.days ? `${r.days}d` : "—"}</td>
+            <td className="r" style={{ color: (r.ret ?? 0) >= 0 ? "var(--green)" : "var(--red)" }}>
               {formatPct(r.ret)}
             </td>
-            <td className="r">Sh {r.sharpe.toFixed(2)}</td>
+            <td className="r">Sh {formatNumber(r.sharpe)}</td>
             <td className="r" style={{ color: "var(--red)" }}>{formatPct(r.drawdown)}</td>
             <td className="c"><StatusTag status={r.status} /></td>
             <td className="r lx-dim">›</td>
@@ -430,9 +441,10 @@ function RunHistoryTable({
   );
 }
 
-function StatusTag({ status }: { status: "complete" | "failed" | "running" }) {
-  if (status === "complete") return <span className="lx-tag complete">COMPLETE</span>;
+function StatusTag({ status }: { status: BacktestResult["status"] }) {
+  if (status === "completed") return <span className="lx-tag complete">COMPLETE</span>;
   if (status === "failed")   return <span className="lx-tag failed">FAILED</span>;
+  if (status === "pending")  return <span className="lx-tag running">PENDING</span>;
   return <span className="lx-tag running">RUNNING</span>;
 }
 
@@ -446,25 +458,31 @@ function Stat({ label, value, tone = "neutral" }: { label: string; value: string
   );
 }
 
-function MiniSpark({ seed, positive }: { seed: number; positive: boolean }) {
-  const w = 140;
-  const h = 22;
-  const pts: string[] = [];
-  let v = h / 2;
-  for (let i = 0; i < 30; i++) {
-    const wiggle = Math.sin((i + seed) / 2.5) * 3 + (Math.cos((i + seed) / 1.2) * 2);
-    const trend = positive ? -i * 0.12 : i * 0.15;
-    v = h / 2 + wiggle + trend;
-    pts.push(`${(i / 29) * w},${Math.max(2, Math.min(h - 2, v))}`);
-  }
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      <polyline
-        points={pts.join(" ")}
-        fill="none"
-        stroke={positive ? "var(--green)" : "var(--red)"}
-        strokeWidth={1.2}
-      />
-    </svg>
-  );
+function formatNumber(value: number | undefined, digits = 2): string {
+  if (value === undefined || value === null || Number.isNaN(value)) return "—";
+  return value.toFixed(digits);
+}
+
+function resultToHistoryRow(result: BacktestResult, form?: FormState): HistoryRow {
+  return {
+    id: result.run_id,
+    days: form ? daysBetween(form.start, form.end) : undefined,
+    ret: result.total_return,
+    sharpe: result.sharpe,
+    drawdown: result.max_drawdown,
+    status: result.status,
+    failureReason: result.failure_reason,
+  };
+}
+
+function upsertHistoryRow(rows: HistoryRow[], next: HistoryRow): HistoryRow[] {
+  const existing = rows.filter((row) => row.id !== next.id);
+  return [next, ...existing];
+}
+
+function daysBetween(start: string, end: string): number | undefined {
+  const startMs = Date.parse(start);
+  const endMs = Date.parse(end);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return undefined;
+  return Math.round((endMs - startMs) / (24 * 3600 * 1000));
 }

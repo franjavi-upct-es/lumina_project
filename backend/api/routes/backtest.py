@@ -4,24 +4,17 @@
 Architecture
 ============
 Backtests are long-running CPU-bound jobs; the API must not run them
-inline. The intended deployment uses Celery + Redis as the queue
-broker (the same Redis instance that powers the Feature Store).
-
-The current implementation is a *thin* in-memory placeholder that
-accepts a request, assigns a run id, and stores the request in Redis
-under ``backtest:request:<id>``. A worker (not yet implemented in this
-module) is expected to pick the request up, run it through
-``backend.simulation.environments.LuminaTradingEnv`` against a frozen
-agent checkpoint, and write the result back under
-``backtest:result:<id>``.
+inline. The composed runtime starts ``backend.simulation.backtest_worker``,
+which polls Redis for ``backtest:request:<id>``, runs the frozen agent
+through ``backend.simulation.environments.LuminaTradingEnv``, logs the run
+to MLflow, and writes the result back under ``backtest:result:<id>``.
 
 This decoupling is intentional even at the API level: it means the
 worker can be deployed independently and scaled horizontally.
 
-Future work
-===========
-The Celery worker side of the pipeline will be wired in a follow-up
-commit; the API surface defined here is already stable.
+The Redis-key queue is deliberately simple for the local composed stack.
+A production Celery/RQ worker can consume the same request/result contract
+later without changing the dashboard API surface.
 """
 
 from __future__ import annotations
@@ -117,6 +110,7 @@ async def get_results(
     sharpe = data.get("sharpe")
     max_drawdown = data.get("max_drawdown")
     total_return = data.get("total_return")
+    failure_reason = data.get("failure_reason")
 
     # Keep Timescale synced
     await ts.upsert_backtest_run(run_id, status, sharpe, max_drawdown, total_return)
@@ -127,4 +121,5 @@ async def get_results(
         sharpe=sharpe,
         max_drawdown=max_drawdown,
         total_return=total_return,
+        failure_reason=failure_reason,
     )

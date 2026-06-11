@@ -3,6 +3,8 @@
 
 UV ?= uv
 UV_RUN := $(UV) run
+LOCAL_REDIS_URL ?= redis://localhost:6379/0
+LOCAL_TIMESCALE_URL ?= postgresql://lumina:lumina@localhost:5432/lumina
 
 .PHONY: help install dev test test-unit test-integration format lint type \
         migrate up up-8gb up-blackwell down restart logs ps clean \
@@ -51,8 +53,8 @@ install:
 	$(UV) sync --all-extras
 
 dev:
-	REDIS_URL=redis://localhost:6379/0 \
-	TIMESCALE_URL=postgresql://lumina:lumina@localhost:5432/lumina \
+	REDIS_URL=$(LOCAL_REDIS_URL) \
+	TIMESCALE_URL=$(LOCAL_TIMESCALE_URL) \
 	$(UV_RUN) uvicorn backend.api.main:app --reload --port 8000
 
 test:
@@ -75,6 +77,8 @@ type:
 	$(UV_RUN) mypy backend
 
 migrate:
+	REDIS_URL=$(LOCAL_REDIS_URL) \
+	TIMESCALE_URL=$(LOCAL_TIMESCALE_URL) \
 	$(UV_RUN) alembic upgrade head
 
 deploy:
@@ -125,10 +129,14 @@ ps:
 	docker compose ps
 
 backfill-yfinance:
+	REDIS_URL=$(LOCAL_REDIS_URL) \
+	TIMESCALE_URL=$(LOCAL_TIMESCALE_URL) \
 	$(UV_RUN) python -m scripts.backfill_historical --source yfinance \
 	    --start 1900-01-01 --end 2024-12-31
 
 backfill-polygon:
+	REDIS_URL=$(LOCAL_REDIS_URL) \
+	TIMESCALE_URL=$(LOCAL_TIMESCALE_URL) \
 	$(UV_RUN) python -m scripts.backfill_historical --source polygon \
 	    --start 1900-01-01 --end 2024-12-31
 

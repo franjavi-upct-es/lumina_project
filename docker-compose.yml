@@ -181,6 +181,8 @@ services:
     depends_on:
       redis:     { condition: service_healthy }
       timescale: { condition: service_healthy }
+    volumes:
+      - ./models:/app/models:ro
     networks: [lumina_net]
 
   perception_semantic:
@@ -196,6 +198,8 @@ services:
     depends_on:
       redis:     { condition: service_healthy }
       timescale: { condition: service_healthy }
+    volumes:
+      - ./models:/app/models:ro
     networks: [lumina_net]
 
   perception_graph:
@@ -211,11 +215,14 @@ services:
     depends_on:
       redis:     { condition: service_healthy }
       timescale: { condition: service_healthy }
+    volumes:
+      - ./models:/app/models:ro
     networks: [lumina_net]
 
   # ----- Fusion state assembler ---------------------------------------------
   state_assembler:
     profiles: ["trading"]
+    image: ${BRAIN_IMAGE:-lumina/brain:latest}
     build:
       context: .
       dockerfile: docker/Dockerfile.brain
@@ -231,10 +238,14 @@ services:
       perception_tft:      { condition: service_started }
       perception_semantic: { condition: service_started }
       perception_graph:    { condition: service_started }
+    volumes:
+      - ./models:/app/models:ro
+      - ./artifacts:/app/artifacts
     networks: [lumina_net]
 
   agent_loop:
     profiles: ["trading"]
+    image: ${BRAIN_IMAGE:-lumina/brain:latest}
     build:
       context: .
       dockerfile: docker/Dockerfile.brain
@@ -247,6 +258,49 @@ services:
       redis:            { condition: service_healthy }
       timescale:        { condition: service_healthy }
       state_assembler:  { condition: service_started }
+    volumes:
+      - ./models:/app/models:ro
+      - ./artifacts:/app/artifacts
+    networks: [lumina_net]
+
+  # ----- Dashboard-triggered simulation workers ----------------------------
+  backtest_worker:
+    image: ${BRAIN_IMAGE:-lumina/brain:latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.brain
+    container_name: lumina_backtest_worker
+    restart: unless-stopped
+    environment:
+      LUMINA_SERVICE_MODE: backtest_worker
+    env_file: [.env]
+    depends_on:
+      redis:     { condition: service_healthy }
+      timescale: { condition: service_healthy }
+      migrate:   { condition: service_completed_successfully }
+      mlflow:    { condition: service_started }
+    volumes:
+      - ./models:/app/models:ro
+    networks: [lumina_net]
+
+  arena_worker:
+    image: ${BRAIN_IMAGE:-lumina/brain:latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.brain
+    container_name: lumina_arena_worker
+    restart: unless-stopped
+    environment:
+      LUMINA_SERVICE_MODE: arena_worker
+    env_file: [.env]
+    depends_on:
+      redis:     { condition: service_healthy }
+      timescale: { condition: service_healthy }
+      migrate:   { condition: service_completed_successfully }
+      mlflow:    { condition: service_started }
+    volumes:
+      - ./models:/app/models:ro
+      - ./artifacts:/app/artifacts
     networks: [lumina_net]
 
   # ----- Dashboard (Frontend) ---------------------------------------------

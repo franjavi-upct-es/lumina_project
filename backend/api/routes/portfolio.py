@@ -138,18 +138,14 @@ async def get_portfolio_history(
 
     rows = await ts.get_portfolio_history(start, end, interval)
 
-    # We might not have benchmark data, so we'll mock it relative to start equity
-    # If no rows, return empty
     if not rows:
         return PortfolioHistoryResponse(history=[])
-
-    start_equity = rows[0]["equity"]
 
     history = [
         EquityPoint(
             time=r["time_bucket"],
             equity=r["equity"],
-            benchmark=start_equity,  # Simple flat benchmark for now, could be enhanced with SPY
+            benchmark=None,
         )
         for r in rows
     ]

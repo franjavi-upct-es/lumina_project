@@ -10,18 +10,15 @@ from collections.abc import Awaitable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from datetime import time as dt_time
-from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
-import torch
 from loguru import logger
 from prometheus_client import Counter, Histogram
 
-from backend.cognition.agent.policy_network import PolicyNetwork
 from backend.cognition.agent.ppo_agent import PPOAgent
-from backend.cognition.agent.uncertainty_gate import UncertaintyGate
-from backend.config.constants import ACTION_DIM, NEXUS_OUTPUT_DIM
+from backend.cognition.agent.runtime import load_agent, pick_device
+from backend.config.constants import NEXUS_OUTPUT_DIM
 from backend.config.settings import Settings, get_settings
 from backend.data_engine.storage.redis_cache import RedisCache, k_tick_latest
 from backend.execution.broker.base import BaseBroker
@@ -46,8 +43,6 @@ AGENT_LOOP_SKIPS = Counter(
     "Live agent cycles skipped because required state was missing",
     labelnames=("ticker", "reason"),
 )
-
-_AGENT_CHECKPOINT = Path("models/agent/final.pt")
 
 
 def k_market_state(ticker: str) -> str:
@@ -241,40 +236,12 @@ class LiveAgentLoop:
         self._peak_equity = max(self._peak_equity, acct.equity)
 
 
-def _pick_device() -> str:
-    if not torch.cuda.is_available():
-        return "cpu"
-    try:
-        torch.zeros(1, device="cuda") + 1
-        return "cuda"
-    except RuntimeError as exc:
-        logger.warning("CUDA reports available but probe failed ({}); falling back to CPU.", exc)
-        return "cpu"
-
-
-def load_agent(settings: Settings, device: str) -> PPOAgent:
-    policy = PolicyNetwork(state_dim=NEXUS_OUTPUT_DIM + 4, action_dim=ACTION_DIM)
-    if _AGENT_CHECKPOINT.is_file():
-        ckpt = torch.load(_AGENT_CHECKPOINT, map_location=device, weights_only=False)
-        state_dict = ckpt.get("model", ckpt) if isinstance(ckpt, dict) else ckpt
-        policy.load_state_dict(state_dict)
-        logger.info("Loaded agent weights from {} (device={})", _AGENT_CHECKPOINT, device)
-    elif settings.ALLOW_RANDOM_MODELS:
-        logger.warning("Agent checkpoint missing at {}; using random weights.", _AGENT_CHECKPOINT)
-    else:
-        raise FileNotFoundError(
-            f"Agent checkpoint missing at {_AGENT_CHECKPOINT}. "
-            "Train the agent or set ALLOW_RANDOM_MODELS=true for synthetic smoke tests."
-        )
-    return PPOAgent(policy=policy, uncertainty_gate=UncertaintyGate(), device=device)
-
-
 async def _amain() -> None:
     from backend.config.logging import configure_logging
 
     configure_logging()
     settings = get_settings()
-    device = _pick_device()
+    device = pick_device()
     redis = RedisCache()
     await redis.connect()
     broker = get_broker(settings)

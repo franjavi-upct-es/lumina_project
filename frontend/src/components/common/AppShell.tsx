@@ -46,10 +46,7 @@ export function AppShell({ active, children, arenaBadge }: AppShellProps) {
   const health = usePerceptionHealth();
   const clock = useTicker(1000);
 
-  // Synthetic socket latency: useful even when the metric is not yet
-  // wired through the WS payload. Keeps the chrome alive instead of
-  // showing a permanently blank pill.
-  const socketLatency = connected ? "12ms" : "—";
+  const socketStatus = connected ? "CONNECTED" : "OFFLINE";
   const marketStatus = health.healthy ? "OPEN" : health.status ?? "—";
   const regimeStatus = health.healthy ? "NORMAL" : "ALERT";
 
@@ -70,9 +67,9 @@ export function AppShell({ active, children, arenaBadge }: AppShellProps) {
       >
         <BrandMark />
 
-        <span className="lx-pill" style={{ marginLeft: 14, color: "var(--accent-bright)", borderColor: "var(--accent)" }}>
+        <span className={`lx-pill ${connected ? "ok" : "warn"}`} style={{ marginLeft: 14 }}>
           <span className="lx-dot" style={{ background: "var(--accent)" }} />
-          LIVE
+          {connected ? "LIVE" : "WAITING"}
         </span>
 
         <nav style={{ display: "flex", marginLeft: 20 }}>
@@ -96,7 +93,7 @@ export function AppShell({ active, children, arenaBadge }: AppShellProps) {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span className={`lx-pill ${connected ? "ok" : "bad"}`} title="Live websocket health">
             <span className="lx-dot" />
-            SOCKET · {socketLatency}
+            SOCKET · {socketStatus}
           </span>
           <span className={`lx-pill ${health.healthy ? "ok" : "warn"}`} title="Backend aggregate health">
             <span className="lx-dot" />
@@ -106,7 +103,7 @@ export function AppShell({ active, children, arenaBadge }: AppShellProps) {
             TICK {clock}
           </span>
           <span className="lx-pill">
-            RUN R-2049
+            RUN —
           </span>
           <span className={`lx-pill ${health.healthy ? "info" : "warn"}`}>
             <span className="lx-dot" />

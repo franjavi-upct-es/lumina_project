@@ -7,46 +7,21 @@
 import { useEffect, useState } from "react";
 import { AgentStatusPanel } from "../components/dashboard/AgentStatusPanel";
 import { AttentionHeatmap } from "../components/dashboard/AttentionHeatmap";
-import { EquityCurve, type EquityPoint } from "../components/dashboard/EquityCurve";
+import { EquityCurve } from "../components/dashboard/EquityCurve";
 import { KillSwitchButton } from "../components/dashboard/KillSwitchButton";
 import { RiskPanel } from "../components/dashboard/RiskPanel";
 import { usePortfolio, usePortfolioHistory } from "../hooks/usePortfolio";
-import { useAgentStore } from "../store/agentSlice";
 import { agentApi } from "../api/agent";
-
-const DEMO_ATTENTION = [
-  [0.62, 0.22, 0.16],
-  [0.18, 0.68, 0.14],
-  [0.20, 0.18, 0.62],
-];
+import type { AgentStatus } from "../types/agent.types";
 
 interface KpiTileProps {
   label: string;
   value: string;
   sub?: string;
   subTone?: "pos" | "neg" | "muted";
-  spark?: number[];
-  sparkColor?: string;
 }
 
-function Sparkline({ data, color }: { data: number[]; color: string }) {
-  if (data.length < 2) return null;
-  const w = 110;
-  const h = 28;
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const span = max - min || 1;
-  const pts = data
-    .map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / span) * h}`)
-    .join(" ");
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ marginLeft: "auto" }}>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.2} strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function KpiTile({ label, value, sub, subTone = "muted", spark, sparkColor = "var(--accent-bright)" }: KpiTileProps) {
+function KpiTile({ label, value, sub, subTone = "muted" }: KpiTileProps) {
   const toneClass = subTone === "pos" ? "lx-pos" : subTone === "neg" ? "lx-neg" : "";
   return (
     <div className="lx-kpi">
@@ -56,23 +31,9 @@ function KpiTile({ label, value, sub, subTone = "muted", spark, sparkColor = "va
       </div>
       <div style={{ display: "flex", alignItems: "center" }}>
         {sub && <span className={`lx-kpi-sub ${toneClass}`}>{sub}</span>}
-        {spark && <Sparkline data={spark} color={sparkColor} />}
       </div>
     </div>
   );
-}
-
-function useWiggleSpark(seed: number, length = 24): number[] {
-  const [points] = useState(() => {
-    const out: number[] = [];
-    let v = seed;
-    for (let i = 0; i < length; i++) {
-      v += (Math.random() - 0.5) * 4 + Math.sin(i / 3) * 1.2;
-      out.push(v);
-    }
-    return out;
-  });
-  return points;
 }
 
 const EQUITY_RANGES: Array<{ id: "1D" | "7D" | "30D" | "90D" | "YTD" | "ALL"; label: string }> = [
@@ -87,8 +48,8 @@ const EQUITY_RANGES: Array<{ id: "1D" | "7D" | "30D" | "90D" | "YTD" | "ALL"; la
 export function Dashboard() {
   const [range, setRange] = useState<typeof EQUITY_RANGES[number]["id"]>("90D");
   const { portfolio } = usePortfolio();
-  const agentState = useAgentStore();
   const [realAttn, setRealAttn] = useState<number[][] | undefined>();
+  const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null);
 
   // Fetch real data from backend
   const { history: equity } = usePortfolioHistory(range);
@@ -97,6 +58,7 @@ export function Dashboard() {
     const tick = async () => {
       try {
         const status = await agentApi.getStatus();
+        setAgentStatus(status);
         if (status.attention_weights) {
            const w = status.attention_weights;
            setRealAttn([
@@ -112,20 +74,8 @@ export function Dashboard() {
     return () => clearInterval(id);
   }, []);
 
-  const sparkEquity = useWiggleSpark(40);
-  const sparkPnl = useWiggleSpark(30);
-  const sparkDd = useWiggleSpark(20);
-  const sparkSharpe = useWiggleSpark(45);
-  const sparkPos = useWiggleSpark(35);
-  const sparkUnc = useWiggleSpark(22);
-  const sparkLat = useWiggleSpark(50);
-
-  // Keep latency / tick clocks visually alive without polling extra endpoints.
-  const [latency, setLatency] = useState(142);
-  useEffect(() => {
-    const id = setInterval(() => setLatency((l) => 130 + Math.round(Math.sin(Date.now() / 1000) * 18) + Math.round(Math.random() * 4)), 1500);
-    return () => clearInterval(id);
-  }, []);
+  const equityStats = summarizeEquity(equity);
+  const hasAgentAction = Boolean(agentStatus?.has_action);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -136,13 +86,13 @@ export function Dashboard() {
           gap: 12,
         }}
       >
-        <KpiTile label="Equity"      value={`$${(portfolio?.equity ?? 123847).toLocaleString()}`} sub="+2.34%"   subTone="pos" spark={sparkEquity} sparkColor="var(--green)" />
-        <KpiTile label="P&L · Today" value="+$2,847.14"  sub="+2.36%"   subTone="pos" spark={sparkPnl}    sparkColor="var(--green)" />
-        <KpiTile label="Drawdown"    value={`${((portfolio?.drawdown_pct ?? 0.0341) * 100).toFixed(2)}%`}      sub="max −7.92%" subTone="neg" spark={sparkDd}  sparkColor="var(--red)" />
-        <KpiTile label="Sharpe · 30D" value="2.18"       sub="sortino 3.04" spark={sparkSharpe} sparkColor="var(--accent-bright)" />
-        <KpiTile label="Position"    value={`${(agentState.currentAction * 100).toFixed(1)}%`}      sub="target +71.0%" spark={sparkPos} sparkColor="var(--accent-bright)" />
-        <KpiTile label="Uncertainty" value={agentState.uncertainty.toFixed(3)}       sub="gate · OPEN"  subTone="pos" spark={sparkUnc} sparkColor="var(--green)" />
-        <KpiTile label="Latency"     value={`${latency}ms`} sub="p99 318ms" spark={sparkLat} sparkColor="var(--accent-bright)" />
+        <KpiTile label="Equity" value={formatUsd(portfolio?.equity)} />
+        <KpiTile label="P&L · Range" value={formatUsdDelta(equityStats.pnl)} sub={formatPct(equityStats.ret)} subTone={(equityStats.pnl ?? 0) >= 0 ? "pos" : "neg"} />
+        <KpiTile label="Drawdown" value={formatPct(portfolio?.drawdown_pct)} sub={`peak ${formatUsd(portfolio?.peak_equity)}`} subTone="neg" />
+        <KpiTile label="Sharpe · 30D" value="—" sub="not exposed by API" />
+        <KpiTile label="Position" value={hasAgentAction ? `${(agentStatus!.current_action * 100).toFixed(1)}%` : "—"} sub={hasAgentAction ? "latest agent action" : "no action yet"} />
+        <KpiTile label="Uncertainty" value={hasAgentAction ? agentStatus!.uncertainty.toFixed(3) : "—"} sub={agentStatus?.gate_active ? "gate active" : hasAgentAction ? "gate open" : "no action yet"} subTone={agentStatus?.gate_active ? "neg" : "muted"} />
+        <KpiTile label="Latency" value="—" sub="not exposed by API" />
       </section>
 
       <section style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
@@ -176,10 +126,11 @@ export function Dashboard() {
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, alignItems: "baseline" }}>
             <div>
               <div className="lx-label">NAV</div>
-              <div className="lx-mono" style={{ fontSize: 20, fontWeight: 600 }}>${(portfolio?.equity ?? 123847).toLocaleString()}</div>
+              <div className="lx-mono" style={{ fontSize: 20, fontWeight: 600 }}>{formatUsd(portfolio?.equity)}</div>
               <div className="lx-mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                <span className="lx-pos">+$23,847</span> <span className="lx-pos">+23.85%</span>{" "}
-                <span className="lx-dim">since inception</span>
+                <span className={(equityStats.pnl ?? 0) >= 0 ? "lx-pos" : "lx-neg"}>{formatUsdDelta(equityStats.pnl)}</span>{" "}
+                <span className={(equityStats.ret ?? 0) >= 0 ? "lx-pos" : "lx-neg"}>{formatPct(equityStats.ret)}</span>{" "}
+                <span className="lx-dim">selected range</span>
               </div>
             </div>
             <div
@@ -192,17 +143,15 @@ export function Dashboard() {
               }}
             >
               <LegendDot color="var(--accent-bright)" label="Equity" />
-              <LegendDot color="rgba(148,163,184,0.5)" label="Benchmark" />
-              <LegendDot color="var(--red)" label="Drawdown" />
             </div>
           </div>
 
           <EquityCurve data={equity} height={300} />
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16, marginTop: 14 }}>
-            <MiniMetric label="P&L cumulative" value="+$23,847"   tone="pos" spark={sparkEquity} sparkColor="var(--green)" />
-            <MiniMetric label="Drawdown %"     value={`${((portfolio?.drawdown_pct ?? 0.0341) * 100).toFixed(2)}%`}     tone="neg" spark={sparkDd}     sparkColor="var(--red)" />
-            <MiniMetric label="Daily returns σ" value="0.82%"      tone="muted" spark={sparkPnl} sparkColor="rgba(148,163,184,0.6)" />
+            <MiniMetric label="P&L cumulative" value={formatUsdDelta(equityStats.pnl)} tone={(equityStats.pnl ?? 0) >= 0 ? "pos" : "neg"} />
+            <MiniMetric label="Drawdown %" value={formatPct(portfolio?.drawdown_pct)} tone="neg" />
+            <MiniMetric label="Daily returns σ" value={formatPct(equityStats.sigma)} tone="muted" />
           </div>
         </div>
 
@@ -233,38 +182,68 @@ function MiniMetric({
   label,
   value,
   tone,
-  spark,
-  sparkColor,
 }: {
   label: string;
   value: string;
   tone: "pos" | "neg" | "muted";
-  spark: number[];
-  sparkColor: string;
 }) {
-  const w = 180;
-  const h = 30;
-  const min = Math.min(...spark);
-  const max = Math.max(...spark);
-  const span = max - min || 1;
-  const pts = spark
-    .map((v, i) => `${(i / (spark.length - 1)) * w},${h - ((v - min) / span) * h}`)
-    .join(" ");
   const valueColor =
     tone === "pos" ? "var(--green)" : tone === "neg" ? "var(--red)" : "var(--text-primary)";
   return (
     <div>
       <div className="lx-label" style={{ marginBottom: 4 }}>{label}</div>
       <div className="lx-mono" style={{ fontSize: 16, fontWeight: 600, color: valueColor }}>{value}</div>
-      <svg
-        width="100%"
-        height={h}
-        viewBox={`0 0 ${w} ${h}`}
-        preserveAspectRatio="none"
-        style={{ marginTop: 4, display: "block" }}
-      >
-        <polyline points={pts} fill="none" stroke={sparkColor} strokeWidth={1.2} />
-      </svg>
     </div>
   );
+}
+
+function summarizeEquity(history: Array<{ equity: number }>): {
+  pnl?: number;
+  ret?: number;
+  sigma?: number;
+} {
+  if (history.length < 2) return {};
+  const first = history[0].equity;
+  const last = history[history.length - 1].equity;
+  const returns: number[] = [];
+  for (let i = 1; i < history.length; i += 1) {
+    const prior = history[i - 1].equity;
+    if (prior > 0) returns.push(history[i].equity / prior - 1);
+  }
+  return {
+    pnl: last - first,
+    ret: first > 0 ? last / first - 1 : undefined,
+    sigma: stddev(returns),
+  };
+}
+
+function stddev(values: number[]): number | undefined {
+  if (values.length < 2) return undefined;
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+}
+
+function formatUsd(value: number | undefined): string {
+  if (value === undefined || value === null || Number.isNaN(value)) return "—";
+  return value.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+}
+
+function formatUsdDelta(value: number | undefined): string {
+  if (value === undefined || value === null || Number.isNaN(value)) return "—";
+  const abs = Math.abs(value).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+  return `${value >= 0 ? "+" : "-"}${abs}`;
+}
+
+function formatPct(value: number | undefined): string {
+  if (value === undefined || value === null || Number.isNaN(value)) return "—";
+  return `${(value * 100).toFixed(2)}%`;
 }

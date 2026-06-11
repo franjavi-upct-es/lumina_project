@@ -21,6 +21,7 @@ import { getDecisions, getDivergences } from "../../api/arena";
 import type { DecisionRecord, DivergencePoint } from "../../types/arena.types";
 import { useArenaStore } from "../../store/arenaSlice";
 
+const POLL_INTERVAL_MS = 2_000;
 const PALETTE = [
   "#4a90d9",
   "#50c878",
@@ -57,25 +58,31 @@ export function ArenaTrajectoriesPanel({
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    Promise.all([
-      getDecisions(runId, undefined, { limit: 10_000 }),
-      getDivergences(runId, { limit: 1000 }),
-    ])
-      .then(([recs, divs]) => {
+    let timer: number | undefined;
+
+    const load = async (initial = false) => {
+      if (initial) setLoading(true);
+      try {
+        const [recs, divs] = await Promise.all([
+          getDecisions(runId, undefined, { limit: 10_000 }),
+          getDivergences(runId, { limit: 1000 }),
+        ]);
         if (cancelled) return;
         setDecisions(recs);
         setDivergences(divs);
         setError(null);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(String(err?.message ?? err));
-      })
-      .finally(() => {
+      } catch (err: unknown) {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+      if (!cancelled) timer = window.setTimeout(() => void load(false), POLL_INTERVAL_MS);
+    };
+
+    void load(true);
     return () => {
       cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [runId]);
 

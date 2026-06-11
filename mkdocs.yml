@@ -1,0 +1,62 @@
+# mkdocs.yml
+site_name: lumina_project
+site_url: https://franjavi-upct-es.github.io/lumina_project/
+repo_url: https://github.com/franjavi-upct-es/lumina_project
+repo_name: lumina_project
+
+theme:
+    name: material
+    palette:
+        - scheme: default
+          primary: indigo
+          accent: blue
+          toggle:
+              icon: material/brightness-7
+              name: Switch to dark mode
+        - scheme: slate
+          primary: indigo
+          accent: blue
+          toggle:
+              icon: material/brightness-4
+              name: Switch to light mode
+    features:
+        - navigation.tabs
+        - navigation.sections
+        - navigation.expand
+        - navigation.top
+        - content.code.copy
+        - content.code.annotate
+        - search.highlight
+
+plugins:
+    - search
+    - mkdocstrings:
+          handlers:
+              python:
+                  options:
+                      show_source: true
+                      docstring_style: numpy
+
+markdown_extensions:
+    - admonition
+    - pymdownx.details
+    - pymdownx.superfences:
+          custom_fences:
+              - name: mermaid
+                class: mermaid
+                format: !!python/name:pymdownx.superfences.fence_code_format
+    - pymdownx.tabbed:
+          alternate_style: true
+    - pymdownx.highlight:
+          anchor_linenums: true
+    - pymdownx.inlinehilite
+    - toc:
+          permalink: true
+    - pymdownx.emoji:
+          emoji_index: !!python/name:material.extensions.emoji.twemoji
+          emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+docs_dir: docs/wiki
+
+nav:
+    - Lumina V3 Overview: overview.md

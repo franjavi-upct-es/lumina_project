@@ -9,6 +9,8 @@ import type {
   StepExplanation,
 } from "../../types/arena.types";
 
+const POLL_INTERVAL_MS = 3_000;
+
 interface Props {
   runId: string;
   onSelect?: (d: DivergencePoint) => void;
@@ -23,25 +25,31 @@ export function DivergenceTimelinePanel({ runId, onSelect }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    Promise.all([
-      getDivergences(runId, { limit: 500 }),
-      getExplanations(runId, { limit: 5000 }),
-    ])
-      .then(([divs, exps]) => {
+    let timer: number | undefined;
+
+    const load = async (initial = false) => {
+      if (initial) setLoading(true);
+      try {
+        const [divs, exps] = await Promise.all([
+          getDivergences(runId, { limit: 500 }),
+          getExplanations(runId, { limit: 5000 }),
+        ]);
         if (cancelled) return;
         setDivergences(divs);
         setExplanations(exps);
         setError(null);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(String(err?.message ?? err));
-      })
-      .finally(() => {
+      } catch (err: unknown) {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+      if (!cancelled) timer = window.setTimeout(() => void load(false), POLL_INTERVAL_MS);
+    };
+
+    void load(true);
     return () => {
       cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [runId]);
 

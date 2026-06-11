@@ -1,8 +1,6 @@
 // frontend/src/components/dashboard/EquityCurve.tsx
 //
 // Equity / benchmark area chart styled for the dark operator console.
-// Falls back to a synthetic demo series when the caller passes no data
-// so the dashboard never renders a blank panel.
 
 import { useMemo } from "react";
 import {
@@ -31,27 +29,27 @@ interface Props {
   marker?: { time: string; equity: number; label: string };
 }
 
-function buildDemoSeries(): EquityPoint[] {
-  const out: EquityPoint[] = [];
-  let v = 100_000;
-  let b = 100_000;
-  const start = new Date(Date.now() - 89 * 24 * 3600 * 1000);
-  for (let i = 0; i < 90; i++) {
-    v += (Math.sin(i / 4) * 600) + (Math.random() - 0.45) * 400;
-    b += (Math.random() - 0.40) * 250;
-    if (i === 55) v -= 4200;
-    const t = new Date(start.getTime() + i * 24 * 3600 * 1000);
-    out.push({
-      time: `${t.getMonth() + 1}/${t.getDate()}`,
-      equity: Math.round(v),
-      benchmark: Math.round(b),
-    });
-  }
-  return out;
-}
-
 export function EquityCurve({ data, height = 320, marker }: Props) {
-  const series = useMemo(() => (data.length > 0 ? data : buildDemoSeries()), [data]);
+  const series = useMemo(() => data, [data]);
+  if (series.length === 0) {
+    return (
+      <div
+        className="lx-dim"
+        style={{
+          height,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          fontSize: 13,
+          border: "1px dashed var(--border)",
+          borderRadius: 6,
+        }}
+      >
+        No portfolio history recorded yet.
+      </div>
+    );
+  }
   return (
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={series} margin={{ top: 4, right: 12, bottom: 0, left: 0 }}>

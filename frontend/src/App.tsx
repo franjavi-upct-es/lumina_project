@@ -32,7 +32,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <AppShell active={view} arenaBadge={2}>
+      <AppShell active={view}>
         {view === "dashboard" && <Dashboard />}
         {view === "backtest" && <Backtest />}
         {view === "arena" && <ArenaPage />}

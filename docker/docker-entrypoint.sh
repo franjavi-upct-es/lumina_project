@@ -21,6 +21,8 @@
 #   graph_inference        → backend.perception.structural.inference
 #   state_assembler        → backend.fusion.state_assembler
 #   agent_loop             → backend.integration.agent_loop
+#   backtest_worker        → backend.simulation.backtest_worker
+#   arena_worker           → backend.simulation.arena.worker
 #   paper_trading          → backend.paper_trading.runner
 #   train_agent            → scripts.train_agent
 #   sleep                  → infinite sleep (debug)
@@ -37,6 +39,7 @@ if [[ -z "${MODE}" ]]; then
     echo "[lumina-entrypoint]            price_stream, news_collector, synthetic_feed," >&2
     echo "[lumina-entrypoint]            tft_inference, semantic_inference," >&2
     echo "[lumina-entrypoint]            graph_inference, state_assembler, agent_loop," >&2
+    echo "[lumina-entrypoint]            backtest_worker, arena_worker," >&2
     echo "[lumina-entrypoint]            paper_trading, train_agent, sleep." >&2
     exit 64  # EX_USAGE
 fi
@@ -82,6 +85,12 @@ case "${MODE}" in
         ;;
     agent_loop)
         exec python -m backend.integration.agent_loop
+        ;;
+    backtest_worker)
+        exec python -m backend.simulation.backtest_worker
+        ;;
+    arena_worker)
+        exec python -m backend.simulation.arena.worker
         ;;
     paper_trading)
         exec python -m backend.paper_trading.runner
