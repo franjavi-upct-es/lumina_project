@@ -23,7 +23,17 @@ This has three useful properties:
 
 from datetime import UTC, datetime, timedelta
 
+<<<<<<< HEAD
 from fastapi import APIRouter, Depends
+=======
+import numpy as np
+import pandas as pd
+from fastapi import APIRouter, Depends, HTTPException, Query
+from loguru import logger
+from pydantic import BaseModel, Field
+from scipy.optimize import minimize
+from sqlalchemy.ext.asyncio import AsyncSession
+>>>>>>> 994b45ea5c7f16817f4caea4d941fa54c203899e
 
 from backend.api.deps import get_broker, get_redis, get_timescale, require_api_key
 from backend.api.schemas import (
@@ -141,11 +151,120 @@ async def get_portfolio_history(
     if not rows:
         return PortfolioHistoryResponse(history=[])
 
+<<<<<<< HEAD
     history = [
         EquityPoint(
             time=r["time_bucket"],
             equity=r["equity"],
             benchmark=None,
+=======
+    for target in target_returns:
+        try:
+            n_assets = len(mean_returns)
+
+            def portfolio_vol(weights):
+                return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+
+            constraints = [
+                {"type": "eq", "fun": lambda w: np.sum(w) - 1},
+                {"type": "eq", "fun": lambda w, target=target: np.dot(w, mean_returns) - target},
+            ]
+            bounds = tuple((0, 1) for _ in range(n_assets))
+            initial = np.ones(n_assets) / n_assets
+
+            result = minimize(
+                portfolio_vol,
+                initial,
+                method="SLSQP",
+                bounds=bounds,
+                constraints=constraints,
+            )
+
+            if result.success:
+                vol = float(result.fun)
+                ret = float(target)
+                sharpe = (ret - risk_free_rate) / vol if vol > 0 else 0
+
+                frontier.append({"return": ret, "volatility": vol, "sharpe_ratio": sharpe})
+        except Exception:
+            continue
+
+    return frontier
+
+
+# ============================================================================
+# PORTFOLIO METRICS
+# ============================================================================
+
+
+@router.get("/metrics", response_model=PortfolioMetricsResponse)
+async def get_portfolio_metrics(
+    user_id: Annotated[str, Query(description="User ID")] = "default",
+    db: Annotated[AsyncSession, Depends(get_async_session)] = "default",  # type: ignore
+):
+    """
+    Get current portfolio metrics and performance
+    """
+    raise HTTPException(status_code=501, detail="Not implemented")
+
+
+# ============================================================================
+# REBALANCING
+# ============================================================================
+
+
+@router.post("/rebalance", response_model=RebalanceResponse)
+async def check_rebalance(request: RebalanceRequest):
+    """
+    Check if rebalancing is needed and generate trade list
+    """
+    try:
+        trades = []
+        total_value = sum(request.current_holdings.values())
+
+        # Calculate current weights
+        current_weights = {
+            ticker: value / total_value for ticker, value in request.current_holdings.items()
+        }
+
+        # Check if rebalancing needed
+        needs_rebalance = False
+        for ticker, target_weight in request.target_weights.items():
+            current_weight = current_weights.get(ticker, 0.0)
+            deviation = abs(target_weight - current_weight)
+
+            if deviation > request.rebalance_threshold:
+                needs_rebalance = True
+
+                # Calculate trade
+                target_value = target_weight * total_value
+                current_value = request.current_holdings.get(ticker, 0.0)
+                trade_value = target_value - current_value
+
+                trades.append(
+                    {
+                        "ticker": ticker,
+                        "action": "BUY" if trade_value > 0 else "SELL",
+                        "value": abs(trade_value),
+                        "current_weight": current_weight,
+                        "target_weight": target_weight,
+                        "deviation": deviation,
+                    }
+                )
+
+        # Estimate transaction costs
+        estimated_cost = sum(trade["value"] for trade in trades) * settings.DEFAULT_COMMISSION  # type: ignore
+
+        return RebalanceResponse(
+            trades_needed=needs_rebalance,
+            trades=trades,
+            estimated_cost=estimated_cost,
+            reason=(
+                f"Rebalancing needed: {len(trades)} positions exceed {request.rebalance_threshold:.1%} threshold"
+                if needs_rebalance
+                else "No rebalancing needed"
+            ),
+>>>>>>> 994b45ea5c7f16817f4caea4d941fa54c203899e
         )
         for r in rows
     ]

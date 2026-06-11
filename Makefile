@@ -1,6 +1,7 @@
 # Makefile
 # Lumina V3 — common development tasks.
 
+<<<<<<< HEAD
 UV ?= uv
 UV_RUN := $(UV) run
 LOCAL_REDIS_URL ?= redis://localhost:6379/0
@@ -48,10 +49,33 @@ help:
 	@echo "    backfill-yfinance    daily bars (free)"
 	@echo "    backfill-polygon     1-min bars (paid)"
 	@echo "    run-arena            execute a Spartan Arena simulation run"
+=======
+.PHONY: help build up up-gpu down restart log logs clean build-ml test lint format setup-gpu check-gpu
+
+help:
+	@echo "Lumina Quant Platform - Make Commands"
+	@echo "======================================"
+	@echo "build          - Build all containers"
+	@echo "build-ml       - Build only ML service"
+	@echo "up             - Start all services (CPU only)"
+	@echo "up-gpu         - Start all services with GPU support"
+	@echo "down           - Stop all services"
+	@echo "restart        - Restart all services"
+	@echo "log            - Alias for logs"
+	@echo "logs           - Show logs"
+	@echo "logs-ml        - Show ML worker logs"
+	@echo "clean          - Remove all containers and volumes"
+	@echo "test           - Run tests"
+	@echo "lint           - Run linter"
+	@echo "format         - Format code"
+	@echo "setup-gpu      - Install NVIDIA Container Toolkit for Docker GPU"
+	@echo "check-gpu      - Check GPU availability (host + Docker)"
+>>>>>>> 994b45ea5c7f16817f4caea4d941fa54c203899e
 
 install:
 	$(UV) sync --all-extras
 
+<<<<<<< HEAD
 dev:
 	REDIS_URL=$(LOCAL_REDIS_URL) \
 	TIMESCALE_URL=$(LOCAL_TIMESCALE_URL) \
@@ -68,6 +92,65 @@ test-integration:
 
 format:
 	$(UV_RUN) ruff format .
+=======
+build-ml:
+	cd docker && $(DOCKER_COMPOSE) build ml-worker
+
+up:
+	cd docker && $(DOCKER_COMPOSE) up -d --build
+
+up-gpu:
+	@if command -v nvidia-smi >/dev/null 2>&1; then \
+		cd docker && $(DOCKER_COMPOSE) --profile gpu up -d --build; \
+    else \
+        echo "Warning: NVIDIA GPU not detected, falling back to CPU mode"; \
+        make up; \
+    fi	
+
+down:
+	cd docker && $(DOCKER_COMPOSE) down
+
+restart:
+	cd docker && $(DOCKER_COMPOSE) restart
+
+log: logs
+
+logs:
+	cd docker && $(DOCKER_COMPOSE) logs -f
+
+logs-ml:
+	cd docker && $(DOCKER_COMPOSE) logs -f ml-worker
+
+clean:
+	cd docker && $(DOCKER_COMPOSE) down -v
+	docker system prune -f
+
+# ---------------------------------------------------------------------------
+# Quality
+# ---------------------------------------------------------------------------
+
+test: ## Run the full test suite
+	uv run pytest tests/ -v --tb=short
+
+test-fast: ## Run tests excluding slow and GPU-dependent tests
+	uv run pytest tests/ -v --tb=short -m "not slow and not gpu"
+
+test-cov: ## Run tests with coverage report
+	uv run pytest tests/ -v --tb=short --cov=backend --cov-report=term-missing --cov-report=html:reports/coverage
+
+lint: ## Run linter (ruff)
+	uv run ruff check backend/ tests/
+
+format: ## Auto-format code (ruff)
+	uv run ruff format backend/ tests/
+	uv run ruff check --fix backend/ tests/
+
+typecheck: ## Run type checker (mypy)
+	uv run mypy backend/
+
+quality: lint typecheck test-fast ## Run all quality checks (lint + typecheck + fast tests)
+
+>>>>>>> 994b45ea5c7f16817f4caea4d941fa54c203899e
 
 lint:
 	$(UV_RUN) ruff check backend tests scripts
