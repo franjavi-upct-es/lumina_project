@@ -63,5 +63,10 @@ markdown_extensions:
 
 docs_dir: docs/wiki
 
+# Extra paths watched by `mkdocs serve` so edits to Python source
+# (docstrings rendered via mkdocstrings) trigger an automatic rebuild + reload.
+watch:
+    - backend
+
 nav:
-    - Lumina V3 Overview: overview.md
+    - Lumina V3 Overview: index.md

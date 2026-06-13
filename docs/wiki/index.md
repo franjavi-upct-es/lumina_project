@@ -79,3 +79,48 @@ graph TD
    Behavioral Cloning, Domain Randomization (adversarial warps like "Flash
    Crashes"), and Sharpe Optimization
    [:material-github: README.md#136-138](https://github.com/franjavi-upct-es/lumina_project/blob/main/README.md?plain=1#L136-L138)
+4. **Hard-Rule Safety:** A **Safety Arbitrator** acts as a final veto layer,
+   enforcing non-negotiable risk rules (e.g., `MAX_DRAWDOWN_LIMIT`) before any
+   order reaches the broker
+   [:material-github: .env.example#52](https://github.com/franjavi-upct-es/lumina_project/blob/main/.env.example#L52)
+   [:material-github: README.md#59-62](https://github.com/franjavi-upct-es/lumina_project/blob/main/README.md?plain=1#L59-L62)
+
+## System Data Flow
+
+Data flows raw collectors into a dual-storage backend before being processed by
+the inference services.
+
+#### Diagram: Data Engine to Execution Flow
+
+```mermaid
+graph LR
+
+   subgraph "Data Ingestion"
+      YFC[YFinanceCollector] --> TDB["TimescaleDB<br/>(ohlcv_1m)"]
+      WS["Polygon.io (WS)"] --> REDIS["Redis (tick-latest)"]
+   end
+
+   subgraph "Feature Serving"
+      TDB --> OFFS["OfflineFeatureStore"]
+      REDIS --> ONFS["OnlineFeatureStore"]
+   end
+
+   subgraph "Inference Action"
+      OFFS --> ENCODERS["Encoders<br/>(TFT/LLM/GAT)"]
+      ONFS --> ENCODERS["Encoders<br/>(TFT/LLM/GAT)"]
+      ENCODERS --> NEXUS[Nexus] --> PPO["PPOAgent"]
+   end
+
+   subgraph "Brokerage"
+      PPO --> EXO[ExecutionOrchestrator]
+      EXO --> AB["AlpacaBroker"]
+      EXO --> PB["PaperBroker"]
+   end
+```
+
+**Sources:**
+[:material-github: pyproject.toml#40-108](https://github.com/franjavi-upct-es/lumina_project/blob/main/pyproject.toml#L40-L108)
+[:material-github: .env.example#12-32](https://github.com/franjavi-upct-es/lumina_project/blob/main/.env.example#L12-L32)
+[:material-github: Makefile#127-134](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L127-L134)
+
+## Subsystem Overviews
