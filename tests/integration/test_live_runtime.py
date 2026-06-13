@@ -175,6 +175,59 @@ async def test_agent_loop_uses_state_market_latest_tick_and_updates_broker() -> 
     assert payload["final_action"] == 0.1
 
 
+@pytest.mark.anyio
+async def test_agent_loop_skips_when_market_state_missing() -> None:
+    """No ``state:market:SPY`` key → cycle must short-circuit cleanly.
+
+    The orchestrator must NOT be called and ``agent:last_action`` must
+    NOT be written. This is the contract the state_assembler relies on
+    to safely throttle assembly without starving the agent loop.
+    """
+    redis = _Redis({})  # empty — neither state nor tick keys present
+    broker = _Broker()
+    orchestrator = _Orchestrator()
+    settings = Settings(_env_file=None, LIVE_TICKERS="SPY")
+    loop = LiveAgentLoop(
+        agent=_Agent(),
+        orchestrator=orchestrator,
+        broker=broker,
+        redis=redis,
+        settings=settings,
+    )
+
+    await loop._cycle("SPY")
+
+    assert orchestrator.latest_price is None
+    assert "agent:last_action" not in redis.client.data
+    assert broker.prices == {}
+
+
+@pytest.mark.anyio
+async def test_agent_loop_skips_when_latest_tick_missing() -> None:
+    """Market state present but no tick → cycle must skip without executing.
+
+    This is the "stale state" guard: the assembler may have flushed a
+    state vector hours ago, but we refuse to act on it without a
+    confirmed live price.
+    """
+    redis = _Redis({k_market_state("SPY"): np.ones(NEXUS_OUTPUT_DIM, dtype=np.float32).tobytes()})
+    broker = _Broker()
+    orchestrator = _Orchestrator()
+    settings = Settings(_env_file=None, LIVE_TICKERS="SPY")
+    loop = LiveAgentLoop(
+        agent=_Agent(),
+        orchestrator=orchestrator,
+        broker=broker,
+        redis=redis,
+        settings=settings,
+    )
+
+    await loop._cycle("SPY")
+
+    assert orchestrator.latest_price is None
+    assert "agent:last_action" not in redis.client.data
+
+
 class _KillSwitch:
     async def get_state(self) -> KillSwitchState:
         return KillSwitchState.NORMAL

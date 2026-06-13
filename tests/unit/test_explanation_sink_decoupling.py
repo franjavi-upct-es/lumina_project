@@ -80,6 +80,7 @@ async def test_slow_sink_does_not_block_step_loop(tmp_path: Path) -> None:
         env_factory=_factory(n_steps=50),
         timescale=None,
         explanation_sink=slow_sink,
+        mlflow_tracking_uri=f"file://{tmp_path / 'mlruns'}",
     )
     t0 = time.monotonic()
     result = await runner.run()
@@ -129,6 +130,7 @@ async def test_overflow_drops_are_counted(tmp_path: Path, monkeypatch) -> None:
         env_factory=_factory(n_steps=80),
         timescale=None,
         explanation_sink=stuck_sink,
+        mlflow_tracking_uri=f"file://{tmp_path / 'mlruns'}",
     )
     # Release the consumer at shutdown so the runner doesn't hang on drain.
     run_task = asyncio.create_task(runner.run())

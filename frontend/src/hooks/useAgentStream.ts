@@ -1,9 +1,9 @@
 // frontend/src/hooks/useAgentStream.ts
 import { useEffect, useRef, useState } from "react";
+import { AGENT_STREAM_URL } from "../api/agent";
 import type { AgentStreamMessage } from "../types/agent.types";
 import { useAgentStore } from "../store/agentSlice";
 
-const WS_BASE = import.meta.env.VITE_WS_BASE || "ws://localhost:8000";
 const MAX_BACKOFF_MS = 30_000;
 
 export function useAgentStream() {
@@ -45,7 +45,7 @@ export function useAgentStream() {
 
     function connect() {
       if (cancelled) return;
-      const ws = new WebSocket(`${WS_BASE}/api/agent/stream`);
+      const ws = new WebSocket(AGENT_STREAM_URL);
       wsRef.current = ws;
       ws.onopen = () => { setConnected(true); backoffRef.current = 1000; };
       ws.onmessage = (e) => {

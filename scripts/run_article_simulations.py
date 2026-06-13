@@ -9,9 +9,22 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
+
+from loguru import logger
 
 from backend.config.logging import configure_logging
-from backend.simulation.article_simulation import ArticleSimulationConfig, run_article_pipeline
+from backend.config.settings import get_settings
+from backend.simulation.article_simulation import (
+    ArticleSimulationConfig,
+    DailyMarketData,
+    load_market_data_from_timescale,
+    run_article_pipeline,
+    synthetic_market_data,
+)
+
+_COMPOSE_TIMESCALE_HOST = "timescale"
+_LOCAL_TIMESCALE_HOST = "localhost"
 
 
 def _parse_args() -> argparse.Namespace:
@@ -50,6 +63,27 @@ def _parse_args() -> argparse.Namespace:
         "--fast",
         action="store_true",
         help="Small CPU-friendly smoke settings for local validation.",
+    )
+    parser.add_argument(
+        "--data-source",
+        choices=("auto", "timescale", "synthetic"),
+        default="auto",
+        help=(
+            "Market data source. auto tries Timescale via a host-compatible URL "
+            "and falls back to deterministic synthetic data when Timescale is unavailable."
+        ),
+    )
+    parser.add_argument(
+        "--synthetic-tickers",
+        type=int,
+        default=8,
+        help="Ticker count used by --data-source synthetic or auto fallback.",
+    )
+    parser.add_argument(
+        "--synthetic-days",
+        type=int,
+        default=13_500,
+        help="Daily rows per synthetic ticker used by --data-source synthetic or auto fallback.",
     )
     return parser.parse_args()
 
@@ -120,11 +154,18 @@ def _summarize_run(out_dir: Path) -> dict[str, Any]:
         for name in post
         if name in base and post[name]["split"] in {"val", "test"}
     ]
-    bad_repeat = [
-        post[name]["bad_action_repeat_rate"] - base[name]["bad_action_repeat_rate"]
+    repeat_base = [
+        base[name]["bad_action_repeat_rate"]
         for name in post
         if name in base and post[name]["split"] in {"val", "test"}
     ]
+    repeat_post = [
+        post[name]["bad_action_repeat_rate"]
+        for name in post
+        if name in base and post[name]["split"] in {"val", "test"}
+    ]
+    bad_repeat = [p - b for p, b in zip(repeat_post, repeat_base, strict=True)]
+    diagnosis = feedback.get("diagnosis", {})
     return {
         "run_id": out_dir.name,
         "seed": manifest["config"]["seed"],
@@ -136,7 +177,10 @@ def _summarize_run(out_dir: Path) -> dict[str, Any]:
         "arena_valtest_sharpe_improved": sum(delta > 0 for delta in valtest),
         "arena_valtest_scenarios": len(valtest),
         "arena_avg_valtest_dsharpe": sum(valtest) / len(valtest) if valtest else 0.0,
+        "arena_repeat_rate_baseline": sum(repeat_base) / len(repeat_base) if repeat_base else 0.0,
+        "arena_repeat_rate_post": sum(repeat_post) / len(repeat_post) if repeat_post else 0.0,
         "arena_avg_bad_repeat_delta": sum(bad_repeat) / len(bad_repeat) if bad_repeat else 0.0,
+        "feedback_verdict": diagnosis.get("verdict", ""),
         "counterfactual_pairs": feedback.get("counterfactual_pairs", 0),
         "bc_accuracy": feedback.get("behavioral_cloning", {}).get("accuracy", 0.0),
         "output_dir": str(out_dir),
@@ -162,6 +206,69 @@ def _write_sweep_summary(output_root: Path, rows: list[dict[str, Any]]) -> tuple
     return csv_path, json_path
 
 
+def _host_compatible_timescale_url(url: str) -> str:
+    parts = urlsplit(url)
+    if parts.hostname != _COMPOSE_TIMESCALE_HOST:
+        return url
+    old_host_port = parts.hostname
+    new_host_port = _LOCAL_TIMESCALE_HOST
+    if parts.port is not None:
+        old_host_port = f"{old_host_port}:{parts.port}"
+        new_host_port = f"{new_host_port}:{parts.port}"
+    return url.replace(old_host_port, new_host_port, 1)
+
+
+def _synthetic_data_for_run(
+    args: argparse.Namespace,
+    config: ArticleSimulationConfig,
+) -> DailyMarketData:
+    return synthetic_market_data(
+        n_tickers=args.synthetic_tickers,
+        n_days=args.synthetic_days,
+        seed=config.seed,
+        start=datetime(1989, 1, 1, tzinfo=UTC),
+    )
+
+
+async def _load_market_data_for_run(
+    args: argparse.Namespace,
+    config: ArticleSimulationConfig,
+) -> tuple[DailyMarketData, dict[str, Any] | None]:
+    if args.data_source == "synthetic":
+        logger.info("Using deterministic synthetic market data for article run")
+        return _synthetic_data_for_run(args, config), None
+
+    settings = get_settings()
+    original_url = settings.TIMESCALE_URL
+    settings.TIMESCALE_URL = _host_compatible_timescale_url(original_url)
+    if original_url != settings.TIMESCALE_URL:
+        logger.info("Using localhost Timescale URL for standalone article run")
+
+    try:
+        market_data, inventory = await load_market_data_from_timescale()
+        if not market_data.tickers:
+            raise RuntimeError("Timescale returned no OHLCV rows for the article universe")
+        return market_data, inventory
+    except Exception as exc:
+        if args.data_source == "timescale":
+            raise RuntimeError(
+                "Unable to load article market data from Timescale. "
+                "Start the Timescale service, set TIMESCALE_URL to a host-reachable DSN, "
+                "or rerun with --data-source synthetic."
+            ) from exc
+        logger.warning(
+            "Timescale market data is unavailable for the article run ({}); "
+            "falling back to deterministic synthetic data.",
+            exc,
+        )
+        return _synthetic_data_for_run(args, config), None
+
+
+async def _run_one(args: argparse.Namespace, config: ArticleSimulationConfig) -> Path:
+    market_data, inventory = await _load_market_data_for_run(args, config)
+    return await run_article_pipeline(config, market_data=market_data, inventory=inventory)
+
+
 async def _amain() -> int:
     args = _parse_args()
     seeds = _parse_seed_spec(args.seeds) if args.seeds else []
@@ -171,7 +278,7 @@ async def _amain() -> int:
             config = _config_from_args(args, seed=seed)
             if not args.write_sweep_checkpoints:
                 config.write_checkpoints = False
-            out_dir = await run_article_pipeline(config)
+            out_dir = await _run_one(args, config)
             print(f"article simulation bundle: {out_dir}")
             summaries.append(_summarize_run(out_dir))
         csv_path, json_path = _write_sweep_summary(args.output_root, summaries)
@@ -179,7 +286,7 @@ async def _amain() -> int:
         print(f"seed sweep summary json: {json_path}")
     else:
         config = _config_from_args(args)
-        out_dir = await run_article_pipeline(config)
+        out_dir = await _run_one(args, config)
         print(f"article simulation bundle: {out_dir}")
     return 0
 

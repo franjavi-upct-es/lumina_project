@@ -126,6 +126,12 @@ class ArenaRunner:
         Number of periods per year used by divergence Sharpe calculations.
         Defaults to the minute-bar arena setting; daily article runs pass
         ``252``.
+    mlflow_tracking_uri
+        Override for the MLflow tracking URI. When ``None`` (default),
+        ``settings.MLFLOW_TRACKING_URI`` is used — that points at the
+        ``mlflow`` service inside the compose network. Tests running
+        outside Docker pass a ``file://`` URI so they don't hit a name
+        resolution failure on the unreachable hostname.
     """
 
     def __init__(
@@ -138,6 +144,7 @@ class ArenaRunner:
         explanation_sink: Callable[[StepExplanation], asyncio.Future | None] | None = None,
         policy_uses_full_observation: bool = False,
         divergence_annualization_periods: float | None = None,
+        mlflow_tracking_uri: str | None = None,
     ) -> None:
         self.metadata = run_metadata
         self.agent = agent
@@ -146,6 +153,7 @@ class ArenaRunner:
         self._timescale = timescale
         self._explanation_sink = explanation_sink
         self.policy_uses_full_observation = bool(policy_uses_full_observation)
+        self._mlflow_tracking_uri = mlflow_tracking_uri
         self._cancel_event = asyncio.Event()
         self._envs: list[LuminaTradingEnv] = []
         self._latest_obs: list[np.ndarray] = []
@@ -187,7 +195,7 @@ class ArenaRunner:
     async def run(self) -> ArenaRunMetadata:
         """Execute the full arena run, returning the final metadata."""
         settings = get_settings()
-        mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
+        mlflow.set_tracking_uri(self._mlflow_tracking_uri or settings.MLFLOW_TRACKING_URI)
         mlflow.set_experiment(settings.MLFLOW_EXPERIMENT_NAME)
 
         await self._persist_run_metadata(status=ArenaRunStatus.RUNNING)
