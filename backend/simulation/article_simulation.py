@@ -624,6 +624,7 @@ def encode_samples(
 async def run_article_pipeline(
     config: ArticleSimulationConfig,
     market_data: DailyMarketData | None = None,
+    inventory: dict[str, Any] | None = None,
 ) -> Path:
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + f"_{uuid4().hex[:8]}"
     run_dir = config.output_root / run_id
@@ -632,7 +633,7 @@ async def run_article_pipeline(
 
     if market_data is None:
         market_data, inventory = await load_market_data_from_timescale()
-    else:
+    elif inventory is None:
         inventory = build_data_inventory(
             market_data,
             table_counts={"ohlcv_1m": sum(len(v) for v in market_data.bars_by_ticker.values())},
@@ -744,6 +745,7 @@ async def run_article_pipeline(
             "counterfactual_pairs": len(feedback_pairs),
             "feedback_samples_added": added_feedback_samples,
             "pairs_path": str(pairs_path),
+            "diagnosis": _feedback_diagnosis(arena_rows),
         },
     )
 
@@ -1908,6 +1910,64 @@ def _rows_to_nested_metrics(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     return nested
 
 
+def _feedback_diagnosis(arena_rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Quantify the counterfactual feedback loop on the val+test scenarios.
+
+    Mirrors the ``tab:repeat-rate`` analysis in the technical paper: the
+    bad-action-repeat-rate collapse is *necessary* but not *sufficient* for a
+    usable update. We pair the repeat-rate change with the mean Sharpe change
+    and emit a categorical verdict so the artifact states, on its own, whether
+    feedback (a) corrected the isolated mistake and (b) helped risk-adjusted
+    return.
+    """
+    by_key = {(r["phase"], r["scenario"]): r for r in arena_rows}
+    repeat_base: list[float] = []
+    repeat_post: list[float] = []
+    dsharpe: list[float] = []
+    for (phase, scenario), post in by_key.items():
+        if phase != "post_feedback" or post.get("split") not in {"val", "test"}:
+            continue
+        baseline = by_key.get(("baseline_eval", scenario))
+        if baseline is None:
+            continue
+        repeat_base.append(float(baseline["bad_action_repeat_rate"]))
+        repeat_post.append(float(post["bad_action_repeat_rate"]))
+        dsharpe.append(float(post["mean_sharpe"]) - float(baseline["mean_sharpe"]))
+
+    if not dsharpe:
+        return {"scenarios": 0, "verdict": "no arena comparison"}
+
+    mean_base = sum(repeat_base) / len(repeat_base)
+    mean_post = sum(repeat_post) / len(repeat_post)
+    delta_repeat = mean_post - mean_base
+    avg_dsharpe = sum(dsharpe) / len(dsharpe)
+
+    # "Collapse" = the policy mostly stopped repeating the bad action.
+    collapsed = mean_post <= 0.5 and delta_repeat <= -0.25
+    if collapsed and avg_dsharpe >= 0.0:
+        verdict = "collapse + edge (learned signal)"
+    elif collapsed and avg_dsharpe < -0.5:
+        verdict = "over-correction (Sharpe destroyed)"
+    elif collapsed:
+        verdict = "collapse, no edge"
+    elif avg_dsharpe > 0.02:
+        verdict = "return-only gain (not attributable to feedback)"
+    elif delta_repeat > 0.01:
+        verdict = "mistakes persist"
+    else:
+        verdict = "no update"
+
+    return {
+        "scenarios": len(dsharpe),
+        "repeat_rate_baseline": mean_base,
+        "repeat_rate_post_feedback": mean_post,
+        "repeat_rate_delta": delta_repeat,
+        "avg_valtest_dsharpe": avg_dsharpe,
+        "repeat_collapsed": collapsed,
+        "verdict": verdict,
+    }
+
+
 def _write_article_summary(
     path: Path,
     *,
@@ -1962,6 +2022,27 @@ def _write_article_summary(
                 f"bad-action-distance-p50="
                 f"{float(row.get('bad_action_distance_p50', 0.0)):.3f}"
             )
+    diagnosis = _feedback_diagnosis(arena_rows)
+    if diagnosis.get("scenarios"):
+        lines.extend(
+            [
+                "",
+                "## Feedback Diagnosis",
+                "",
+                (
+                    "- Bad-action-repeat rate (val+test mean): "
+                    f"{diagnosis['repeat_rate_baseline']:.3f} (baseline) "
+                    f"→ {diagnosis['repeat_rate_post_feedback']:.3f} (post-feedback), "
+                    f"Δ={diagnosis['repeat_rate_delta']:+.3f}."
+                ),
+                f"- Mean val+test Sharpe change ΔS_VT: {diagnosis['avg_valtest_dsharpe']:+.3f}.",
+                (
+                    "- Repeat-rate collapse (necessary condition): "
+                    f"{'yes' if diagnosis['repeat_collapsed'] else 'no'}."
+                ),
+                f"- Verdict: **{diagnosis['verdict']}**.",
+            ]
+        )
     lines.extend(
         [
             "",

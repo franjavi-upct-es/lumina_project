@@ -15,7 +15,7 @@
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 import { portfolioApi } from "../api/portfolio";
-import type { Portfolio } from "../types/market.types";
+import type { EquityPoint, Portfolio } from "../types/market.types";
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -57,7 +57,7 @@ export function usePortfolio(): UsePortfolioResult {
 }
 
 export function usePortfolioHistory(range: string) {
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<EquityPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

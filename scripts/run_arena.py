@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -23,6 +24,8 @@ from backend.simulation.environments.base_env import LuminaTradingEnv
 from backend.simulation.feedback.counterfactual_pairs import build_pairs
 from backend.simulation.feedback.replay_buffer_writer import BCDatasetWriter
 from backend.simulation.generators.synthetic_data import jump_diffusion_episode
+
+_DOCKER_DEFAULT_MLFLOW_URI = "http://mlflow:5000"
 
 
 def _build_env_factory(n_steps: int):
@@ -98,7 +101,27 @@ def _parse_args() -> argparse.Namespace:
         default=1.0,
         help="Multiplier for the agent's action vector to overcome execution thresholds.",
     )
+    parser.add_argument(
+        "--mlflow-tracking-uri",
+        help=(
+            "MLflow tracking URI. Defaults to a local SQLite DB under --output-dir; "
+            "set this to http://localhost:5000 or another server URI to log remotely."
+        ),
+    )
     return parser.parse_args()
+
+
+def _resolve_mlflow_tracking_uri(output_dir: Path, requested_uri: str | None) -> str:
+    if requested_uri:
+        return requested_uri.strip()
+
+    env_uri = os.environ.get("MLFLOW_TRACKING_URI")
+    if env_uri:
+        env_uri = env_uri.strip()
+        if env_uri and env_uri.rstrip("/") != _DOCKER_DEFAULT_MLFLOW_URI:
+            return env_uri
+
+    return f"sqlite:///{(output_dir / 'mlflow.db').resolve()}"
 
 
 class BoostedAgent:
@@ -122,6 +145,10 @@ async def _main_async(args: argparse.Namespace) -> int:
     settings = get_settings()
     settings.arena.artifact_dir = args.output_dir
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    mlflow_tracking_uri = _resolve_mlflow_tracking_uri(
+        args.output_dir,
+        args.mlflow_tracking_uri,
+    )
 
     seeds = make_random_seeds(args.n_trajectories)
     metadata = ArenaRunMetadata(
@@ -151,6 +178,7 @@ async def _main_async(args: argparse.Namespace) -> int:
         env_factory=env_factory,
         timescale=None,  # smoke-test mode: JSONL-only
         policy_uses_full_observation=(args.state_dim == 260),
+        mlflow_tracking_uri=mlflow_tracking_uri,
     )
 
     result = await runner.run()
