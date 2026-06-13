@@ -24,3 +24,13 @@ export interface Portfolio {
   peak_equity: number;
   drawdown_pct: number;
 }
+
+export interface EquityPoint {
+  time: string;
+  equity: number;
+  benchmark?: number;
+}
+
+export interface PortfolioHistoryResponse {
+  history: EquityPoint[];
+}

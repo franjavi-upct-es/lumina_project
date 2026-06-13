@@ -30,6 +30,11 @@ theme:
 
 plugins:
     - search
+    - auto-refresh-build-pages:
+          update_message: "The page has been updated. Do you want to reload?"
+          yes_button_text: "Yes"
+          no_button_text: "No"
+          check_interval_seconds: 60
     - mkdocstrings:
           handlers:
               python:

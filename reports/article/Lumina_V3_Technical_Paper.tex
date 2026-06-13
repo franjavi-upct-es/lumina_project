@@ -6,6 +6,7 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{longtable}
+\usepackage{multirow}
 \usepackage{array}
 \usepackage{tabularx}
 \usepackage{geometry}
@@ -419,23 +420,54 @@ others before the policy sees the market.
 
 \subsection{Cross-Modal Attention}
 
-The cross-attention block treats the three modalities as three tokens. Each token is read into
-a shared attention width \(d_{\mathrm{attn}}=8\times 64=512\), processed by two Transformer
-encoder layers, and written back to its native dimension. Let
+The cross-attention block treats the three modalities as three tokens of a length-three
+sequence. Because the tokens have different native widths, the block uses per-modality
+\emph{read} and \emph{write} projections that operate only inside a shared attention space of
+width \(d_{\mathrm{attn}}=8\times 64=512\); the native concatenation itself is never replaced.
+
+\begin{definition}[Modality cross-attention]
+	Let \(R_m:\R^{d_m}\to\R^{d_{\mathrm{attn}}}\) and \(W_m:\R^{d_{\mathrm{attn}}}\to\R^{d_m}\) be
+	the read and write maps for modality \(m\in\{p,s,g\}\) with native widths
+	\((d_p,d_s,d_g)=(128,64,32)\), and let \(\tau_p,\tau_s,\tau_g\in\R^{d_{\mathrm{attn}}}\) be
+	learned modality-type embeddings. The token sequence is
+	\[
+		U^{(0)}=\bigl[R_p(p_t)+\tau_p,\;R_s(s_t)+\tau_s,\;R_g(g_t)+\tau_g\bigr]
+		\in\R^{3\times d_{\mathrm{attn}}}.
+	\]
+	Two pre-norm Transformer encoder layers \(L_1,L_2\) (8 heads, feed-forward width
+	\(2d_{\mathrm{attn}}=1024\), GELU) refine the sequence, \(U=\operatorname{LN}(L_2(L_1(U^{(0)})))\),
+	with rows \((u_p,u_s,u_g)\). Each modality is then written back to its native space through a
+	residual, layer-normalized connection,
+	\[
+		h_t^{m}=\operatorname{LN}\!\bigl(m_t + W_m(u_m)\bigr),\qquad m\in\{p,s,g\},
+	\]
+	and recombined into the re-weighted super-vector
+	\[
+		h_t=[h_t^{p}\,\Vert\,h_t^{s}\,\Vert\,h_t^{g}]\in\R^{224}.
+	\]
+\end{definition}
+
+The single self-attention matrix \(A_t\in\R^{3\times 3}\) of the final layer (its column mean,
+\(\alpha_t=\tfrac13\mathbf{1}^\top A_t\in\Delta^2\)) is exactly the per-modality attribution
+weight read out by the arena: it states how much price, semantics, and graph each contributed
+at step \(t\). The final Nexus computation gates and projects \(h_t\) into the latent state,
 \[
-	q_t = \mathrm{Attn}(p_t,s_t,g_t).
-\]
-The output is again \(224\)-dimensional:
-\[
-	h_t=[h_t^{p}\Vert h_t^{s}\Vert h_t^{g}]\in\R^{224}.
-\]
-The final Nexus computation is
-\[
-	\gamma_t=\sigma(W_g h_t+b_g),\qquad
+	\gamma_t=\sigma(W_g h_t+b_g)\in(0,1)^{224},\qquad
 	\bar{h}_t = h_t\odot(1+\gamma_t),\qquad
 	z_t=H(\bar{h}_t)\in\R^{256},
 \]
-where \(H\) is the LayerNorm/GELU/dropout MLP head.
+where the residual gate \(1+\gamma_t\) guarantees the signal cannot be zeroed, and \(H\) is the
+two-block head \(224\!\to\!512\!\to\!512\!\to\!256\) with LayerNorm, GELU, and dropout.
+
+\begin{definition}[Two-level epistemic uncertainty]
+	The fusion stack exposes uncertainty at two granularities. At the \emph{fusion} level, the
+	Nexus is run \(N\) times with Monte Carlo dropout active on \(\bar h_t\), yielding latent
+	samples \(z_t^{(1)},\ldots,z_t^{(N)}\) whose coordinate-wise dispersion
+	\(\Sigma_t=\std_i(z_t^{(i)})\in\R^{256}\) measures representation instability. At the
+	\emph{action} level (\S\,\ref{subsec:gate}), dropout is propagated through the policy and the
+	dispersion is measured on the four action coordinates. The action-level statistic, not the
+	fusion-level one, drives the safety gate.
+\end{definition}
 
 \begin{remark}[Why raw concatenation matters]
 	The architecture does not first project all modalities to a common width. This is an explicit
@@ -475,12 +507,36 @@ state representation.
 \end{definition}
 
 The policy supports tanh-squashed diagonal Gaussian actions and a scaled Beta alternative.
-The default is the squashed Gaussian:
+The default is the squashed Gaussian: the actor emits a mean \(\mu_\theta(z_t)\in\R^4\) and a
+learnable per-coordinate log-standard-deviation \(\log\sigma_\theta\in[-5,2]^4\), and
 \[
-	\xi_t\sim\mathcal{N}(\mu_\theta(z_t),\sigma_\theta^2),\qquad
-	a_t=\tanh(\xi_t),
+	\xi_t\sim\mathcal{N}\!\bigl(\mu_\theta(z_t),\,\sigma_\theta^2\bigr),\qquad
+	a_t=\tanh(\xi_t).
 \]
-with the log-probability corrected by the tanh Jacobian.
+Because \(\tanh\) is a smooth bijection, the change-of-variables correction for its Jacobian
+gives a closed-form log-density,
+\[
+	\log\pi_\theta(a_t\mid z_t)
+	=
+	\sum_{d=0}^{3}\Bigl[
+		\log\mathcal{N}\!\bigl(\xi_{t,d};\,\mu_{\theta,d},\,\sigma_{\theta,d}\bigr)
+		-\log\!\bigl(1-a_{t,d}^2+\varepsilon\bigr)
+	\Bigr],
+	\qquad \xi_{t,d}=\operatorname{atanh}(a_{t,d}),
+\]
+with \(\varepsilon=10^{-6}\) guarding the boundary. The scaled-Beta head instead emits
+\(\alpha_\theta,\beta_\theta>1\) (via \(\operatorname{softplus}(\cdot)+1\), which forbids the
+ill-behaved U-shaped regime), draws \(u_t\sim\mathrm{Beta}(\alpha_\theta,\beta_\theta)\), and
+maps \(a_t=2u_t-1\); the affine map contributes a constant \(-\log 2\) per coordinate,
+\[
+	\log\pi_\theta(a_t\mid z_t)
+	=
+	\sum_{d=0}^{3}\Bigl[\log\mathrm{Beta}\!\bigl(u_{t,d};\,\alpha_{\theta,d},\beta_{\theta,d}\bigr)-\log 2\Bigr],
+	\qquad u_{t,d}=\tfrac12(a_{t,d}+1).
+\]
+The squashed Gaussian uses the underlying Gaussian entropy
+\(\mathcal{H}[\mathcal{N}]=\tfrac12\sum_d\log(2\pi e\,\sigma_{\theta,d}^2)\) as a tractable upper
+bound on the entropy of the squashed law for the exploration bonus.
 
 \subsection{PPO Objective}
 
@@ -502,40 +558,113 @@ where
 \]
 Advantages are estimated using GAE:
 \[
-	\delta_t = r_t + \gamma V(s_{t+1})(1-d_t)-V(s_t),
+	\delta_t = r_t + \gamma V_\phi(s_{t+1})(1-d_t)-V_\phi(s_t),
 	\qquad
-	\widehat{A}_t=\sum_{k\ge 0}(\gamma\lambda)^k\delta_{t+k}.
+	\widehat{A}_t=\sum_{k\ge 0}(\gamma\lambda)^k\,(1-d_{t+k})\,\delta_{t+k},
 \]
-The update also includes a clipped value loss, entropy bonus, gradient clipping, and KL early
-stop.
+with \(\gamma=0.99\) and \(\lambda=0.95\); the done flag \(d_t\) truncates the sum across
+episode boundaries, and advantages are standardized to zero mean and unit variance per batch
+before the update. The value head is trained with a \emph{clipped} regression loss mirroring
+the policy clip,
+\[
+	\mathcal{L}^{\mathrm{VF}}(\phi)
+	=
+	\E_t\Bigl[\tfrac12\max\!\bigl(
+		(V_\phi(s_t)-\widehat{R}_t)^2,\;
+		(V_\phi^{\mathrm{clip}}(s_t)-\widehat{R}_t)^2
+	\bigr)\Bigr],
+	\quad
+	V_\phi^{\mathrm{clip}}=V_{\phi_{\mathrm{old}}}+\clip\!\bigl(V_\phi-V_{\phi_{\mathrm{old}}},-\epsilon,\epsilon\bigr),
+\]
+where \(\widehat{R}_t=\widehat{A}_t+V_{\phi_{\mathrm{old}}}(s_t)\) is the GAE return target. The
+total objective minimized per minibatch combines the three terms,
+\[
+	\mathcal{L}(\theta,\phi)
+	=
+	-\,\mathcal{L}^{\mathrm{CLIP}}(\theta)
+	+ c_v\,\mathcal{L}^{\mathrm{VF}}(\phi)
+	- c_H\,\E_t\bigl[\mathcal{H}[\pi_\theta(\cdot\mid s_t)]\bigr],
+\]
+with \(\epsilon=0.2\), value weight \(c_v=0.5\), entropy weight \(c_H=0.01\), gradients clipped
+to global \(\ell_2\) norm \(0.5\), and \(K=10\) epochs over the rollout buffer. Updates use an
+adaptive KL trust region: when the running estimate
+\(\widehat{\mathrm{KL}}=\E_t[\log\pi_{\theta_{\mathrm{old}}}-\log\pi_\theta]\) exceeds
+\(1.5\,\delta_{\mathrm{KL}}\) with \(\delta_{\mathrm{KL}}=0.2\), the epoch loop early-stops to
+prevent catastrophic policy drift.
 
 \subsection{Uncertainty Gate}
+\label{subsec:gate}
 
 For each decision, the policy is sampled \(N=10\) times with dropout active. If
-\(a^{(i)}\in[-1,1]^4\) is the \(i\)-th sample, then action-level epistemic uncertainty is
+\(a^{(i)}\in[-1,1]^4\) is the \(i\)-th sample, then action-level epistemic uncertainty is the
+mean over coordinates of the (unbiased, \(\mathrm{ddof}=1\)) sample standard deviation,
 \[
 	u_t=\frac{1}{4}\sum_{d=0}^{3}\std_{i=1,\ldots,N}\left(a_d^{(i)}\right).
 \]
-The gate smooths this with a rolling window of length \(W=10\):
+The mean aggregation is deliberate: a single noisy coordinate should not by itself trigger a
+veto. The gate smooths this with a rolling window of length \(W=10\):
 \[
 	\bar{u}_t=\frac{1}{W}\sum_{k=t-W+1}^{t}u_k.
 \]
-It engages when \(\bar{u}_t>\tau_{\mathrm{high}}=0.85\) and releases when
-\(\bar{u}_t<\tau_{\mathrm{low}}=0.50\). A 100-step warm-up prevents startup variance from
-triggering early vetoes. On veto, the defensive action is the zero vector.
+Rather than a single threshold, the gate is a two-state hysteresis automaton with state
+\(v_t\in\{0,1\}\) (releasing/vetoing),
+\[
+	v_t=
+	\begin{cases}
+		1, & v_{t-1}=0 \;\wedge\; \bar u_t>\tau_{\mathrm{high}},\\[2pt]
+		0, & v_{t-1}=1 \;\wedge\; \bar u_t<\tau_{\mathrm{low}},\\[2pt]
+		v_{t-1}, & \text{otherwise,}
+	\end{cases}
+	\qquad \tau_{\mathrm{high}}=0.85,\;\tau_{\mathrm{low}}=0.50.
+\]
+The band \(\tau_{\mathrm{high}}-\tau_{\mathrm{low}}=0.35\) suppresses the chattering that a
+single threshold would produce when \(\bar u_t\) hovers near the boundary, analogous to
+deadband in sliding-mode control. A 100-step warm-up holds \(v_t=0\) until the window fills, so
+startup variance cannot trigger early vetoes. On veto (\(v_t=1\)) the defensive action is the
+zero vector, decoded as flat direction and zero size.
 
 \subsection{Risk-Constrained Action Filtering}
 
-The action \(a_t\) is not treated as an unconditional trade. It is an intent filtered by
-deterministic risk rules. The rules can be written abstractly as constraints on exposure,
-drawdown, action uncertainty, trade size, stop distance, and loss streaks:
+The action \(a_t\) is not treated as an unconditional trade. It is an intent filtered by a
+conjunction of deterministic rules evaluated by the safety arbitrator. Writing the decoded
+target exposure as \(q^{\star}_t=a_t^{(0)}\cdot\tfrac12(a_t^{(2)}+1)\) and the current
+drawdown as \(\mathrm{DD}_t=1-E_t/\max_{s\le t}E_s\), the admissible set is the intersection of
+six predicates,
 \[
-	\mathcal{C}_t(a_t,z_t,E_t,q_t)\le 0.
+	\begin{aligned}
+		\mathcal{C}_t=
+		 & \bigl\{\,\mathrm{DD}_t\le 0.20\,\bigr\}\cap
+		\bigl\{\,u_t\le 0.85\,\bigr\}\cap
+		\bigl\{\,|q^{\star}_t|\le 1\,\bigr\}\cap
+		\bigl\{\,\tfrac12(a_t^{(2)}+1)\le 0.5\,\bigr\}                                            \\
+		 & \cap\,\bigl\{\,c_t< 5\,\bigr\}\cap
+		\bigl\{\,\neg\bigl(\operatorname{sgn}q^{\star}_t\neq\operatorname{sgn}q_t \wedge u_t>0.7\bigr)\bigr\},
+	\end{aligned}
 \]
-If the constraint set is violated, the filter maps the proposed action to a safer alternative
-such as hold, reduce, or close. This is the V3 analogue of V2's risk analytics layer:
-portfolio theory and tail-risk awareness are not after-the-fact reporting tools; they are
-embedded in the action boundary itself.
+covering, in order, the drawdown limit, the uncertainty ceiling, the gross-exposure cap, the
+per-trade size cap, a cool-off after \(c_t=5\) consecutive losing trades, and a block on
+high-uncertainty position flips. The arbitrator maps a violating intent to the nearest safe
+target,
+\[
+	\tilde a_t=\mathcal{A}(a_t)=
+	\begin{cases}
+		a_t, & a_t \text{ satisfies all of } \mathcal{C}_t,\\
+		\Pi_{\mathcal{C}_t}(a_t), & \text{otherwise,}
+	\end{cases}
+\]
+where the projection \(\Pi_{\mathcal{C}_t}\) reduces, holds, or closes the position (e.g.\ a
+drawdown or uncertainty breach forces \(\tilde a_t=0\)). Conditional on passing the filter, the
+magnitude is further tempered toward a confidence- and uncertainty-aware fractional-Kelly
+budget. With estimated win probability \(p\) and win/loss ratio \(b=\bar{W}/\bar{L}\), the full
+Kelly fraction is \(f^{\star}=p-(1-p)/b\), and the deployed size is the fractional-Kelly,
+uncertainty-discounted quantity
+\[
+	f_t=\lambda_K\,f^{\star},\qquad
+	\text{size}_t=\lambda_K\,|a_t^{(0)}|\,\bigl(1-\min(u_t,1)\bigr),
+	\qquad \lambda_K=0.25.
+\]
+This is the V3 analogue of V2's risk analytics layer: portfolio theory and tail-risk awareness
+are not after-the-fact reporting tools; they are embedded in the action boundary itself.
 
 \section{Simulation, Arena, and Feedback}
 
@@ -555,8 +684,23 @@ The step reward used by the base environment is
 	-
 	\ind\{\mathrm{arbitrator\ veto}\},
 \]
-where \(\nu_t\) is recent realized volatility and the default veto penalty is \(1.0\).
+where \(\nu_t\) is recent realized volatility, the risk-penalty coefficient is
+\(\lambda_{\mathrm{risk}}=0.1\), and the default veto penalty is \(1.0\). The realized PnL
+\(\mathrm{pnl}_t=E_t\,q_t\,r_{t+1}\) is netted against transaction costs whose slippage term
+scales with urgency, \(c_t=|\Delta q_t|E_t(\kappa_{\mathrm{slip}}(1+\max(a_t^{(1)},0))+\kappa_{\mathrm{comm}})\).
 Evaluation logs full-episode Sharpe, drawdown, equity, trades, and action traces.
+
+The Sharpe-fine-tuning phase swaps this for a differential reward that rewards
+\emph{risk-adjusted} increments directly, computed online with EWMA estimators of decay
+\(\eta=0.05\) so no future information leaks. With
+\(\mu_t=(1-\eta)\mu_{t-1}+\eta r_t\) and
+\(v_t=(1-\eta)\bigl(v_{t-1}+\eta(r_t-\mu_{t-1})^2\bigr)\), the incremental-Sharpe reward is
+\[
+	R_t^{\mathrm{SR}}=\frac{\mu_t}{\sqrt{v_t+\varepsilon}},
+\]
+and the Sortino variant replaces \(v_t\) with a downside-only second moment that accumulates
+only when \(r_t<\mu_{t-1}\). This is the reward-level realization of the V2 doctrine that a
+policy must be judged on volatility-normalized return rather than raw PnL.
 
 The evaluation language is deliberately continuous with V2. Sharpe, drawdown, transaction
 costs, slippage, and stress testing remain the practical yardsticks, while VaR/CVaR and
@@ -800,6 +944,118 @@ stable control improvement.
 		neutral and drawdown risk increases.}
 	\label{fig:arena-feedback-scenario-effects}
 \end{figure}
+
+\subsection{Counterfactual Feedback: Necessary but not Sufficient}
+\label{subsec:repeat}
+
+The arena records a sharper diagnostic than aggregate Sharpe: the
+\emph{bad-action-repeat rate}, the fraction of pivotal divergences at which the post-feedback
+policy still selects the action that was counterfactually labeled inferior. A working feedback
+loop should drive this rate down --- the policy should stop repeating the mistakes the arena
+isolated. Table~\ref{tab:repeat-rate} reports the mean repeat rate over the validation and test
+scenarios before and after behavioral cloning, paired with the risk-adjusted effect
+\(\Delta S_{VT}\) from Table~\ref{tab:simulation-evolution}.
+
+\begin{table}[htbp]
+	\centering
+	\small
+	\caption{Counterfactual feedback diagnosis across the nine cycles. ``Repeat'' is the mean
+		bad-action-repeat rate over the validation and test scenarios; \(\Delta\)Repeat is the
+		post-minus-baseline change (negative is the intended direction). A repeat-rate collapse is
+		\emph{necessary} for learning but not \emph{sufficient}: cycles 3 and 5 also collapse the
+		rate, yet only the learned cycle pairs the collapse with a non-negative \(\Delta S_{VT}\).}
+	\label{tab:repeat-rate}
+	\begin{tabular}{clccccc}
+		\toprule
+		Cycle & Status & Repeat (base) & Repeat (post) & \(\Delta\)Repeat & \(\Delta S_{VT}\) & Verdict \\
+		\midrule
+		1 & Inconclusive & 1.000 & 1.000 & \(0.000\)  & \(-0.008\) & no update \\
+		2 & Inconclusive & 0.732 & 0.770 & \(+0.038\) & \(+0.009\) & mistakes persist \\
+		3 & Inconclusive & 1.000 & 0.000 & \(-1.000\) & \(-0.005\) & collapse, no edge \\
+		4 & Inconclusive & 1.000 & 1.000 & \(0.000\)  & \(+0.041\) & return-only gain \\
+		5 & Inconclusive & 0.733 & 0.075 & \(-0.658\) & \(-2.230\) & over-correction \\
+		6 & Partial      & 1.000 & 1.000 & \(0.000\)  & \(+0.013\) & no update \\
+		\textbf{7} & \textbf{Learned} & \textbf{1.000} & \textbf{0.000} & \(\mathbf{-1.000}\) & \(\mathbf{+0.027}\) & \textbf{collapse + edge} \\
+		8 & Partial      & 1.000 & 1.000 & \(0.000\)  & \(-0.001\) & no update \\
+		9 & Partial      & 1.000 & 1.000 & \(0.000\)  & \(-0.000\) & no update \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+The table makes the central caveat of the feedback loop quantitative. Three cycles drive the
+repeat rate down substantially (3, 5, 7), confirming that behavioral cloning can in fact erase
+the labeled error. But the repeat-rate collapse is only \emph{necessary}, not
+\emph{sufficient}, for a usable improvement: cycle~3 collapses the rate while leaving
+risk-adjusted return slightly negative, and cycle~5 collapses it while destroying stress Sharpe
+(\(\Delta S_{VT}=-2.23\)) --- the over-correction failure mode. Only the learned cycle~7
+achieves both conditions simultaneously, which is precisely why it is the single cycle promoted
+to ``learned.'' Symmetrically, cycle~4 shows the converse: a positive \(\Delta S_{VT}\) with no
+change in repeat behavior, i.e.\ a return gain that is not attributable to correcting the
+isolated counterfactual and should not be over-interpreted.
+
+\begin{figure}[htbp]
+	\centering
+	\begin{tikzpicture}
+		\begin{axis}[
+				width=0.9\textwidth,
+				height=0.34\textwidth,
+				ybar,
+				bar width=6pt,
+				enlarge x limits=0.08,
+				symbolic x coords={1,2,3,4,5,6,7,8,9},
+				xtick=data,
+				xlabel={Simulation cycle},
+				ylabel={Bad-action-repeat rate},
+				ymin=0, ymax=1.15,
+				ytick={0,0.25,0.5,0.75,1.0},
+				legend style={at={(0.5,1.05)},anchor=south,legend columns=2,draw=none},
+				grid=major,
+			]
+			\addplot[fill=gray!45, draw=black] coordinates {
+					(1,1.000)(2,0.732)(3,1.000)(4,1.000)(5,0.733)(6,1.000)(7,1.000)(8,1.000)(9,1.000)};
+			\addplot[fill=cyan!65, draw=black] coordinates {
+					(1,1.000)(2,0.770)(3,0.000)(4,1.000)(5,0.075)(6,1.000)(7,0.000)(8,1.000)(9,1.000)};
+			\legend{Baseline, Post-feedback}
+		\end{axis}
+	\end{tikzpicture}
+	\caption{Bad-action-repeat rate before and after counterfactual behavioral cloning, by
+		cycle. Only cycles 3, 5, and 7 collapse the post-feedback rate; cross-referencing
+		Table~\ref{tab:repeat-rate}, only cycle~7 converts that collapse into a positive
+		risk-adjusted change.}
+	\label{fig:repeat-rate}
+\end{figure}
+
+Table~\ref{tab:learned-scenario} decomposes the learned cycle by scenario to show what a
+``successful'' feedback update actually does. The repeat rate falls from \(1.0\) to \(0.0\) in
+every scenario, and total return roughly doubles across the board; Sharpe improves in the trend
+and chop regimes but dips slightly under the drawdown-stress regime, where the larger positions
+also deepen the maximum drawdown. This is the concrete evidence behind the conservative reading
+of Figure~\ref{fig:arena-feedback-scenario-effects}: the loop reliably changes action geometry
+and lifts raw return, but its risk-adjusted benefit is regime-dependent.
+
+\begin{table}[htbp]
+	\centering
+	\small
+	\caption{Per-scenario decomposition of the learned cycle (cycle~7), baseline evaluation
+		versus post-feedback policy. Returns roughly double and the bad-action-repeat rate
+		collapses everywhere; Sharpe improves except under drawdown stress, where deeper exposure
+		widens the maximum drawdown.}
+	\label{tab:learned-scenario}
+	\begin{tabular}{llrrrr}
+		\toprule
+		Scenario (split) & Phase & Return & Sharpe & Max. DD & Repeat \\
+		\midrule
+		\multirow{2}{*}{Chop calibration (val)}    & baseline & \(+0.35\%\) & 0.108 & \(-4.0\%\)  & 1.000 \\
+		                                           & post     & \(+1.12\%\) & 0.180 & \(-7.8\%\)  & 0.000 \\
+		\midrule
+		\multirow{2}{*}{Drawdown stress (test)}    & baseline & \(+5.05\%\) & 0.911 & \(-5.6\%\)  & 1.000 \\
+		                                           & post     & \(+9.42\%\) & 0.856 & \(-10.6\%\) & 0.000 \\
+		\midrule
+		\multirow{2}{*}{Trend follow-through (test)} & baseline & \(+5.29\%\) & 2.321 & \(-1.9\%\)  & 1.000 \\
+		                                           & post     & \(+9.30\%\) & 2.384 & \(-3.2\%\)  & 0.000 \\
+		\bottomrule
+	\end{tabular}
+\end{table}
 
 \subsection{Crisis Drill Response}
 

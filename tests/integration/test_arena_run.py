@@ -43,6 +43,11 @@ def _build_agent() -> PPOAgent:
     return PPOAgent(policy=policy, uncertainty_gate=gate, device="cpu")
 
 
+def _mlflow_uri(tmp_path: Path) -> str:
+    db_path = (tmp_path / "mlflow.db").resolve().as_posix()
+    return f"sqlite:///{db_path}"
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_three_trajectory_short_run(tmp_path: Path) -> None:
@@ -62,6 +67,7 @@ async def test_three_trajectory_short_run(tmp_path: Path) -> None:
         agent=_build_agent(),
         env_factory=_build_factory(n_steps=200),
         timescale=None,
+        mlflow_tracking_uri=_mlflow_uri(tmp_path),
     )
     result = await runner.run()
     assert result.status == ArenaRunStatus.COMPLETED
@@ -91,6 +97,7 @@ async def test_arena_cancel(tmp_path: Path) -> None:
         agent=_build_agent(),
         env_factory=_build_factory(n_steps=500),
         timescale=None,
+        mlflow_tracking_uri=_mlflow_uri(tmp_path),
     )
     run_task = asyncio.create_task(runner.run())
     await asyncio.sleep(0.2)  # let a few steps run
@@ -120,6 +127,7 @@ async def test_divergences_emit_when_perturbations_aggressive(tmp_path: Path) ->
         agent=_build_agent(),
         env_factory=_build_factory(n_steps=300),
         timescale=None,
+        mlflow_tracking_uri=_mlflow_uri(tmp_path),
     )
     await runner.run()
     divergences = runner.divergence_analyzer.all_divergences()

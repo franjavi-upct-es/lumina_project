@@ -134,6 +134,10 @@ python scripts/run_arena.py \
     --n-steps 200 \
     --output-dir ./artifacts/arena
 
+# The standalone CLI logs MLflow metadata to ./artifacts/arena/mlflow.db by
+# default. Pass --mlflow-tracking-uri http://localhost:5000 to use a running
+# MLflow server instead.
+
 # 3. Inspect the artifacts.
 ls ./artifacts/arena/<run_id>/states/   # per-trajectory super-state .npy
 cat ./artifacts/arena/<run_id>/decisions.jsonl | head -1 | jq .
