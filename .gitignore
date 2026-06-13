@@ -9,7 +9,6 @@ env/
 .mypy_cache/
 .ruff_cache/
 .coverage
-<<<<<<< HEAD
 htmlcov/
 dist/
 build/
@@ -46,8 +45,3 @@ reports/**/*.out
 reports/**/*.fls
 reports/**/*.fdb_latexmk
 reports/**/*.synctex.gz
-=======
-.claude/
-models/
-!backend/models/
->>>>>>> 994b45ea5c7f16817f4caea4d941fa54c203899e
