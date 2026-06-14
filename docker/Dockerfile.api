@@ -17,7 +17,7 @@
 # 1000. HEALTHCHECK probes /api/monitoring/health every 30 s.
 
 # ----- Stage 1 — builder ----------------------------------------------------
-FROM python:3.11-slim AS builder
+FROM python:3.14-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
@@ -37,7 +37,7 @@ RUN mkdir -p backend && touch backend/__init__.py
 RUN uv sync --frozen --no-dev --no-install-project --extra api
 
 # ----- Stage 2 — runtime ----------------------------------------------------
-FROM python:3.11-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
