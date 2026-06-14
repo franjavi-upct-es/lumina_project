@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 import numpy as np
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
-from backend.api.deps import get_redis, require_api_key
+from backend.api.deps import authorize_websocket, get_redis, require_api_key
 from backend.api.schemas import AgentStatusResponse
 from backend.data_engine.storage.redis_cache import RedisCache
 
@@ -71,6 +71,8 @@ async def get_history(limit: int = 100, redis: RedisCache = Depends(get_redis)):
 
 @router.websocket("/stream")
 async def stream_agent(ws: WebSocket, redis: RedisCache = Depends(get_redis)):
+    if not await authorize_websocket(ws):
+        return
     await ws.accept()
     pubsub = redis.client.pubsub()
     await pubsub.subscribe("channel:agent.action")

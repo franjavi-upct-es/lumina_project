@@ -147,7 +147,7 @@ def setup_logging(
             serialize=serialize,  # type: ignore
         )
 
-        # ML training log
+        # V3 model/training log
         logger.add(
             log_dir / "ml_training_{time:YYYY-MM-DD}.log",  # type: ignore
             format=file_format,
@@ -157,7 +157,10 @@ def setup_logging(
             compression=compression,
             enqueue=True,
             filter=lambda record: (
-                "ml_engine" in record["name"].lower() or "train" in record["name"].lower()  # type: ignore
+                "cognition" in record["name"].lower()
+                or "perception" in record["name"].lower()
+                or "fusion" in record["name"].lower()
+                or "train" in record["name"].lower()  # type: ignore
             ),  # type: ignore
             serialize=serialize,
         )
@@ -223,7 +226,7 @@ def get_logger(name: str | None = None):
 # Context managers for logging
 
 
-class log_context:
+class log_context:  # noqa: N801
     """
     Context manager for logging with additional context
 
@@ -243,7 +246,7 @@ class log_context:
         logger.configure(extra={})
 
 
-class timed_operation:
+class timed_operation:  # noqa: N801
     """
     Context manager for timing operations
 
@@ -423,16 +426,16 @@ else:
 
 # Export commonly used items
 __all__ = [
-    "logger",
     "get_logger",
-    "setup_logging",
-    "setup_production_logging",
-    "setup_development_logging",
-    "log_context",
-    "timed_operation",
-    "log_function_call",
-    "log_exceptions",
     "log_api_request",
     "log_backtest_run",
+    "log_context",
+    "log_exceptions",
+    "log_function_call",
     "log_model_training",
+    "logger",
+    "setup_development_logging",
+    "setup_logging",
+    "setup_production_logging",
+    "timed_operation",
 ]

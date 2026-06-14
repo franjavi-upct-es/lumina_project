@@ -179,8 +179,10 @@ include = ["backend*"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
+    "unit: fast, isolated unit tests",
     "slow: tests slower than 1 second",
     "integration: requires a running Redis/Timescale instance",
+    "docker: requires a running Docker Compose stack",
     "gpu: requires a CUDA-capable GPU",
 ]
 
@@ -199,6 +201,11 @@ ignore = [
     "E501",
     "B008",
     "N812",
+    # Numerical/ML code conventionally names matrices and tensors with
+    # capitals (X, Y, W, X_train, …). Enforcing snake_case there hurts
+    # readability of the math, so we allow non-lowercase locals/args.
+    "N803",  # invalid-argument-name (e.g. def f(X, Y))
+    "N806",  # non-lowercase-variable-in-function (e.g. X_train = ...)
     "SIM108",
     "RUF001",
     "RUF002",
@@ -208,7 +215,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
-"tests/**" = ["S101", "N802"]
+"tests/**" = ["S101", "N802", "TID251"]
 "scripts/**" = ["T201"]
 
 [tool.ruff.lint.isort]
