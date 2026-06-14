@@ -7,8 +7,12 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+# Placeholder API key shipped in .env.example. Treated as "unset" by the
+# production fail-closed check below (audit finding F1).
+WEAK_DEFAULT_API_KEY = "change_me_in_production"
 
 
 class ArenaSettings(BaseSettings):
@@ -124,6 +128,24 @@ class Settings(BaseSettings):
         if isinstance(value, list):
             return [str(t).strip().upper() for t in value if str(t).strip()]
         return [ticker.strip().upper() for ticker in value.split(",") if ticker.strip()]
+
+    @model_validator(mode="after")
+    def _enforce_production_secrets(self) -> Settings:
+        """Fail closed: refuse to start with a weak/empty API key outside dev.
+
+        Audit finding F1. Development stays frictionless (an empty key disables
+        auth — see ``backend.api.deps.require_api_key``); staging/production
+        require a strong, unique ``API_KEY``.
+        """
+        if self.ENVIRONMENT in ("staging", "production"):
+            if not self.API_KEY or self.API_KEY == WEAK_DEFAULT_API_KEY:
+                raise ValueError(
+                    "API_KEY must be set to a strong, unique value when "
+                    f"ENVIRONMENT={self.ENVIRONMENT!r} (got an empty or placeholder key)."
+                )
+            if len(self.API_KEY) < 16:
+                raise ValueError("API_KEY must be at least 16 characters in staging/production.")
+        return self
 
     # Nested settings group for the Spartan Arena subsystem. Uses its own
     # env_prefix ("ARENA_") so it can be tuned independently in deployment.

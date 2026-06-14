@@ -1,0 +1,121 @@
+# .github/workflows/security.yml
+# Security scanning pipeline:
+#   * gitleaks    — secret scanning across the working tree AND full git history
+#   * pip-audit   — known CVEs in the resolved Python dependency set (from uv.lock)
+#   * bandit      — Python static analysis (flags exec/pickle/torch.load/etc.)
+#   * trivy       — filesystem vuln + secret + IaC/Dockerfile misconfiguration scan
+#
+# Hardening notes:
+#   * `permissions` is least-privilege at the top level and widened per-job only
+#     where SARIF upload requires `security-events: write`.
+#   * For maximum supply-chain safety you may pin each `uses:` to a commit SHA
+#     instead of a tag. Tags are used here for readability/maintainability.
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"  # Monday 06:00 UTC — catch newly-disclosed CVEs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history so historical leaks are detected too
+
+      - name: Install gitleaks
+        run: |
+          VERSION=8.21.2
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /tmp gitleaks
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+
+      - name: Scan working tree + history
+        # --redact keeps any matched secret out of the public CI log.
+        run: gitleaks detect --source . --redact --verbose --exit-code 1
+
+  # ---------------------------------------------------------------------------
+  dependency-audit:
+    name: Dependency CVE audit (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Export locked requirements (all extras)
+        run: uv export --frozen --all-extras --no-emit-project --no-hashes -o requirements.txt
+
+      - name: pip-audit
+        # Non-blocking for now so a freshly-disclosed CVE doesn't wedge every PR.
+        # Flip `continue-on-error` to false once the dependency set is clean to
+        # make this a hard gate.
+        continue-on-error: true
+        run: uvx pip-audit --requirement requirements.txt --progress-spinner off
+
+  # ---------------------------------------------------------------------------
+  static-analysis:
+    name: Python SAST (bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Bandit (medium+ severity, medium+ confidence)
+        continue-on-error: true
+        run: uvx bandit -r backend scripts -ll -ii -f json -o bandit-report.json
+
+      - name: Bandit (human-readable summary)
+        continue-on-error: true
+        run: uvx bandit -r backend scripts -ll -ii
+
+      - name: Upload bandit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: bandit-report.json
+
+  # ---------------------------------------------------------------------------
+  trivy:
+    name: Filesystem & config scan (trivy)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write  # required to upload SARIF to the Security tab
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy scan (vuln + secret + misconfig)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy

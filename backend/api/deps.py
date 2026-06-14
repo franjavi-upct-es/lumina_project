@@ -24,9 +24,10 @@ There are three categories of providers:
 
 from __future__ import annotations
 
+import hmac
 from typing import Literal
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, WebSocket, status
 from pydantic import BaseModel
 
 from backend.config.settings import Settings, get_settings
@@ -83,14 +84,63 @@ def require_api_key(
 ) -> UserContext:
     """Reject the request unless the ``x-api-key`` header matches settings.
 
+    Fail-closed (audit F1): when no ``API_KEY`` is configured the request is
+    allowed only in development; every other environment is rejected. The key
+    comparison is constant-time to avoid a timing side-channel (audit F9).
+
     Returns a UserContext object to lay the foundation for multi-tenant SaaS
     routing and subscription-tier quotas.
     """
     if not settings.API_KEY:
-        return UserContext(user_id="dev_user", tier="enterprise")
-    if x_api_key != settings.API_KEY:
+        if settings.ENVIRONMENT == "development":
+            return UserContext(user_id="dev_user", tier="enterprise")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Server API key is not configured.",
+        )
+    if x_api_key is None or not hmac.compare_digest(x_api_key, settings.API_KEY):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",
         )
     return UserContext(user_id="admin_user", tier="enterprise")
+
+
+def _origin_allowed(origin: str | None, settings: Settings) -> bool:
+    """Allow same-origin browser clients and non-browser clients.
+
+    Browsers always send ``Origin`` on the WS handshake; we require it to be in
+    the configured CORS allow-list (CSWSH protection). Clients with no Origin
+    (e.g. server-to-server) are permitted — they cannot be driven by a
+    victim's browser.
+    """
+    if origin is None:
+        return True
+    return origin in settings.CORS_ORIGINS
+
+
+async def authorize_websocket(
+    websocket: WebSocket,
+    settings: Settings | None = None,
+) -> bool:
+    """Authorize a WebSocket *before* ``accept()`` (audit F2).
+
+    Validates the ``Origin`` header against the CORS allow-list and, when an
+    ``API_KEY`` is configured, a ``?token=`` (or ``?api_key=``) query parameter
+    — browsers cannot set custom headers on the WS handshake, so the token
+    travels as a query param. On failure the socket is closed with
+    policy-violation code 1008 and ``False`` is returned.
+    """
+    settings = settings or get_settings()
+    if not _origin_allowed(websocket.headers.get("origin"), settings):
+        await websocket.close(code=1008)
+        return False
+    if settings.API_KEY:
+        token = websocket.query_params.get("token") or websocket.query_params.get("api_key")
+        if token is None or not hmac.compare_digest(token, settings.API_KEY):
+            await websocket.close(code=1008)
+            return False
+    elif settings.ENVIRONMENT != "development":
+        await websocket.close(code=1008)
+        return False
+    return True

@@ -1,0 +1,70 @@
+# .github/workflows/ci.yml
+# Continuous integration: lint, type-check, unit tests (backend) + build (frontend).
+# Everything Python runs through `uv` per the project convention.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege: CI only needs to read the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-quality:
+    name: Backend — lint, type-check, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync environment (frozen lockfile)
+        run: uv sync --frozen --extra dev --extra api
+
+      - name: Ruff lint
+        run: uv run ruff check backend tests scripts
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Mypy type-check
+        run: uv run mypy backend
+
+      - name: Pytest (unit only — integration needs Redis/Timescale)
+        run: uv run pytest -v -m "not integration"
+
+  frontend-build:
+    name: Frontend — type-check & build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (tsc + vite)
+        run: npm run build

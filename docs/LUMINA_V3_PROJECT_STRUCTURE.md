@@ -11,7 +11,7 @@ while maintaining operational robustness.
 ├── backend/                 # The core logic of the autonomous agent
 ├── docker/                  # Containerization for microservices
 ├── docs/                    # Documentation
-├── frontend/                # Streamlit/React dashboards
+├── frontend/                # React dashboards
 ├── notebooks/               # Research & Experimentation sandboxes
 ├── scripts/                 # DevOps and utility scripts
 ├── tests/                   # Pytest suite

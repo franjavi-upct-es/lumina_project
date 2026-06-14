@@ -42,7 +42,7 @@ from fastapi import (
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from backend.api.deps import get_redis, get_timescale, require_api_key
+from backend.api.deps import authorize_websocket, get_redis, get_timescale, require_api_key
 from backend.config.constants import (
     ARENA_DEFAULT_TRAJECTORIES,
     ARENA_MAX_TRAJECTORIES,
@@ -152,7 +152,11 @@ async def start_run(
 # ----------------------------------------------------------------------
 # Listings + lookup
 # ----------------------------------------------------------------------
-@router.get("/runs", response_model=list[ArenaRunMetadata])
+@router.get(
+    "/runs",
+    response_model=list[ArenaRunMetadata],
+    dependencies=[Depends(require_api_key)],
+)
 async def list_runs(
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
@@ -174,7 +178,11 @@ async def list_runs(
     return [_row_to_run_metadata(r) for r in rows]
 
 
-@router.get("/runs/{run_id}", response_model=ArenaRunMetadata)
+@router.get(
+    "/runs/{run_id}",
+    response_model=ArenaRunMetadata,
+    dependencies=[Depends(require_api_key)],
+)
 async def get_run(
     run_id: UUID,
     timescale: TimescaleStore = Depends(get_timescale),
@@ -194,7 +202,11 @@ async def get_run(
     return _row_to_run_metadata(row)
 
 
-@router.get("/runs/{run_id}/decisions", response_model=list[DecisionRecord])
+@router.get(
+    "/runs/{run_id}/decisions",
+    response_model=list[DecisionRecord],
+    dependencies=[Depends(require_api_key)],
+)
 async def get_decisions(
     run_id: UUID,
     trajectory_id: int | None = Query(default=None, ge=0),
@@ -223,7 +235,11 @@ async def get_decisions(
     return [_row_to_decision_record(r) for r in rows]
 
 
-@router.get("/runs/{run_id}/divergences", response_model=list[DivergencePoint])
+@router.get(
+    "/runs/{run_id}/divergences",
+    response_model=list[DivergencePoint],
+    dependencies=[Depends(require_api_key)],
+)
 async def get_divergences(
     run_id: UUID,
     limit: int = Query(default=100, ge=1, le=10_000),
@@ -264,7 +280,11 @@ async def get_divergences(
     ]
 
 
-@router.get("/runs/{run_id}/explanations", response_model=list[StepExplanation])
+@router.get(
+    "/runs/{run_id}/explanations",
+    response_model=list[StepExplanation],
+    dependencies=[Depends(require_api_key)],
+)
 async def get_explanations(
     run_id: UUID,
     limit: int = Query(default=100, ge=1, le=10_000),
@@ -289,7 +309,11 @@ async def get_explanations(
     ]
 
 
-@router.get("/runs/{run_id}/pairs", response_model=list[CounterfactualPair])
+@router.get(
+    "/runs/{run_id}/pairs",
+    response_model=list[CounterfactualPair],
+    dependencies=[Depends(require_api_key)],
+)
 async def get_pairs(
     run_id: UUID,
     limit: int = Query(default=100, ge=1, le=10_000),
@@ -327,7 +351,11 @@ async def get_pairs(
     ]
 
 
-@router.get("/runs/{run_id}/summary", response_model=RunSummary)
+@router.get(
+    "/runs/{run_id}/summary",
+    response_model=RunSummary,
+    dependencies=[Depends(require_api_key)],
+)
 async def get_summary(
     run_id: UUID,
     redis: RedisCache = Depends(get_redis),
@@ -363,6 +391,8 @@ async def live_stream(websocket: WebSocket, run_id: UUID) -> None:
     ``arena:<run_id>``. We subscribe, relay every message verbatim, and
     drop the connection on any error.
     """
+    if not await authorize_websocket(websocket):
+        return
     await websocket.accept()
     redis = await get_redis()
     channel_name = _REDIS_PUBSUB_PREFIX + str(run_id)

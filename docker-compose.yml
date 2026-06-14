@@ -25,8 +25,10 @@ services:
     volumes:
       - redis_data:/data
       - ./docker/services/redis.conf:/etc/redis/redis.conf:ro
+    # Bound to loopback only (audit F3): reachable by `make dev` on the host
+    # and by sibling containers over lumina_net, but never the public network.
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     networks: [lumina_net]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -45,8 +47,10 @@ services:
     volumes:
       - timescale_data:/var/lib/postgresql/data
       - ./docker/services/timescale.conf:/etc/postgresql/postgresql.conf.d/timescale.conf:ro
+    # Loopback-only (audit F3/F7). Replace the lumina:lumina credentials with
+    # deploy-time secrets before exposing this beyond localhost.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     networks: [lumina_net]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U lumina -d lumina"]
@@ -58,8 +62,10 @@ services:
     image: ghcr.io/mlflow/mlflow:latest
     container_name: lumina_mlflow
     restart: unless-stopped
+    # Loopback-only (audit F3/F7): MLflow has no authentication and serves
+    # artifacts, so it must not be reachable from the public network.
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     volumes:
       - mlflow_data:/mlflow
     command: >

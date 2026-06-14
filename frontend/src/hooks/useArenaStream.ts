@@ -6,6 +6,7 @@
 // responsive across long runs.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { withWsToken } from "../api/client";
 import type { DecisionRecord, DivergencePoint } from "../types/arena.types";
 
 const WS_BASE = import.meta.env.VITE_WS_BASE || "ws://localhost:8000";
@@ -52,7 +53,7 @@ export function useArenaStream(runId: string | null): ArenaStream {
     if (!runId) return;
     cancelledRef.current = false;
     setConnectionStatus("connecting");
-    const ws = new WebSocket(`${WS_BASE}/arena/runs/${runId}/live`);
+    const ws = new WebSocket(withWsToken(`${WS_BASE}/arena/runs/${runId}/live`));
     wsRef.current = ws;
 
     ws.onopen = () => {

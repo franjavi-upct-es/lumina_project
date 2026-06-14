@@ -41,7 +41,6 @@ from importlib import import_module
 from typing import Any
 
 from backend.data_engine.transformers.feature_engineering import FeatureEngineer
-from backend.data_engine.transformers.normalization import DataNormalizer
 
 _LAZY_EXPORTS = {
     "RegimeDetector": ("backend.data_engine.transformers.regime_detection", "RegimeDetector"),
@@ -70,5 +69,4 @@ def __getattr__(name: str) -> Any:
 __all__ = [
     "FeatureEngineer",
     "RegimeDetector",
-    "DataNormalizer",
 ]
