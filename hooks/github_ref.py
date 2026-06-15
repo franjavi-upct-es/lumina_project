@@ -33,7 +33,7 @@ def on_page_markdown(markdown, page, config, files):
             url += f"#{anchor}"
             # "L20-L25" -> "20-25", "L20" -> "20" for display
             display_lines = re.sub(r"L(\d+)", r"\1", anchor)
-            label = f":material-github: {path}<span class=\"lines\">#{display_lines}</span>"
+            label = f':material-github: {path}<span class="lines">#{display_lines}</span>'
         else:
             label = f":material-github: {path}"
 

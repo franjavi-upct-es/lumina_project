@@ -52,18 +52,18 @@ backend/
 **Role:** The raw ingestion layer. It gathers data but does not interpret it.
 
 ```
-backend/data.engine/
+backend/data_engine/
 ├── collectors/
-│   ├── chain.scrapers.py      # On-chain data (if crypto) or Supply Chain graph scraping
-│   ├── news.stream.py         # Websocket connection to NewsAPI/Benzinga
-│   ├── price.stream.py        # Websocket connection to Alpaca/Polygon.io
-│   └── social.scraper.py      # Twitter/Reddit ingestion pipelines
+│   ├── chain_scrapers.py      # On-chain data (if crypto) or Supply Chain graph scraping
+│   ├── news_stream.py         # Websocket connection to NewsAPI/Benzinga
+│   ├── price_stream.py        # Websocket connection to Alpaca/Polygon.io
+│   └── social_scraper.py      # Twitter/Reddit ingestion pipelines
 ├── pipelines/
 │   ├── cleaning.py            # Outlier detection and null handling
 │   └── ingestion.py           # Async ETL pipelines writing to TimescaleDB
 └── storage/
     ├── timescale.py           # CRUD wrapper for historical data (Cold Store)
-    └── redis.cache.py         # Wrapper for real-time deduplication
+    └── redis_cache.py         # Wrapper for real-time deduplication
 ```
 
 ### **3. The Feature Store (/feature_store)**
@@ -94,9 +94,9 @@ backend/perception/
 │   ├── tokenizer.py           # Custom tokenizer for financial lexicon
 │   └── vectorizer.py          # Converts text stream to 64d context embeddings
 └── structural/                # The "Spatial Senses" (Graph/Correlations)
-│   ├── gnn.model.py           # Graph Attention Network (GATv2) definition
-│   ├── graph.builder.py       # Constructs adjacency matrix from correlation/sectors
-│   └── dynamic.edges.py       # Updates edge weights based on rolling correlation
+│   ├── gnn_model.py           # Graph Attention Network (GATv2) definition
+│   ├── graph_builder.py       # Constructs adjacency matrix from correlation/sectors
+│   └── dynamic_edges.py       # Updates edge weights based on rolling correlation
 ```
 
 ### **5. Layer 2: Deep Fusion (/fusion)**
@@ -107,7 +107,7 @@ backend/perception/
 backend/fusion/
 ├── attention.py               # Cross-Modal Attention implementation (Transformer block)
 ├── concatenation.py           # Logic to merge (Price | News | Graph) vectors
-└── state.builder.py           # Orchestrator: Calls Perception layers \-\> Fuses \-\> Returns Super-State
+└── state_builder.py           # Orchestrator: Calls Perception layers \-\> Fuses \-\> Returns Super-State
 ```
 
 ### **6. Layer 3: Cognition (/cognition)**
@@ -117,8 +117,8 @@ backend/fusion/
 ```
 backend/cognition/
 ├── agent/
-│   ├── ppo.continuous.py      # Proximal Policy Optimization with continuous action space
-│   ├── sac.agent.py           # Soft Actor-Critic alternative (for higher entropy exploration)
+│   ├── ppo_continuous.py      # Proximal Policy Optimization with continuous action space
+│   ├── sac_agent.py           # Soft Actor-Critic alternative (for higher entropy exploration)
 │   └── uncertainty.py         # Monte Carlo Dropout logic for Epistemic Uncertainty
 ├── policy/
 │   ├── networks.py            # PyTorch definitions for Actor and Critic networks
@@ -135,9 +135,9 @@ backend/cognition/
 ```
 backend/simulation/
 ├── environments/
-│   ├── base.env.py            # Gymnasium interface (reset, step, render)
-│   ├── live.shadow.py         # Environment that mirrors live market (for paper trading)
-│   └── reward.functions.py    # Sharpe, Sortino, and Calmar ratio reward logic
+│   ├── base_env.py            # Gymnasium interface (reset, step, render)
+│   ├── live_shadow.py         # Environment that mirrors live market (for paper trading)
+│   └── reward_functions.py    # Sharpe, Sortino, and Calmar ratio reward logic
 └── generators/
     ├── adversarial.py         # Generates "Nightmare" scenarios (noise injection)
     ├── scenario.loader.py     # Replays specific historical crashes (2008, 2020\)

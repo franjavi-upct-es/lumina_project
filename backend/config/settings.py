@@ -45,6 +45,7 @@ class Settings(BaseSettings):
 
     # ---------- Environment ----------
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
+    LOG_LEVEL: str = "INFO"
     LIVE_TICKERS: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["SPY", "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "TSLA", "QQQ"]
     )
