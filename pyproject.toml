@@ -24,7 +24,7 @@
 name = "lumina_v3"
 version = "0.1.0"
 description = "Lumina V3 — Chimera deep-fusion algorithmic trading system"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.15"
 dependencies = [
     # ----- Core (used by every service) ---------------------------------
     "pydantic>=2.6",
@@ -77,7 +77,7 @@ perception = [
     "polars>=0.20",
     "pandas>=2.2",
     "torch>=2.2",
-    "transformers>=4.38,<5",
+    "transformers>=5.0,<6",
     "scikit-learn>=1.4",
     "mlflow>=2.10",
     # torch-geometric and its companions (torch-scatter, torch-sparse) are
@@ -93,7 +93,7 @@ brain = [
     "polars>=0.20",
     "pandas>=2.2",
     "torch>=2.2",
-    "transformers>=4.38,<5",
+    "transformers>=5.0,<6",
     "scikit-learn>=1.4",
     "gymnasium>=0.29",
     "alpaca-py>=0.20",
@@ -156,7 +156,7 @@ dev = [
     "lxml>=5.0",
     "torch>=2.2",
     "torch-geometric>=2.7.0",
-    "transformers>=4.38,<5",
+    "transformers>=5.0,<6",
     "scikit-learn>=1.4",
     "gymnasium>=0.29",
     "alpaca-py>=0.20",
