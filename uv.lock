@@ -2426,6 +2426,7 @@ dev = [
 ]
 docs = [
     { name = "mkdocs" },
+    { name = "mkdocs-auto-refresh-build-pages" },
     { name = "mkdocs-material" },
     { name = "mkdocstrings", extra = ["python"] },
     { name = "mkdocstrings-python" },
@@ -2483,6 +2484,7 @@ requires-dist = [
     { name = "matplotlib", marker = "extra == 'dev'", specifier = ">=3.8" },
     { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.6.0" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6.0" },
+    { name = "mkdocs-auto-refresh-build-pages", marker = "extra == 'docs'", specifier = ">=1.0.3" },
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.5.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5.0" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'dev'", specifier = ">=0.25.0" },
@@ -2897,6 +2899,17 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/bc/c6/bbd4f061bd16b378247f12953ffcb04786a618ce5e904b8c5a01a0309061/mkdocs-1.6.1.tar.gz", hash = "sha256:7b432f01d928c084353ab39c57282f29f92136665bdd6abf7c1ec8d822ef86f2", size = 3889159, upload-time = "2024-08-30T12:24:06.899Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/22/5b/dbc6a8cddc9cfa9c4971d59fb12bb8d42e161b7e7f8cc89e49137c5b279c/mkdocs-1.6.1-py3-none-any.whl", hash = "sha256:db91759624d1647f3f34aa0c3f327dd2601beae39a366d6e064c03468d35c20e", size = 3864451, upload-time = "2024-08-30T12:24:05.054Z" },
+]
+
+[[package]]
+name = "mkdocs-auto-refresh-build-pages"
+version = "1.0.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "mkdocs" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/74/df/45d477950cf17fcbb64ceed78092fc1d9d5bc1ca6530bb5167da22f83dd2/mkdocs_auto_refresh_build_pages-1.0.3-py3-none-any.whl", hash = "sha256:0c9d2b5d65a48f078dd576df91a234aab43b36329ab713332e65ab8119d13949", size = 6986, upload-time = "2025-07-06T08:43:03.688Z" },
 ]
 
 [[package]]

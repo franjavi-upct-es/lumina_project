@@ -26,145 +26,143 @@ version = "0.1.0"
 description = "Lumina V3 — Chimera deep-fusion algorithmic trading system"
 requires-python = ">=3.11,<3.15"
 dependencies = [
-    # ----- Core (used by every service) ---------------------------------
-    "pydantic>=2.6",
-    "pydantic-settings>=2.2",
-    "loguru>=0.7",
-    "tenacity>=8.2",
-    "prometheus-client>=0.20",
-    "numpy>=1.26",
+  # ----- Core (used by every service) ---------------------------------
+  "pydantic>=2.6",
+  "pydantic-settings>=2.2",
+  "loguru>=0.7",
+  "tenacity>=8.2",
+  "prometheus-client>=0.20",
+  "numpy>=1.26",
 ]
 
 [project.optional-dependencies]
 # ----- Per-service extras (installed by the matching Dockerfile) ----------
 api = [
-    "fastapi>=0.110",
-    "uvicorn[standard]>=0.27",
-    "httpx>=0.27",
-    "websockets>=12.0",
-    "asyncpg>=0.29",
-    "redis>=5.0",                # we use redis.asyncio exclusively
-    "alembic>=1.13",
-    "sqlalchemy>=2.0",
-    "psycopg2-binary>=2.9.12",   # Alembic sync PostgreSQL driver for migrate
-    "polars>=0.20",
-    "pandas>=2.2",
-    "yfinance>=0.2.40",
-    "beautifulsoup4>=4.12",
-    "lxml>=5.0",
-    "pyarrow>=15.0",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+  "httpx>=0.27",
+  "websockets>=12.0",
+  "asyncpg>=0.29",
+  "redis>=5.0",              # we use redis.asyncio exclusively
+  "alembic>=1.13",
+  "sqlalchemy>=2.0",
+  "psycopg2-binary>=2.9.12", # Alembic sync PostgreSQL driver for migrate
+  "polars>=0.20",
+  "pandas>=2.2",
+  "yfinance>=0.2.40",
+  "beautifulsoup4>=4.12",
+  "lxml>=5.0",
+  "pyarrow>=15.0",
 ]
 
 data = [
-    "httpx>=0.27",
-    "websockets>=12.0",
-    "asyncpg>=0.29",
-    "redis>=5.0",
-    "sqlalchemy>=2.0",
-    "polars>=0.20",
-    "pandas>=2.2",               # required by yfinance
-    "yfinance>=0.2.40",
-    "beautifulsoup4>=4.12",
-    "lxml>=5.0",
-    "tqdm>=4.66",
-    "pyarrow>=15.0",
+  "httpx>=0.27",
+  "websockets>=12.0",
+  "asyncpg>=0.29",
+  "redis>=5.0",
+  "sqlalchemy>=2.0",
+  "polars>=0.20",
+  "pandas>=2.2",          # required by yfinance
+  "yfinance>=0.2.40",
+  "beautifulsoup4>=4.12",
+  "lxml>=5.0",
+  "tqdm>=4.66",
+  "pyarrow>=15.0",
 ]
 
 perception = [
-    "asyncpg>=0.29",
-    "redis>=5.0",
-    "sqlalchemy>=2.0",
-    "polars>=0.20",
-    "pandas>=2.2",
-    "torch>=2.2",
-    "transformers>=5.0,<6",
-    "scikit-learn>=1.4",
-    "mlflow>=2.10",
-    # torch-geometric and its companions (torch-scatter, torch-sparse) are
-    # NOT listed here because they need to be installed from the official
-    # PyG wheel index against a specific torch + CUDA combination. The
-    # Dockerfile.perception handles this explicitly.
+  "asyncpg>=0.29",
+  "redis>=5.0",
+  "sqlalchemy>=2.0",
+  "polars>=0.20",
+  "pandas>=2.2",
+  "torch>=2.2",
+  "transformers>=5.0,<6",
+  "scikit-learn>=1.4",
+  "mlflow>=2.10",
+  # torch-geometric and its companions (torch-scatter, torch-sparse) are
+  # NOT listed here because they need to be installed from the official
+  # PyG wheel index against a specific torch + CUDA combination. The
+  # Dockerfile.perception handles this explicitly.
 ]
 
 brain = [
-    "asyncpg>=0.29",
-    "redis>=5.0",
-    "sqlalchemy>=2.0",
-    "polars>=0.20",
-    "pandas>=2.2",
-    "torch>=2.2",
-    "transformers>=5.0,<6",
-    "scikit-learn>=1.4",
-    "gymnasium>=0.29",
-    "alpaca-py>=0.20",
-    "mlflow>=2.10",
-    "httpx>=0.27",
-    "matplotlib>=3.8",
-    "seaborn>=0.13",
-    # captum powers the Integrated-Gradients path on the distilled LLM
-    # encoder, used on-demand by the Spartan Arena's XAI module to attribute
-    # token importance at pivotal divergence points.
-    "captum>=0.7.0",
+  "asyncpg>=0.29",
+  "redis>=5.0",
+  "sqlalchemy>=2.0",
+  "polars>=0.20",
+  "pandas>=2.2",
+  "torch>=2.2",
+  "transformers>=5.0,<6",
+  "scikit-learn>=1.4",
+  "gymnasium>=0.29",
+  "alpaca-py>=0.20",
+  "mlflow>=2.10",
+  "httpx>=0.27",
+  "matplotlib>=3.8",
+  "seaborn>=0.13",
+  # captum powers the Integrated-Gradients path on the distilled LLM
+  # encoder, used on-demand by the Spartan Arena's XAI module to attribute
+  # token importance at pivotal divergence points.
+  "captum>=0.7.0",
 ]
 
 # ----- GPU quantisation helpers (opt-in) ----------------------------------
 # Required when running the FinBERT teacher (110M params) or a larger
 # semantic model on memory-constrained GPUs. The distilled student
 # (~15M params) does NOT need these — it fits in <50 MB at fp16.
-gpu = [
-    "accelerate>=0.30",
-    "bitsandbytes>=0.43",
-]
+gpu = ["accelerate>=0.30", "bitsandbytes>=0.43"]
 
 # ----- Development tools --------------------------------------------------
 docs = [
-    "mkdocs>=1.6.0",
-    "mkdocs-material>=9.5.0",
-    "mkdocstrings[python]>=0.25.0",
-    "mkdocstrings-python>=1.10.0",
+  "mkdocs>=1.6.0",
+  "mkdocs-material>=9.5.0",
+  "mkdocstrings[python]>=0.25.0",
+  "mkdocstrings-python>=1.10.0",
+  "mkdocs-auto-refresh-build-pages>=1.0.3",
 ]
 
 dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.23",
-    "pytest-cov>=4.1",
-    "ruff>=0.4",
-    "mypy>=1.9",
-    "jupytext>=1.16",
-    "ipykernel>=6.29",
-    "jupyterlab>=4.5.7",
-    "pre-commit>=3.6",
-    # Documentation
-    "mkdocs>=1.6.0",
-    "mkdocs-material>=9.5.0",
-    "mkdocstrings[python]>=0.25.0",
-    "mkdocstrings-python>=1.10.0",
-    # Bring along everything else so `pip install -e .[dev]` produces
-    # a one-shot development environment.
-    "fastapi>=0.110",
-    "uvicorn[standard]>=0.27",
-    "httpx>=0.27",
-    "websockets>=12.0",
-    "asyncpg>=0.29",
-    "redis>=5.0",
-    "alembic>=1.13",
-    "sqlalchemy>=2.0",
-    "polars>=0.20",
-    "pandas>=2.2",
-    "yfinance>=0.2.40",
-    "beautifulsoup4>=4.12",
-    "lxml>=5.0",
-    "torch>=2.2",
-    "torch-geometric>=2.7.0",
-    "transformers>=5.0,<6",
-    "scikit-learn>=1.4",
-    "gymnasium>=0.29",
-    "alpaca-py>=0.20",
-    "mlflow>=2.10",
-    "matplotlib>=3.8",
-    "seaborn>=0.13",
-    "tqdm>=4.66",
-    "captum>=0.7.0",
+  "pytest>=8.0",
+  "pytest-asyncio>=0.23",
+  "pytest-cov>=4.1",
+  "ruff>=0.4",
+  "mypy>=1.9",
+  "jupytext>=1.16",
+  "ipykernel>=6.29",
+  "jupyterlab>=4.5.7",
+  "pre-commit>=3.6",
+  # Documentation
+  "mkdocs>=1.6.0",
+  "mkdocs-material>=9.5.0",
+  "mkdocstrings[python]>=0.25.0",
+  "mkdocstrings-python>=1.10.0",
+  # Bring along everything else so `pip install -e .[dev]` produces
+  # a one-shot development environment.
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+  "httpx>=0.27",
+  "websockets>=12.0",
+  "asyncpg>=0.29",
+  "redis>=5.0",
+  "alembic>=1.13",
+  "sqlalchemy>=2.0",
+  "polars>=0.20",
+  "pandas>=2.2",
+  "yfinance>=0.2.40",
+  "beautifulsoup4>=4.12",
+  "lxml>=5.0",
+  "torch>=2.2",
+  "torch-geometric>=2.7.0",
+  "transformers>=5.0,<6",
+  "scikit-learn>=1.4",
+  "gymnasium>=0.29",
+  "alpaca-py>=0.20",
+  "mlflow>=2.10",
+  "matplotlib>=3.8",
+  "seaborn>=0.13",
+  "tqdm>=4.66",
+  "captum>=0.7.0",
 ]
 
 [build-system]
@@ -179,11 +177,11 @@ include = ["backend*"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
-    "unit: fast, isolated unit tests",
-    "slow: tests slower than 1 second",
-    "integration: requires a running Redis/Timescale instance",
-    "docker: requires a running Docker Compose stack",
-    "gpu: requires a CUDA-capable GPU",
+  "unit: fast, isolated unit tests",
+  "slow: tests slower than 1 second",
+  "integration: requires a running Redis/Timescale instance",
+  "docker: requires a running Docker Compose stack",
+  "gpu: requires a CUDA-capable GPU",
 ]
 
 # ----- Ruff: linter + formatter --------------------------------------------
@@ -194,23 +192,31 @@ extend-exclude = ["notebooks/*.py", "alembic/versions/*"]
 
 [tool.ruff.lint]
 select = [
-    "E", "W", "F", "I", "N", "UP", "B", "SIM", "RUF",
-    "TID",   # tidy imports — used below to ban sync redis
+  "E",
+  "W",
+  "F",
+  "I",
+  "N",
+  "UP",
+  "B",
+  "SIM",
+  "RUF",
+  "TID", # tidy imports — used below to ban sync redis
 ]
 ignore = [
-    "E501",
-    "B008",
-    "N812",
-    # Numerical/ML code conventionally names matrices and tensors with
-    # capitals (X, Y, W, X_train, …). Enforcing snake_case there hurts
-    # readability of the math, so we allow non-lowercase locals/args.
-    "N803",  # invalid-argument-name (e.g. def f(X, Y))
-    "N806",  # non-lowercase-variable-in-function (e.g. X_train = ...)
-    "SIM108",
-    "RUF001",
-    "RUF002",
-    "RUF003",
-    "RUF012",
+  "E501",
+  "B008",
+  "N812",
+  # Numerical/ML code conventionally names matrices and tensors with
+  # capitals (X, Y, W, X_train, …). Enforcing snake_case there hurts
+  # readability of the math, so we allow non-lowercase locals/args.
+  "N803",   # invalid-argument-name (e.g. def f(X, Y))
+  "N806",   # non-lowercase-variable-in-function (e.g. X_train = ...)
+  "SIM108",
+  "RUF001",
+  "RUF002",
+  "RUF003",
+  "RUF012",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -250,13 +256,13 @@ explicit_package_bases = true
 
 [[tool.mypy.overrides]]
 module = [
-    "backend.data_engine.storage.redis_cache",
-    "backend.data_engine.collectors.circuit_breaker",
-    "backend.data_engine.collectors.price_stream",
-    "backend.data_engine.pipelines.ingestion",
-    "backend.api.routes.agent",
-    "backend.integration.e2e_loop",
-    "backend.perception.semantic.distillation",
+  "backend.data_engine.storage.redis_cache",
+  "backend.data_engine.collectors.circuit_breaker",
+  "backend.data_engine.collectors.price_stream",
+  "backend.data_engine.pipelines.ingestion",
+  "backend.api.routes.agent",
+  "backend.integration.e2e_loop",
+  "backend.perception.semantic.distillation",
 ]
 disable_error_code = ["misc", "operator", "arg-type"]
 

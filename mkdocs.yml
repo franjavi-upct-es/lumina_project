@@ -20,8 +20,8 @@ theme:
               icon: material/brightness-4
               name: Switch to light mode
     features:
-        - navigation.tabs
         - navigation.sections
+        - navigation.indexes
         - navigation.expand
         - navigation.top
         - content.code.copy
@@ -69,6 +69,7 @@ extra_javascript:
 extra_css:
     - assets/css/mermaid-zoom.css
     - assets/css/github-ref.css
+    - assets/css/nav-indent.css
 
 docs_dir: docs/wiki
 
@@ -86,3 +87,24 @@ nav:
           - index.md
           - "Getting Started: Setup and Configuration": overview/getting_started.md
           - "System Architecture and Data Flow": overview/system.md
+    - Data Engine:
+          - data_engine/index.md
+          - "Market Data Collectors": data_engine/market_collectors.md
+          - "Storage Backends: TimescaleDB and Redis": data_engine/storage.md
+          - Ingestion Pipeline and Feature Store: data_engine/ingestion.md
+    - Perception Layer (Encoders):
+          - perception_layer/index.md
+    - "Fusion Layer: Deep Fusion Nexus":
+          - fusion_layer/index.md
+    - "Cognition Layer: RL Agent and Training":
+          - cognition_layer/index.md
+    - "Execution Engine and Safety System":
+          - execution/index.md
+    - Simulation and Spartan Arena:
+          - simulation/index.md
+    - Backend API:
+          - backend/index.md
+    - Frontend Dashboard:
+          - frontend/index.md
+    - Infraestructure and Deployment:
+          - infra/index.md

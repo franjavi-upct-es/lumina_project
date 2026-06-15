@@ -113,7 +113,7 @@ graph LR
 
 ## Subsystem Overviews
 
-### Getting Started: Setup and Configuration
+### [Getting Started: Setup and Configuration](overview/getting_started.md)
 
 Covers environment setup using `uv` for dependency management and
 `docker-compose` for orchestration. Key targets include `make dev` for local API
@@ -122,7 +122,7 @@ development and `make up` for the full containerized stack.
 - **Key Files:** [gh:Makefile#L1-L56] [gh:pyproject.toml#L23-L36]
   [gh:.env.example#L1-L75]
 
-### System Architecture and Data Flow
+### [System Architecture and Data Flow](overview/system.md)
 
 Detailed breakdown of the "Chimera" architecture, the **Dimensional Contract**
 (fixed vector sizes), and the end-to-end latency budget (e.g., <100ms for
@@ -131,7 +131,7 @@ semantic inference).
 - **Key Files:** [gh:README.md#L40-L115]
   [gh:backend/config/constants.py#L79-L80]
 
-### Data Engine
+### [Data Engine](data_engine/index.md)
 
 Documents the ingestion pipeline. It supports `yfinance` for daily historical
 backfills and `Polygon.io` for high-frequency 1-minute bars. Data is stored in
@@ -141,7 +141,7 @@ serving.
 - **Key Files:** [gh:pyproject.toml#L58-L71] [gh:Makefile#L127-L134]
   [gh:.env.example#L34-L39]
 
-### Perception Layer (Encoders)
+### [Perception Layer (Encoders)](perception_layer/index.md)
 
 Details the three modality-specific models:
 
@@ -152,7 +152,7 @@ Details the three modality-specific models:
 - **Structural:** GATv2 Graph Attention Network for supply-chain and correlation
   analysis [gh:README.md#L141-L157]
 
-### Fusion Layer: Deep Fusion Nexus
+### [Fusion Layer: Deep Fusion Nexus](fusion_layer/index.md)
 
 Explains how the `DeepFusionNexus` uses cross-modal attention to combine
 embeddings into a 256-d latent state and how the `StateAssembler` orchestrates
@@ -160,7 +160,7 @@ this at a 1-Hz cadence.
 
 - **Key Files:** [gh:README.md#L46-L51] [gh:backend/config/constants.py#L76]
 
-### Cognition Layer: RL Agent and Training
+### [Cognition Layer: RL Agent and Training](cognition_layer/index.md)
 
 Focuses on the `PPOAgent` and its 4-D action space
 `[direction, urgency, sizing, stop_distance]`. It also details the **Spartan
@@ -169,7 +169,7 @@ Curriculum** training pipeline.
 - **Key Files:** [gh:pyproject.toml#L17-L21] [gh:README.md#L77]
   [gh:README.md#L136-L138]
 
-### Execution Engine and Safety System
+### [Execution Engine and Safety System](execution/index.md)
 
 Covers the translation of agent actions into broker orders via the
 `ExecutionOrchestrator` and the multi-state **Kill Switch** (NORMAL, CLOSE_ONLY,
@@ -177,7 +177,7 @@ LIQUIDATE_ALL).
 
 - **Key Files:** [gh:README.md#L59-L65] [gh:.env.example#L25-L32]
 
-### Simulation and Spartan Arena
+### [Simulation and Spartan Arena](simulation/index.md)
 
 Documents the `LuminaTradingEnv` (Gymnasium-compatible) and the **Spartan
 Arena,** which runs parallel trajectories under adversarial scenarios to
@@ -186,7 +186,7 @@ validate agent robustness.
 - **Key Files:** [gh:pyproject.toml#L98] [gh:Makefile#L135-L139]
   [gh:.env.example#L65-L74]
 
-### Backend API
+### [Backend API](backend/index.md)
 
 The FastAPI-based gateway. Includes documentation for portfolio tracking, arena
 control, and the Prometheus-based monitoring stack.
@@ -194,14 +194,14 @@ control, and the Prometheus-based monitoring stack.
 - **Key Files:** [gh:docker/Dockerfile.api#L1-L75] [gh:pyproject.toml#L40-L56]
   [gh:Makefile#L53-L56]
 
-### Frontend Dashboard
+### [Frontend Dashboard](frontend/index.md)
 
 A React/TypeScript dashboard providing real-time visualization of the agent's
 attention heatmaps, equity curves, and divergence points in the Spartan Arena.
 
 - **Key Files:** [gh:Makefile#L102-L103] [gh:pyproject.toml#L150-L153]
 
-### Infraestructure and Deployment
+### [Infraestructure and Deployment](infra/index.md)
 
 Details on Docker images (including specialized CUDA 12.8 builds for Blackwell
 GPUs) and Alembic database migrations.
