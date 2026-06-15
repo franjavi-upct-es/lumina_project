@@ -69,4 +69,6 @@ watch:
     - backend
 
 nav:
-    - Lumina V3 Overview: index.md
+    - Lumina V3 Overview:
+          - index.md
+          - "Getting Started: Setup and Configuration": overview/getting_started.md
