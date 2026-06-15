@@ -5,11 +5,59 @@
          <lastmod>2026-06-15</lastmod>
     </url>
     <url>
+         <loc>https://franjavi-upct-es.github.io/lumina_project/backend/</loc>
+         <lastmod>2026-06-15</lastmod>
+    </url>
+    <url>
+         <loc>https://franjavi-upct-es.github.io/lumina_project/cognition_layer/</loc>
+         <lastmod>2026-06-15</lastmod>
+    </url>
+    <url>
+         <loc>https://franjavi-upct-es.github.io/lumina_project/data_engine/</loc>
+         <lastmod>2026-06-15</lastmod>
+    </url>
+    <url>
+         <loc>https://franjavi-upct-es.github.io/lumina_project/data_engine/ingestion/</loc>
+         <lastmod>2026-06-15</lastmod>
+    </url>
+    <url>
+         <loc>https://franjavi-upct-es.github.io/lumina_project/data_engine/market_collectors/</loc>
+         <lastmod>2026-06-15</lastmod>
+    </url>
+    <url>
+         <loc>https://franjavi-upct-es.github.io/lumina_project/data_engine/storage/</loc>
+         <lastmod>2026-06-15</lastmod>
+    </url>
+    <url>
+         <loc>https://franjavi-upct-es.github.io/lumina_project/execution/</loc>
+         <lastmod>2026-06-15</lastmod>
+    </url>
+    <url>
+         <loc>https://franjavi-upct-es.github.io/lumina_project/frontend/</loc>
+         <lastmod>2026-06-15</lastmod>
+    </url>
+    <url>
+         <loc>https://franjavi-upct-es.github.io/lumina_project/fusion_layer/</loc>
+         <lastmod>2026-06-15</lastmod>
+    </url>
+    <url>
+         <loc>https://franjavi-upct-es.github.io/lumina_project/infra/</loc>
+         <lastmod>2026-06-15</lastmod>
+    </url>
+    <url>
          <loc>https://franjavi-upct-es.github.io/lumina_project/overview/getting_started/</loc>
          <lastmod>2026-06-15</lastmod>
     </url>
     <url>
          <loc>https://franjavi-upct-es.github.io/lumina_project/overview/system/</loc>
+         <lastmod>2026-06-15</lastmod>
+    </url>
+    <url>
+         <loc>https://franjavi-upct-es.github.io/lumina_project/perception_layer/</loc>
+         <lastmod>2026-06-15</lastmod>
+    </url>
+    <url>
+         <loc>https://franjavi-upct-es.github.io/lumina_project/simulation/</loc>
          <lastmod>2026-06-15</lastmod>
     </url>
 </urlset>

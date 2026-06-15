@@ -1,0 +1,7 @@
+/* Indent non-index pages so they sit tabbed under their section header.
+   With `navigation.sections`, Material renders a section's child pages flush
+   with the bold section title; this nudges them to the right to make the
+   parent/child relationship visible. */
+.md-nav--primary .md-nav__item--section > .md-nav .md-nav__item > .md-nav__link {
+    padding-left: 1.25rem;
+}
