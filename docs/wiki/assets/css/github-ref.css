@@ -1,0 +1,33 @@
+/* GitHub-style code reference badge: :material-github: path/to/file.py#20-25 */
+.gh-ref {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    font-family: var(--md-code-font-family);
+    font-size: 0.85em;
+    line-height: 1.4;
+    padding: 0.1em 0.55em;
+    border-radius: 0.4em;
+    background-color: var(--md-code-bg-color);
+    color: #3fb950; /* path: GitHub green */
+    text-decoration: none;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.gh-ref:hover {
+    text-decoration: underline;
+}
+
+/* the icon */
+.gh-ref .twemoji,
+.gh-ref svg {
+    width: 1.1em;
+    height: 1.1em;
+    fill: var(--md-default-fg-color);
+}
+
+/* the #20-25 line range */
+.gh-ref .lines {
+    color: #58a6ff; /* GitHub blue */
+}

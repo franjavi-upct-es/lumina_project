@@ -2,16 +2,16 @@
 
 ??? note "Relevant source files"
 
-    - [:material-github: .env.example](https://github.com/franjavi-upct-es/lumina_project/blob/main/.env.example)
-    - [:material-github: .gitignore](https://github.com/franjavi-upct-es/lumina_project/blob/main/.gitignore)
-    - [:material-github: .python-version](https://github.com/franjavi-upct-es/lumina_project/blob/main/.python-version)
-    - [:material-github: Makefile](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile)
-    - [:material-github: backend/cognition/training/behavioral_cloning.py](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/cognition/training/behavioral_cloning.py)
-    - [:material-github: backend/config/constants.py](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/config/constants.py)
-    - [:material-github: backend/config/settings.py](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/config/settings.py)
-    - [:material-github: docker/Dockerfile.api](https://github.com/franjavi-upct-es/lumina_project/blob/main/docker/Dockerfile.api)
-    - [:material-github: pyproject.toml](https://github.com/franjavi-upct-es/lumina_project/blob/main/pyproject.toml)
-    - [:material-github: uv.lock](https://github.com/franjavi-upct-es/lumina_project/blob/main/uv.lock)
+    - [gh:.env.example]
+    - [gh:.gitignore]
+    - [gh:.python-version]
+    - [gh:Makefile]
+    - [gh:backend/cognition/training/behavioral_cloning.py]
+    - [gh:backend/config/constants.py]
+    - [gh:backend/config/settings.py]
+    - [gh:docker/Dockerfile.api]
+    - [gh:pyproject.toml]
+    - [gh:uv.lock]
 
 This page provides a comprehensive guide for initializing the Lumina V3
 "Chimera" development environment. It covers dependency management with `uv`,
@@ -23,25 +23,21 @@ multi-service architecture.
 Lumina V3 requires a Linux or macOS environment with the following
 specifications:
 
-- **Python 3.11:** Explicitly pinned in
-  [:material-github: .python-version#1](https://github.com/franjavi-upct-es/lumina_project/blob/main/.python-version#L1)
-  and
-  [:material-github: pyproject.toml#27](https://github.com/franjavi-upct-es/lumina_project/blob/main/pyproject.toml#L27)
+- **Python 3.11:** Explicitly pinned in [gh:.python-version#L1] and
+  [gh:pyproject.toml#L27]
 - **uv:** The project uses `uv` for ultra-fast dependency resolution and virtual
-  environment management
-  [:material-github: Makefile#4-5](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L4-L5)
+  environment management [gh:Makefile#L4-L5]
 - **Docker & Docker Compose:** Required for running the full stack, including
   TimescaleDB and Redis.
 - **NVIDIA GPU (Optional):** Recommended for the Perception and Cognition
   layers. The stack supports CUDA 12.4 (standard) and CUDA 12.8 (Blackwell)
-  [:material-github: Makefile#33-34](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L33-L34)
+  [gh:Makefile#L33-L34]
 
 ## 2. Local Installation
 
 The project utilizes a layered dependency strategy defined in
-[:material-github: pyproject.toml#6-15](https://github.com/franjavi-upct-es/lumina_project/blob/main/pyproject.toml#L6-L15)
-This allows individual services (API, Data, Brain) to install only the necessary
-sub-packages.
+[gh:pyproject.toml#L6-L15] This allows individual services (API, Data, Brain) to
+install only the necessary sub-packages.
 
 ### Step-by-Step Setup
 
@@ -52,8 +48,7 @@ sub-packages.
     make install
     ```
 
-    _Source:
-    [:material-github: Makefile#50-51](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L50-L51)_
+    _Source: [gh:Makefile#L50-L51]_
 
 2. **Configuration:** Copy the template environment file:
 
@@ -61,8 +56,7 @@ sub-packages.
     cp .env.example .env
     ```
 
-    _Source:
-    [:material-github: .env.example#1-5](https://github.com/franjavi-upct-es/lumina_project/blob/main/.env.example#L1-L5)_
+    _Source: [gh:.env.example#L1-L5]_
 
 3. **Database Migrations:** Apply Alembic migrations to initialize the
    TimescaleDB schema (hypertables, news events, and portfolio tables).
@@ -71,15 +65,14 @@ sub-packages.
     make migrate
     ```
 
-    _Source:
-    [:material-github: Makefile#50-51](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L50-L51)_
+    _Source: [gh:Makefile#L50-L51]_
 
 ## 3. Configuration & Environment Variables
 
 Lumina V3 uses a centralized configuration system powered by
 `pydantic-settings`. The `Settings` class in
-[:material-github: backend/config/settings.py#39-108](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/config/settings.py#L39-L108)
-acts a singleton that validates environment variables at runtime.
+[gh:backend/config/settings.py#L39-L108] acts a singleton that validates
+environment variables at runtime.
 
 ### Key Configuration Groups
 
@@ -92,9 +85,7 @@ acts a singleton that validates environment variables at runtime.
 | Safety  | `UNCERTAINTY_THRESHOLD` | `0.85`                     | MC-Dropout threshold for the Uncertainty Gate     |
 | Arena   | `ARENA_ARTIFACT_DIR`    | `./artifacts/arena`        | Storage for simulation trajectories               |
 
-Sources:
-[:material-github: backend/config/settings.py#14-108](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/config/settings.py#L14-L108)
-[:material-github: .env.example#7-75](https://github.com/franjavi-upct-es/lumina_project/blob/main/.env.example#L7-L75)
+Sources: [gh:backend/config/settings.py#L14-L108] [gh:.env.example#L7-L75]
 
 ## 4. Docker Stack & Profiles
 
@@ -131,21 +122,18 @@ flowchart TD
     end
 ```
 
-Sources:
-[:material-github: docker/Dockerfile.api#44-45](https://github.com/franjavi-upct-es/lumina_project/blob/main/docker/Dockerfile.api#L44-L45)
-[:material-github: Makefile#83-104](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L83-L104)
-[:material-github: .env.example#54-59](https://github.com/franjavi-upct-es/lumina_project/blob/main/.env.example#L54-L59)
+Sources: [gh:docker/Dockerfile.api#L44-L45] [gh:Makefile#L83-L104]
+[gh:.env.example#L54-L59]
 
 ### Running the Stack
 
 The `Makefile` provides targets for different hardware configurations:
 
-- **Standard:** `make up` (Standard Docker Compose)
-  [:material-github: Makefile#104-107](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L104-L107).
+- **Standard:** `make up` (Standard Docker Compose) [gh:Makefile#L104-L107].
 - **Low VRAM (8GB):** `make up-8gb` (Offloads semantic models to CPU)
-  [:material-github: Makefile#109-110](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L109-L110).
+  [gh:Makefile#L109-L110].
 - **NVIDIA Blackwell:** `make up-blackwell` (Uses CUDA 12.8 base images)
-  [:material-github: Makefile#112-113](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L112-L113).
+  [gh:Makefile#L112-L113].
 
 ## 5. Makefile Workflow Reference
 
@@ -155,29 +143,24 @@ The `Makefile` serves as the primary interface for common development tasks.
 
 - **Backfill yfinance:** `make backfill-yfinance` Runs
   `scripts.backfill_historical` to pull daily bars for the `TARGET_TICKERS`
-  defined in
-  [:material-github: backend/config/constants.py#94-154](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/config/constants.py#L94-L154).
+  defined in [gh:backend/config/constants.py#L94-L154].
 - **Backfill Polygon:** `make backfill-polygon` Pulls 1-minute resolution data
   (requires `POLYGON_API_KEY`).
 
 ### Development & Testing
 
 - **Hot-Reload API:** `make dev` Starts the FastAPI server on port 8000 with
-  environment overrides for local storage
-  [:material-github: Makefile#53-56](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L53-L56).
+  environment overrides for local storage [gh:Makefile#L53-L56].
 - **Fast Tests:** `make test-unit` Runs `pytest` excluding integration tests
-  that require live databases
-  [:material-github: Makefile#61-62](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L61-L62).
+  that require live databases [gh:Makefile#L61-L62].
 - **Full Suite:** `make test` Runs unit and integration tests (marked with
-  `integration` in
-  [:material-github: pyproject.toml#171](https://github.com/franjavi-upct-es/lumina_project/blob/main/pyproject.toml#L171)).
+  `integration` in [gh:pyproject.toml#L171]).
 
 ### Simulation
 
 - **Run Arena:** `make run-arena` Executes a Spartan Arena simulation run for a
   specific ticker (default AAPL) and generates artifacts in the
-  `ARENA_ARTIFACT_DIR`
-  [:material-github: Makefile#135-139](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L135-L139).
+  `ARENA_ARTIFACT_DIR` [gh:Makefile#L135-L139].
 
 ## 6. Project Structure and Data Flow
 
@@ -210,18 +193,16 @@ flowchart LR
     Settings --> |"`TIMESCALE_URL`"| Timescale
 ```
 
-Sources:
-[:material-github: backend/config/constants.py#40-74](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/config/constants.py#L40-L74)
-[:material-github: backend/config/settings.py#39-65](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/config/settings.py#L39-L65)
-[:material-github: pyproject.toml#17-21](https://github.com/franjavi-upct-es/lumina_project/blob/main/pyproject.toml#L17-L21)
+Sources: [gh:backend/config/constants.py#L40-L74]
+[gh:backend/config/settings.py#L39-L65] [gh:pyproject.toml#L17-L21]
 
 ---
 
 Sources:
 
-- [:material-github: Makefile#1-139](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L1-L139)
-- [:material-github: backend/config/settings.py#1-108](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/config/settings.py#L1-L108)
-- [:material-github: backend/config/constants.py#1-228](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/config/constants.py#L1-L228)
-- [:material-github: pyproject.toml#1-213](https://github.com/franjavi-upct-es/lumina_project/blob/main/pyproject.toml#L1-L213)
-- [:material-github: docker/Dockerfile.api#1-75](https://github.com/franjavi-upct-es/lumina_project/blob/main/docker/Dockerfile.api#L1-L75)
-- [:material-github: .env.example#1-75](https://github.com/franjavi-upct-es/lumina_project/blob/main/.env.example#L1-L75)
+- [gh:Makefile#L1-L139]
+- [gh:backend/config/settings.py#L1-L108]
+- [gh:backend/config/constants.py#L1-L228]
+- [gh:pyproject.toml#L1-L213]
+- [gh:docker/Dockerfile.api#L1-L75]
+- [gh:.env.example#L1-L75]

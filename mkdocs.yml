@@ -44,6 +44,7 @@ plugins:
 
 markdown_extensions:
     - admonition
+    - attr_list
     - pymdownx.details
     - pymdownx.superfences:
           custom_fences:
@@ -67,8 +68,13 @@ extra_javascript:
 
 extra_css:
     - assets/css/mermaid-zoom.css
+    - assets/css/github-ref.css
 
 docs_dir: docs/wiki
+
+# Custom build-time hooks (paths relative to this file).
+hooks:
+    - hooks/github_ref.py
 
 # Extra paths watched by `mkdocs serve` so edits to Python source
 # (docstrings rendered via mkdocstrings) trigger an automatic rebuild + reload.
@@ -79,3 +85,4 @@ nav:
     - Lumina V3 Overview:
           - index.md
           - "Getting Started: Setup and Configuration": overview/getting_started.md
+          - "System Architecture and Data Flow": overview/system.md

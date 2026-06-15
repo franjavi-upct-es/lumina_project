@@ -20,6 +20,7 @@
     var MIN_SCALE = 1;
     var MAX_SCALE = 25;
     var STEP = 1.2; // button zoom factor
+    var FILL_VH = 80; // inline target height; keep in sync with .mz-viewport max-height
 
     var SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -235,10 +236,46 @@
         document.body.appendChild(overlay);
     }
 
+    // Scale the inline diagram to fill its card as large as possible while
+    // preserving aspect ratio ("contain", but scaled up). A Mermaid <svg> has a
+    // small intrinsic size, so width/height:auto leaves it tiny — we must set an
+    // explicit dimension to force scale-up, picking whichever one is the binding
+    // constraint for the card's box. This makes every diagram (LR or TB) large.
+    function sizeToFill(host, svg, viewport) {
+        var vb = (svg.dataset.mzBase || "").split(/\s+/).map(Number);
+        if (vb.length !== 4 || !vb[2] || !vb[3]) {
+            return;
+        }
+        var diagramAspect = vb[2] / vb[3];
+        var boxW = viewport.clientWidth;
+        var boxH = window.innerHeight * (FILL_VH / 100);
+
+        // The .mermaid host is a flex item that otherwise shrink-wraps the
+        // diagram's small natural size — so `svg { width: 100% }` resolves
+        // against a tiny host and stays tiny. Stretch the host to fill the
+        // viewport first; only then does the svg have room to scale up into.
+        host.style.display = "block";
+        host.style.width = "100%";
+
+        svg.style.maxWidth = "100%";
+        svg.style.maxHeight = FILL_VH + "vh";
+        svg.style.margin = "0 auto"; // center when narrower than the host
+        if (!boxW || diagramAspect >= boxW / boxH) {
+            // Wider than the box → bounded by width: fill it.
+            svg.style.width = "100%";
+            svg.style.height = "auto";
+        } else {
+            // Taller than the box → bounded by height: fill it.
+            svg.style.width = "auto";
+            svg.style.height = FILL_VH + "vh";
+        }
+    }
+
     function wrap(host, svg, api) {
         if (host.closest(".mz-card")) {
             return; // already wrapped
         }
+
         var card = document.createElement("div");
         card.className = "mz-card";
 
@@ -264,6 +301,10 @@
         viewport.appendChild(host);
         card.appendChild(viewport);
         card.appendChild(controls);
+
+        // Card is now in the document, so the viewport has a real width to
+        // measure against — size the diagram to fill it.
+        sizeToFill(host, svg, viewport);
     }
 
     function scan() {
