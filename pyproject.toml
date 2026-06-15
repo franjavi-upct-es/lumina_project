@@ -117,7 +117,7 @@ gpu = ["accelerate>=0.30", "bitsandbytes>=0.43"]
 docs = [
   "mkdocs>=1.6.0",
   "mkdocs-material>=9.5.0",
-  "mkdocstrings[python]>=0.25.0",
+  "mkdocstrings[python]>=1.0.4",
   "mkdocstrings-python>=1.10.0",
   "mkdocs-auto-refresh-build-pages>=1.0.3",
 ]
@@ -135,7 +135,7 @@ dev = [
   # Documentation
   "mkdocs>=1.6.0",
   "mkdocs-material>=9.5.0",
-  "mkdocstrings[python]>=0.25.0",
+  "mkdocstrings[python]>=1.0.4",
   "mkdocstrings-python>=1.10.0",
   # Bring along everything else so `pip install -e .[dev]` produces
   # a one-shot development environment.
