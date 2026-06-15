@@ -1,0 +1,19 @@
+/* Frame the pan/zoom-enabled Mermaid diagrams and keep the control icons
+ * (+ / - / reset) visible in the corner. */
+.mermaid {
+  position: relative;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.2rem;
+  overflow: hidden;
+}
+
+/* svg-pan-zoom's control icons inherit the page text colour for visibility. */
+.mermaid .svg-pan-zoom-control {
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 0.2s;
+}
+
+.mermaid .svg-pan-zoom-control:hover {
+  opacity: 1;
+}
