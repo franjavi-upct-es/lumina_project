@@ -1,19 +1,122 @@
-/* Frame the pan/zoom-enabled Mermaid diagrams and keep the control icons
- * (+ / - / reset) visible in the corner. */
-.mermaid {
-  position: relative;
-  border: 1px solid var(--md-default-fg-color--lightest);
-  border-radius: 0.2rem;
-  overflow: hidden;
+/*
+ * Styling for the claude.ai-style Mermaid card built by mermaid-zoom.js:
+ * a framed, elevated surface with hover-revealed zoom/expand controls.
+ * Colours come from Material's theme variables so it tracks light/dark mode.
+ */
+
+.mz-card {
+    position: relative;
+    background-color: var(--md-default-fg-color--lightest);
+    border-radius: 0.4rem;
+    padding: 1rem;
+    margin: 1em 0;
+    overflow: hidden;
+    transition: background-color 0.2s;
 }
 
-/* svg-pan-zoom's control icons inherit the page text colour for visibility. */
-.mermaid .svg-pan-zoom-control {
-  cursor: pointer;
-  opacity: 0.65;
-  transition: opacity 0.2s;
+.mz-card:hover {
+    background-color: var(--md-default-fg-color--lighter);
 }
 
-.mermaid .svg-pan-zoom-control:hover {
-  opacity: 1;
+.mz-viewport {
+    display: flex;
+    justify-content: center;
+    max-height: 70vh;
+    overflow: hidden;
+}
+
+/* Control cluster, top-right, revealed on hover. */
+.mz-controls {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+.mz-card:hover .mz-controls,
+.mz-card:focus-within .mz-controls {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.mz-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background-color: var(--md-default-bg-color);
+    color: var(--md-default-fg-color--light);
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    transition:
+        background-color 0.15s,
+        color 0.15s;
+}
+
+.mz-btn:hover {
+    background-color: var(--md-accent-fg-color);
+    color: var(--md-accent-bg-color, #fff);
+}
+
+.mz-btn svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+/* Augmentation window: a large centered modal over a dimmed backdrop. */
+.mz-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3vh 3vw;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+}
+
+body.mz-modal-open {
+    overflow: hidden;
+}
+
+.mz-modal-panel {
+    position: relative;
+    width: 95vw;
+    height: 92vh;
+    background-color: var(--md-default-bg-color);
+    border: 1px solid var(--md-default-fg-color--lightest);
+    border-radius: 0.6rem;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.mz-modal-viewport {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.mz-modal-viewport svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Controls stay visible inside the augmentation window. */
+.mz-modal .mz-controls {
+    opacity: 1;
+    pointer-events: auto;
 }
