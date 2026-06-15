@@ -61,6 +61,13 @@ markdown_extensions:
           emoji_index: !!python/name:material.extensions.emoji.twemoji
           emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
+extra_javascript:
+    - assets/js/shadow-open.js
+    - assets/js/mermaid-zoom.js
+
+extra_css:
+    - assets/css/mermaid-zoom.css
+
 docs_dir: docs/wiki
 
 # Extra paths watched by `mkdocs serve` so edits to Python source

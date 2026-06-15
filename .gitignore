@@ -25,6 +25,7 @@ dist/
 artifacts/
 .ipynb_checkpoints
 .vscode/
+site/
 mlflow.db
 
 # Reports contain generated QA dumps, but the article source and figure assets

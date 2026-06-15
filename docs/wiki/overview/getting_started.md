@@ -95,3 +95,133 @@ acts a singleton that validates environment variables at runtime.
 Sources:
 [:material-github: backend/config/settings.py#14-108](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/config/settings.py#L14-L108)
 [:material-github: .env.example#7-75](https://github.com/franjavi-upct-es/lumina_project/blob/main/.env.example#L7-L75)
+
+## 4. Docker Stack & Profiles
+
+The system is decomposed into specialized Docker images to optimize resource
+usage and build times.
+
+### Service Architecture Diagram
+
+This diagram maps the logical system components to their respective Docker
+entities and code entry points.
+
+```mermaid
+flowchart TD
+    subgraph "External Data"
+        direction TB
+        Y["Polygon.io/YFinance"]
+    end
+
+    subgraph "Docker_Stack"
+        direction TB
+        Y ---> |"scripts.backfill_historical"| DATA["lumina/data"]
+        BRAIN["lumina/brain"]
+        API["lumina/api"]
+        PERCEPTION["lumina/perception"]
+        T[("TimescaleDB")]
+        R[("Redis")]
+
+        DATA --> |asyncpg| T
+        BRAIN --> |"LUMINA_SERVICE_MODE=train_agent"| T
+        API --> |"backend.api.main:app"| T
+        DATA --> |"redis_asyncio"| R
+        API --> |"backend.api.main:app"| R
+        PERCEPTION --> |"LUMINA_SERVICE_MODE=tft_inference"| R
+    end
+```
+
+Sources:
+[:material-github: docker/Dockerfile.api#44-45](https://github.com/franjavi-upct-es/lumina_project/blob/main/docker/Dockerfile.api#L44-L45)
+[:material-github: Makefile#83-104](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L83-L104)
+[:material-github: .env.example#54-59](https://github.com/franjavi-upct-es/lumina_project/blob/main/.env.example#L54-L59)
+
+### Running the Stack
+
+The `Makefile` provides targets for different hardware configurations:
+
+- **Standard:** `make up` (Standard Docker Compose)
+  [:material-github: Makefile#104-107](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L104-L107).
+- **Low VRAM (8GB):** `make up-8gb` (Offloads semantic models to CPU)
+  [:material-github: Makefile#109-110](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L109-L110).
+- **NVIDIA Blackwell:** `make up-blackwell` (Uses CUDA 12.8 base images)
+  [:material-github: Makefile#112-113](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L112-L113).
+
+## 5. Makefile Workflow Reference
+
+The `Makefile` serves as the primary interface for common development tasks.
+
+### Data Management
+
+- **Backfill yfinance:** `make backfill-yfinance` Runs
+  `scripts.backfill_historical` to pull daily bars for the `TARGET_TICKERS`
+  defined in
+  [:material-github: backend/config/constants.py#94-154](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/config/constants.py#L94-L154).
+- **Backfill Polygon:** `make backfill-polygon` Pulls 1-minute resolution data
+  (requires `POLYGON_API_KEY`).
+
+### Development & Testing
+
+- **Hot-Reload API:** `make dev` Starts the FastAPI server on port 8000 with
+  environment overrides for local storage
+  [:material-github: Makefile#53-56](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L53-L56).
+- **Fast Tests:** `make test-unit` Runs `pytest` excluding integration tests
+  that require live databases
+  [:material-github: Makefile#61-62](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L61-L62).
+- **Full Suite:** `make test` Runs unit and integration tests (marked with
+  `integration` in
+  [:material-github: pyproject.toml#171](https://github.com/franjavi-upct-es/lumina_project/blob/main/pyproject.toml#L171)).
+
+### Simulation
+
+- **Run Arena:** `make run-arena` Executes a Spartan Arena simulation run for a
+  specific ticker (default AAPL) and generates artifacts in the
+  `ARENA_ARTIFACT_DIR`
+  [:material-github: Makefile#135-139](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L135-L139).
+
+## 6. Project Structure and Data Flow
+
+The following diagram illustrates how the configuration and setup parameters
+flow into the core system entities.
+
+```mermaid
+flowchart LR
+    E[".env"]
+    Settings["backend/config/settings.py"]
+    Constants["backend/config/constants.py"]
+    Temporal["TemporalEncoder"]
+    Semantic["SemanticEncoder"]
+    Structural["StructuralEncoder"]
+    Redis["backend.data_engine.storage.redis_cache"]
+    Timescale["backend.data_engine.storage.timescale"]
+    Nexus["DeepFusionNexus"]
+    PPO["PPOAgent"]
+
+    E --> |"`Settings()`"| Settings
+    Constants --> |"`DIM_PRICE (128)`"| Temporal
+    Constants --> |"`DIM_SEMANTIC (64)`"| Semantic
+    Constants --> |"`DIM_GRAPH (32)`"| Structural
+    Temporal --> |"`DIM_FUSED (224)`"| Nexus
+    Semantic --> |"`DIM_FUSED (224)`"| Nexus
+    Structural --> |"`DIM_FUSED (224)`"| Nexus
+    Nexus --> |"NEXUS_OUTPUT_DIM<br/>(256)"| PPO
+
+    Settings --> |"`REDIS_URL`"| Redis
+    Settings --> |"`TIMESCALE_URL`"| Timescale
+```
+
+Sources:
+[:material-github: backend/config/constants.py#40-74](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/config/constants.py#L40-L74)
+[:material-github: backend/config/settings.py#39-65](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/config/settings.py#L39-L65)
+[:material-github: pyproject.toml#17-21](https://github.com/franjavi-upct-es/lumina_project/blob/main/pyproject.toml#L17-L21)
+
+---
+
+Sources:
+
+- [:material-github: Makefile#1-139](https://github.com/franjavi-upct-es/lumina_project/blob/main/Makefile#L1-L139)
+- [:material-github: backend/config/settings.py#1-108](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/config/settings.py#L1-L108)
+- [:material-github: backend/config/constants.py#1-228](https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/config/constants.py#L1-L228)
+- [:material-github: pyproject.toml#1-213](https://github.com/franjavi-upct-es/lumina_project/blob/main/pyproject.toml#L1-L213)
+- [:material-github: docker/Dockerfile.api#1-75](https://github.com/franjavi-upct-es/lumina_project/blob/main/docker/Dockerfile.api#L1-L75)
+- [:material-github: .env.example#1-75](https://github.com/franjavi-upct-es/lumina_project/blob/main/.env.example#L1-L75)
