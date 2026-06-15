@@ -177,7 +177,7 @@ class LiveAgentLoop:
         raw = await self.redis.client.get(k_market_state(ticker))
         if raw is None:
             return None
-        state = np.frombuffer(raw, dtype=np.float32).copy()
+        state = np.frombuffer(cast(bytes, raw), dtype=np.float32).copy()
         if state.shape != (NEXUS_OUTPUT_DIM,):
             logger.error("Bad market state shape for {}: {}", ticker, state.shape)
             return None

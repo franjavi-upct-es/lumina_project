@@ -8,6 +8,7 @@ import json
 import re
 import signal
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
 import httpx
 from loguru import logger
@@ -118,7 +119,7 @@ class NewsCollector:
         raw = await self._redis.client.get(_CURSOR_KEY)
         if raw:
             try:
-                return datetime.fromisoformat(raw.decode("utf-8"))
+                return datetime.fromisoformat(cast(bytes, raw).decode("utf-8"))
             except (ValueError, AttributeError):
                 pass
         return datetime.now(UTC) - timedelta(hours=1)

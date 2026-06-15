@@ -38,6 +38,7 @@ import asyncio
 import contextlib
 import threading
 from enum import StrEnum
+from typing import cast
 
 from loguru import logger
 from prometheus_client import Counter, Gauge
@@ -92,7 +93,7 @@ class KillSwitch:
         if raw is None:
             return KillSwitchState.NORMAL
         try:
-            state = KillSwitchState(raw.decode("utf-8"))
+            state = KillSwitchState(cast(bytes, raw).decode("utf-8"))
         except ValueError:
             state = KillSwitchState.NORMAL
         KILL_SWITCH_GAUGE.set(_NUMERIC[state])

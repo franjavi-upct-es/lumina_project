@@ -22,6 +22,7 @@ This has three useful properties:
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
 from fastapi import APIRouter, Depends
 
@@ -50,7 +51,7 @@ async def _read_peak_equity(redis: RedisCache) -> float | None:
     if raw is None:
         return None
     try:
-        return float(raw.decode("utf-8"))
+        return float(cast(bytes, raw).decode("utf-8"))
     except (AttributeError, ValueError):
         return None
 

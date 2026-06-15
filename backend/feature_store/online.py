@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 from prometheus_client import Histogram
 
@@ -54,7 +56,7 @@ class OnlineFeatureStore:
         for name, raw in zip(names, raws, strict=True):
             if raw is None:
                 continue
-            out[name] = np.frombuffer(raw, dtype=np.float32).copy()
+            out[name] = np.frombuffer(cast(bytes, raw), dtype=np.float32).copy()
         return out
 
     @staticmethod
