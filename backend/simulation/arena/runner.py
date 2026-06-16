@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
 from collections import defaultdict
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
@@ -195,7 +196,13 @@ class ArenaRunner:
     async def run(self) -> ArenaRunMetadata:
         """Execute the full arena run, returning the final metadata."""
         settings = get_settings()
-        mlflow.set_tracking_uri(self._mlflow_tracking_uri or settings.MLFLOW_TRACKING_URI)
+        tracking_uri = self._mlflow_tracking_uri or settings.MLFLOW_TRACKING_URI
+        # Local/test runs use a filesystem tracking backend (``file://`` or a
+        # bare path). Recent MLflow refuses the file store unless this opt-in is
+        # set, so enable it whenever we are not pointed at a database/HTTP store.
+        if not tracking_uri.startswith(("http://", "https://", "postgresql", "sqlite", "mysql")):
+            os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
+        mlflow.set_tracking_uri(tracking_uri)
         mlflow.set_experiment(settings.MLFLOW_EXPERIMENT_NAME)
 
         await self._persist_run_metadata(status=ArenaRunStatus.RUNNING)
