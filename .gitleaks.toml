@@ -1,0 +1,22 @@
+# Gitleaks configuration for the Lumina project.
+#
+# Extends the upstream default ruleset and allowlists a small set of values
+# that are NOT real secrets but trip the generic detectors:
+#   * documented placeholder API keys in the example `curl` snippets
+#   * a dummy SECRET_KEY used as a CI test fixture (lives only in git history)
+#
+# Allowlisting is done by the literal value (regex) rather than by line-number
+# fingerprint so the entries stay valid even as files/lines shift.
+title = "Lumina gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented placeholders and CI test fixtures — not real secrets."
+regexes = [
+  # docs/spartan_arena.md — example `x-api-key` header in curl snippets.
+  '''change_me_in_production''',
+  # Historical .github/workflows/ci.yml — dummy SECRET_KEY test fixture.
+  '''ci-test-secret-key-that-is-at-least-32-chars-long''',
+]
