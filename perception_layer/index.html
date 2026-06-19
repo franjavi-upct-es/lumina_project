@@ -14,7 +14,7 @@
         <link rel="prev" href="../data_engine/ingestion/">
       
       
-        <link rel="next" href="../fusion_layer/">
+        <link rel="next" href="temporal/">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>Index - lumina_project</title>
+        <title>Perception Layer (Encoders) - lumina_project</title>
       
     
     
@@ -83,6 +83,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#perception-layer-encoders" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -115,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Index
+              Perception Layer (Encoders)
             
           </span>
         </div>
@@ -571,6 +576,12 @@
           
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -605,6 +616,11 @@
 
             </a>
             
+              
+              <label class="md-nav__link md-nav__link--active" for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
           </div>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
@@ -618,6 +634,90 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="temporal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Temporal Encoder: Temporal Fusion Transformer (TFT)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="semantic/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Semantic Encoder: Distilled Financial LLM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="structural/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structural Encoder: Graph Attention Network (GATv2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
           </ul>
@@ -1141,6 +1241,116 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#high-level-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High-Level Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="High-Level Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-flow-to-latent-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Flow to Latent Space
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#31-temporal-encoder-temporal-fusion-transformer-tft" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1. Temporal Encoder: Temporal Fusion Transformer (TFT)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#32-semantic-encoder-distilled-financial-llm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2. Semantic Encoder: Distilled Financial LLM
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#33-structural-encoder-graph-attention-network-gatv2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3. Structural Encoder: Graph Attention Network (GATv2)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modality-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modality Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Modality Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#inference-service-to-redis-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inference Service to Redis Mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary Table
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -1160,9 +1370,156 @@
   
 
 
-  <h1>Index</h1>
+<h1 id="perception-layer-encoders">Perception Layer (Encoders)<a class="headerlink" href="#perception-layer-encoders" title="Permanent link">&para;</a></h1>
+<details class="note">
+<summary>Relevant source files</summary>
+<ul>
+<li><a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/semantic/inference.py"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/semantic/inference.py</a></li>
+<li><a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py</a></li>
+<li><a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/temporal/inference.py"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/temporal/inference.py</a></li>
+</ul>
+</details>
+<p>The <strong>Perception Layer</strong> constitutes Layer 1 of the Chimera architecture. Its
+primary objective is to transform raw, multi-modal market data into
+high-dimensional latent embeddings. These embeddings represent three distinct
+facets of market reality: price dynamics (Temporal), market sentiment
+(Semantic), and relational dependencies (Structural).</p>
+<p>Each encoder operates as an independent microservice, consuming data from the
+<a href="../data_engine/">Data Engine</a> and publishing embeddings to the
+<code>RedisCache</code> via the <code>EmbeddingWriter</code>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/common/embedding_writer.py"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/common/embedding_writer.py</a> These embeddings are later
+consumed by the <a href="../fusion_layer/">Fusion Layer: Deep Fusion Nexus</a> to
+form a unified market state.</p>
+<h3 id="high-level-architecture">High-Level Architecture<a class="headerlink" href="#high-level-architecture" title="Permanent link">&para;</a></h3>
+<p>The Perception Layer bridges the gap between raw data streams (OHLCV, News,
+Supply-Chain) and the "Code Entity Space" of the Chimera system.</p>
+<h4 id="data-flow-to-latent-space">Data Flow to Latent Space<a class="headerlink" href="#data-flow-to-latent-space" title="Permanent link">&para;</a></h4>
+<pre class="mermaid"><code>flowchart TB
+    subgraph "Raw Data Space"
+        ohlcv["TimescaleDB (`ohlcv_1m`)"]
+        Redis["Redis (`channel:news:global`)"]
+        SupplyChain["TimescaleDB (`supply_chain_edges`)"]
+    end
 
+    subgraph "Perception Layer (Encoders)"
+        ohlcv --&gt; TFTInferenceService
+        Redis --&gt; SemanticInferenceService
+        SupplyChain --&gt; GraphInferenceService
+    end
 
+    subgraph "Embedding Space (Redis)"
+        TFTInferenceService --&gt; price["'price' embedding (128-d)"]
+        SemanticInferenceService --&gt; semantic["'semantic' embedding &lt;br/&gt; (64-d)"]
+        GraphInferenceService --&gt; Graph["'graph' embedding (32-d)"]
+    end</code></pre>
+<p>Sources: <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/temporal/inference.py#L18-L31"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/temporal/inference.py<span class="lines">#18-31</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/semantic/inference.py#L18-31"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/semantic/inference.py<span class="lines">#18-31</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L19-L24"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#19-24</span></a></p>
+<h3 id="31-temporal-encoder-temporal-fusion-transformer-tft">3.1. Temporal Encoder: Temporal Fusion Transformer (TFT)<a class="headerlink" href="#31-temporal-encoder-temporal-fusion-transformer-tft" title="Permanent link">&para;</a></h3>
+<p>The Temporal Encoder processes sequential price data to identity patterns,
+trends, and volatility regimes. It utilizes a <strong>Temporal Fusion Transformer
+(TFT)</strong> architecture, which excels at multi-horizon forecasting and identifying
+long-term dependencies in time-series data.</p>
+<ul>
+<li><strong>Model:</strong> <code>TemporalFusionTransformer</code>
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/temporal/tft_model.py"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/temporal/tft_model.py</a></li>
+<li><strong>Input:</strong> A window of OHLCV (Open, High, Low, Close, Volume) bars defined by
+  <code>OHLCV_WINDOW_MINUTES</code> <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/temporal/inference.py#L24"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/temporal/inference.py<span class="lines">#24</span></a></li>
+<li><strong>Output:</strong> A 128-dimensional "price" embedding.</li>
+<li><strong>Service:</strong> The <code>TFTInferenceService</code> subscribes to live ticks via Redis
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/temporal/inference.py#L37"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/temporal/inference.py<span class="lines">#37</span></a> and updates embeddings in
+  real-time.</li>
+</ul>
+<p>For details, see
+<a href="temporal/">Temporal Encoder: Temporal Fusion Transformer (TFT)</a></p>
+<h3 id="32-semantic-encoder-distilled-financial-llm">3.2. Semantic Encoder: Distilled Financial LLM<a class="headerlink" href="#32-semantic-encoder-distilled-financial-llm" title="Permanent link">&para;</a></h3>
+<p>The Semantic Encoder translates unstructured textual data —such as news
+headlines and article bodies— into numerical sentiment vectors. To maintain low
+latency, the system uses a 15M-parameter student model distilled from a larger
+FinBERT teacher.</p>
+<ul>
+<li><strong>Model:</strong> <code>DistilledFinancialEncoder</code>
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/semantic/distilled_llm.py"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/semantic/distilled_llm.py</a></li>
+<li><strong>Input:</strong> Tokenized text from <code>channel:news.global</code>
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/semantic/inference.py#L37"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/semantic/inference.py<span class="lines">#37</span></a></li>
+<li><strong>Output:</strong> A 64-dimensional "semantic" embedding.</li>
+<li><strong>Service:</strong> <code>SemanticInferenceService</code> handles incoming news events,
+  tokenizes them using the <code>AutoTokenizer</code>, and generates embeddings for all
+  mentioned tickers <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/semantic/inference.py#L55-L71"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/semantic/inference.py<span class="lines">#55-71</span></a></li>
+</ul>
+<p>For details, see <a href="semantic/">Semantic Encoder: Distilled Financial LLM</a>.</p>
+<h3 id="33-structural-encoder-graph-attention-network-gatv2">3.3. Structural Encoder: Graph Attention Network (GATv2)<a class="headerlink" href="#33-structural-encoder-graph-attention-network-gatv2" title="Permanent link">&para;</a></h3>
+<p>The Structural Encoder captures the interconnected nature of the market,
+modeling dependencies such as supply-chain relationships and sector
+correlations. It uses a <strong>Graph Attention Network (GATv2)</strong> to propagate
+information across a global market graph.</p>
+<ul>
+<li><strong>Model:</strong> <code>GraphEncoder</code> <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/gat_model.py"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/gat_model.py</a></li>
+<li><strong>Input:</strong> A graph object <code>Data</code> containing node features (price momentum) and
+  <code>edge_index</code> (supply-chain links)
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L26-L31"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#26-31</span></a></li>
+<li><strong>Service:</strong> <code>GraphInferenceService</code> runs on a daily cadence, rebuilding the
+  global graph via <code>build_graph_data</code> and updating the structural context for
+  the entire universe <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L91-L95"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#91-95</span></a></li>
+</ul>
+<p>For details, see
+<a href="structural/">Structural Encoder: Graph Attention Network (GATv2)</a></p>
+<h3 id="modality-integration">Modality Integration<a class="headerlink" href="#modality-integration" title="Permanent link">&para;</a></h3>
+<p>The following diagram illustrates how the different inference services interact
+with the <code>EmbeddingWriter</code> to persist data into the <code>RedisCache</code>.</p>
+<h4 id="inference-service-to-redis-mapping">Inference Service to Redis Mapping<a class="headerlink" href="#inference-service-to-redis-mapping" title="Permanent link">&para;</a></h4>
+<pre class="mermaid"><code>sequenceDiagram
+    participant TFTInferenceService
+    participant SemanticInferenceService
+    participant GraphInferenceService
+    participant EmbeddingWriter
+    participant RedisCache
+    TFTInferenceService -&gt;&gt; EmbeddingWriter: '`write("price" | "ticker" | emb_128)`'
+    SemanticInferenceService -&gt;&gt; EmbeddingWriter: '`write("semantic" | ticker | emb_64)`'
+    GraphInferenceService -&gt;&gt; EmbeddingWriter: '`write("graph" | ticker | emb_32)`'
+    EmbeddingWriter -&gt;&gt; RedisCache: "HSET embeddings:{ticker} {modality} {bytes}"</code></pre>
+<p>Sources: <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/temporal/inference.py#L66"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/temporal/inference.py<span class="lines">#66</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/semantic/inference.py#L71"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/semantic/inference.py<span class="lines">#71</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L37"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#37</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/common/embedding_writer.py"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/common/embedding_writer.py</a></p>
+<h3 id="summary-table">Summary Table<a class="headerlink" href="#summary-table" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Encoder</th>
+<th>Modality</th>
+<th>Output Dim</th>
+<th>Cadence</th>
+<th>Primary Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TFT</td>
+<td>Price/Time</td>
+<td>128-d</td>
+<td>Per Tick</td>
+<td>Redis Tick Stream</td>
+</tr>
+<tr>
+<td>Distilled LLM</td>
+<td>News/Sentiment</td>
+<td>64-d</td>
+<td>Per Article</td>
+<td>Redis Pub/Sub</td>
+</tr>
+<tr>
+<td>GATv2</td>
+<td>Relationships</td>
+<td>32-d</td>
+<td>Daily</td>
+<td>TimescaleDB Graph</td>
+</tr>
+</tbody>
+</table>
+<p>Sources: <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/temporal/inference.py#L24-L37"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/temporal/inference.py<span class="lines">#24-37</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/semantic/inference.py#L34-L37"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/semantic/inference.py<span class="lines">#34-37</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L42-L93"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#42-93</span></a></p>
 
 
 

@@ -83,6 +83,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#storage-backends-timescaledb-and-redis" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -506,6 +511,26 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Storage Backends: TimescaleDB and Redis
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -523,6 +548,187 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-timescaledb-the-analytical-cold-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. TimescaleDB: The Analytical Cold Store
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. TimescaleDB: The Analytical Cold Store">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-tables-and-hypertables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Tables and Hypertables
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timescalestore-gateway" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TimescaleStore Gateway
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-redis-the-high-speed-hot-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Redis: The High-Speed Hot Store
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Redis: The High-Speed Hot Store">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-flow-and-key-spaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Flow and Key Spaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#state-assembler-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Assembler Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-dual-storage-interaction-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Dual-Storage Interaction Diagram
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Dual-Storage Interaction Diagram">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-persistence-and-ipc-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Persistence and IPC Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-database-migrations-alembic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Database Migrations (Alembic)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Database Migrations (Alembic)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#migration-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migration History
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-implementation-mapping-code-to-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Implementation Mapping: Code to Storage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Implementation Mapping: Code to Storage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#code-entity-to-storage-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Entity to Storage Mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -577,6 +783,12 @@
           
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -613,6 +825,11 @@
 
             </a>
             
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
           </div>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
@@ -626,6 +843,90 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../perception_layer/temporal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Temporal Encoder: Temporal Fusion Transformer (TFT)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../perception_layer/semantic/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Semantic Encoder: Distilled Financial LLM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../perception_layer/structural/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structural Encoder: Graph Attention Network (GATv2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
           </ul>
@@ -1149,6 +1450,178 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-timescaledb-the-analytical-cold-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. TimescaleDB: The Analytical Cold Store
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. TimescaleDB: The Analytical Cold Store">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-tables-and-hypertables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Tables and Hypertables
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timescalestore-gateway" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TimescaleStore Gateway
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-redis-the-high-speed-hot-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Redis: The High-Speed Hot Store
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Redis: The High-Speed Hot Store">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-flow-and-key-spaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Flow and Key Spaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#state-assembler-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Assembler Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-dual-storage-interaction-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Dual-Storage Interaction Diagram
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Dual-Storage Interaction Diagram">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-persistence-and-ipc-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Persistence and IPC Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-database-migrations-alembic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Database Migrations (Alembic)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Database Migrations (Alembic)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#migration-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migration History
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-implementation-mapping-code-to-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Implementation Mapping: Code to Storage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Implementation Mapping: Code to Storage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#code-entity-to-storage-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Entity to Storage Mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -1168,9 +1641,208 @@
   
 
 
-  <h1>Storage Backends: TimescaleDB and Redis</h1>
+<h1 id="storage-backends-timescaledb-and-redis">Storage Backends: TimescaleDB and Redis<a class="headerlink" href="#storage-backends-timescaledb-and-redis" title="Permanent link">&para;</a></h1>
+<details class="note">
+<summary>Relevant source files</summary>
+<ul>
+<li><a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/.dockerignore"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> .dockerignore</a></li>
+<li><a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/alembic/versions/003_add_portfolio_and_backtest.py"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> alembic/versions/003_add_portfolio_and_backtest.py</a></li>
+<li><a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/data_engine/storage/__init__.py"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/data_engine/storage/<strong>init</strong>.py</a></li>
+<li><a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/data_engine/storage/timescale.py"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/data_engine/storage/timescale.py</a></li>
+<li><a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/fusion/state_assembler.py"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/fusion/state_assembler.py</a></li>
+<li><a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/tests/data_engine/storage/test_timescale.py"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> tests/data_engine/storage/test_timescale.py</a></li>
+</ul>
+</details>
+<p>Lumina V3 utilizes a dual-storage strategy to balance the high-throughput,
+low-latency requirements of real-time trading with the complex, time-series
+analytical needs of historical backtesting and feature engineering.</p>
+<p>The system partitions data between <strong>TimescaleDB</strong> (the "Cold Store" and
+Analytical Engine) and <strong>Redis</strong> (the "Hot Store" and IPC Backbone).</p>
+<h3 id="1-timescaledb-the-analytical-cold-store">1. TimescaleDB: The Analytical Cold Store<a class="headerlink" href="#1-timescaledb-the-analytical-cold-store" title="Permanent link">&para;</a></h3>
+<p>TimescaleDB acts as the primary persistence layer. It is used for storing
+high-resolution OHLCV data, unstructured news events, supply-chain relationship
+graphs and simulation results. The implementation leverages <strong>Hypertables</strong> to
+automatically partition data by time, ensuring performance remains stable as the
+dataset grows into the hundreds of millions of rows
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/alembic/versions/003_add_portfolio_and_backtest.py#L26"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> alembic/versions/003_add_portfolio_and_backtest.py<span class="lines">#26</span></a></p>
+<h4 id="key-tables-and-hypertables">Key Tables and Hypertables<a class="headerlink" href="#key-tables-and-hypertables" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Table Name</th>
+<th>Type</th>
+<th>Purpose</th>
+<th>Key Columns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ohlcv_1m</code></td>
+<td>Hypertable</td>
+<td>1-minute price bars</td>
+<td><code>time</code>, <code>ticker</code>, <code>open</code>, <code>close</code>, <code>volume</code></td>
+</tr>
+<tr>
+<td><code>news_events</code></td>
+<td>Standard</td>
+<td>Semantic news data</td>
+<td><code>time</code>, <code>tickers</code>, <code>headline</code>, <code>content_hash</code></td>
+</tr>
+<tr>
+<td><code>supply_chain_edges</code></td>
+<td>Standard</td>
+<td>Corporate relationship graph</td>
+<td><code>source_ticker</code>, <code>target_ticker</code>, <code>weight</code></td>
+</tr>
+<tr>
+<td><code>portfolio_history</code></td>
+<td>Hypertable</td>
+<td>Equity/Cash tracking</td>
+<td><code>time</code>, <code>equity</code>, <code>cash</code></td>
+</tr>
+<tr>
+<td><code>backtest_runs</code></td>
+<td>Standard</td>
+<td>Metadata for backtest jobs</td>
+<td><code>run_id</code>, <code>status</code>, <code>sharpe</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="timescalestore-gateway">TimescaleStore Gateway<a class="headerlink" href="#timescalestore-gateway" title="Permanent link">&para;</a></h4>
+<p>The <code>TimescaleStore</code> class in <code>backend/data_engine/storage/timescale.py</code>
+provides an asynchronous interface using <code>asyncpg</code>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/data_engine/storage/timescale.py#L80-L83"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/data_engine/storage/timescale.py<span class="lines">#80-83</span></a> It manages a connection
+pool and provides high-level methods for batch insertion and window-based
+retrieval.</p>
+<ul>
+<li><strong>Batch Insertion:</strong> <code>insert_ohlcv_batch</code> handles bulk inserts with
+  <code>ON CONFLICT DO NOTHING</code> to prevent duplicates during overlapping backfills
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/data_engine/storage/timescale.py#L112-L128"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/data_engine/storage/timescale.py<span class="lines">#112-128</span></a></li>
+<li><strong>Time Bucketing:</strong> <code>get_historical_window</code> utilizes TimescaleDB's
+  <code>time_bucket</code> function to aggregate 1m data into 5m, 1h, or 1d intervals
+  on-the-fly.</li>
+</ul>
+<p><strong>Sources:</strong> <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/data_engine/storage/timescale.py#L1-L227"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/data_engine/storage/timescale.py<span class="lines">#1-227</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/alembic/versions/003_add_portfolio_and_backtest.py#L17-42"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> alembic/versions/003_add_portfolio_and_backtest.py<span class="lines">#17-42</span></a></p>
+<h3 id="2-redis-the-high-speed-hot-store">2. Redis: The High-Speed Hot Store<a class="headerlink" href="#2-redis-the-high-speed-hot-store" title="Permanent link">&para;</a></h3>
+<p>Redis serves as the low-latency state-sharing mechanism between the Perception,
+Fusion, and Cognition layers. It operates as an asynchronous cache for
+embeddings and a Pub/Sub message bus for real-time updates.</p>
+<h4 id="data-flow-and-key-spaces">Data Flow and Key Spaces<a class="headerlink" href="#data-flow-and-key-spaces" title="Permanent link">&para;</a></h4>
+<p>Redis handles four primary data types:</p>
+<ol>
+<li><strong>Modality Embeddings:</strong> Vector outputs from the TFT (Temporal), FinBERT
+   (Semantic), and GAT (Structural) encoders.</li>
+<li><strong>Market State:</strong> The 256-d fused latent vector produced by the
+   <code>DeepFusionNexus</code>.</li>
+<li><strong>Deduplication:</strong> Content hashes for news events to prevent redundant
+   procesing <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/data_engine/storage/timescale.py#L168-L188"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/data_engine/storage/timescale.py<span class="lines">#168-188</span></a></li>
+<li><strong>Pub/Sub:</strong> Channels like <code>channel:state.updates</code> notify the RL Agent when a
+   new fused state is ready <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/fusion/state_assembler.py#L83"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/fusion/state_assembler.py<span class="lines">#83</span></a></li>
+</ol>
+<h4 id="state-assembler-integration">State Assembler Integration<a class="headerlink" href="#state-assembler-integration" title="Permanent link">&para;</a></h4>
+<p>The <code>StateAssembler</code> is the primary consumer and producer of Redis-backed state
+data. It reads individual embeddings and writes the final market state to
+specific keys:</p>
+<ul>
+<li><code>state:market:{ticker}</code>: The 256-d fused vector
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/fusion/state_assembler.py#L86-L87"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/fusion/state_assembler.py<span class="lines">#86-87</span></a></li>
+<li><code>state:uncertainty:{ticker}</code>: The MC-Dropout variance estimate
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/fusion/state_assembler.py#L94-L95"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/fusion/state_assembler.py<span class="lines">#94-95</span></a></li>
+<li><code>state:attention:{ticker}</code>: Cross-modal attention weights
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/fusion/state_assembler.py#L90-L91"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/fusion/state_assembler.py<span class="lines">#90-91</span></a></li>
+</ul>
+<p><strong>Sources:</strong> <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/fusion/state_assembler.py#L1-L142"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/fusion/state_assembler.py<span class="lines">#1-142</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/data_engine/storage/timescale.py#L59-68"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/data_engine/storage/timescale.py<span class="lines">#59-68</span></a></p>
+<h3 id="3-dual-storage-interaction-diagram">3. Dual-Storage Interaction Diagram<a class="headerlink" href="#3-dual-storage-interaction-diagram" title="Permanent link">&para;</a></h3>
+<p>The following diagram illustrates how data flows between the two storage
+backedns and the core system entities.</p>
+<h4 id="data-persistence-and-ipc-flow">Data Persistence and IPC Flow<a class="headerlink" href="#data-persistence-and-ipc-flow" title="Permanent link">&para;</a></h4>
+<pre class="mermaid"><code>graph TD
+    subgraph Data_Sources
+        MarketData["Market Data"]
+        NewsStream["News Stream"]
+    end
 
+    subgraph TimescaleStore
+        ohlcv["ohlcv_1m&lt;br/&gt;(Hypertable)"]
+        news["news_events"]
+        PortfolioHistory["portfolio_history"]
+    end
 
+    subgraph RedisCache
+        EmbeddingKeys["Embedding Keys"]
+        PubSub["Pub/Sub Channels"]
+        StateUncertainty["state:uncertainty:&lt;br/&gt;{ticker}"]
+        StateMarket["state:market:&lt;br/&gt;{ticker}"]
+    end
+
+    subgraph Entities
+        Encoders["Encoders&lt;br/&gt;(TFT/LLM/GAT)"]
+        StateAssembler["StateAssembler"]
+        PPOAgent["PPO Agent"]
+    end
+
+    MarketData --&gt;|insert_ohlcv_batch| ohlcv
+    NewsStream --&gt;|insert_news_event| news
+    ohlcv --&gt;|Offline Features| Encoders
+    Encoders --&gt;|Write Embeddings| EmbeddingKeys
+    EmbeddingKeys --&gt;|Read Embeddings| StateAssembler
+    StateAssembler --&gt;|Write Uncertainty| StateUncertainty
+    StateAssembler --&gt;|Notify| PubSub
+    StateAssembler --&gt;|Write Fused State| StateMarket
+    PubSub --&gt;|Trigger| PPOAgent
+    StateMarket --&gt;|Observation| PPOAgent
+    PPOAgent --&gt;|Trade Results| PortfolioHistory</code></pre>
+<p><strong>Sources:</strong> <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/fusion/state_assembler.py#L83-L142"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/fusion/state_assembler.py<span class="lines">#83-142</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/data_engine/storage/timescale.py#L112-L128"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/data_engine/storage/timescale.py<span class="lines">#112-128</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/data_engine/storage/timescale.py#L168-188"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/data_engine/storage/timescale.py<span class="lines">#168-188</span></a></p>
+<h3 id="4-database-migrations-alembic">4. Database Migrations (Alembic)<a class="headerlink" href="#4-database-migrations-alembic" title="Permanent link">&para;</a></h3>
+<p>The schema evolution is managed via Alembic, with a focus on partitioning and
+indexing for time-series performance.</p>
+<h4 id="migration-history">Migration History<a class="headerlink" href="#migration-history" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Revision 001:</strong> Initial of the core trading schemas. Established the
+  <code>ohlcv_1m</code> hypertable and configured compression policies.</li>
+<li><strong>Revision 002:</strong> Added <code>arena_tables</code> for the Spartan Arena simulation runner
+  to persist multi-trajectory results and adversarial scenario metadata.</li>
+<li><strong>Revision 003:</strong> Implemented <code>portfolio_history</code> and <code>backtest_runs</code>.</li>
+<li><code>portfolio_history</code> is a hypertable with a <code>chunk_time_interval</code> of 1 day
+      to optimize equity curve queries
+      <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/alembic/versions/003_add_portfolio_and_backtest.py#L19-L27"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> alembic/versions/003_add_portfolio_and_backtest.py<span class="lines">#19-27</span></a></li>
+<li><code>backtest_runs</code> includes fields for Sharpe ratio, Max Drawdown, and Total
+      Return <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/alembic/versions/003_add_portfolio_and_backtest.py#L31-L40"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> alembic/versions/003_add_portfolio_and_backtest.py<span class="lines">#31-40</span></a></li>
+</ul>
+<p><strong>Sources:</strong> <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/alembic/versions/003_add_portfolio_and_backtest.py#L1-L46"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> alembic/versions/003_add_portfolio_and_backtest.py<span class="lines">#1-46</span></a></p>
+<h3 id="5-implementation-mapping-code-to-storage">5. Implementation Mapping: Code to Storage<a class="headerlink" href="#5-implementation-mapping-code-to-storage" title="Permanent link">&para;</a></h3>
+<p>This diagram maps specific code classes and functions to the storage structures
+they manipulate.</p>
+<h4 id="code-entity-to-storage-mapping">Code Entity to Storage Mapping<a class="headerlink" href="#code-entity-to-storage-mapping" title="Permanent link">&para;</a></h4>
+<pre class="mermaid"><code>classDiagram
+    class TimescaleStore {
+        +insert_ohlcv_batch()
+        +get_historical_window()
+        +insert_news_event()
+        +insert_supply_chain_edges()
+    }
+    class StateAssembler {
+        +_k_market_state()
+        +_k_state_uncertainty()
+        +run()
+    }
+    class RedisCache {
+        +set_embedding()
+        +get_embedding()
+        +publish_state_update()
+    }
+    TimescaleStore --|&gt; ohlcv_1m: '"Writes/Reads"'
+    TimescaleStore --|&gt; news_events: '"Inserts"'
+    StateAssembler --|&gt; RedisCache: '"Uses"'
+    StateAssembler --|&gt; state_market_ticker: '"Updates"'
+    RedisCache --|&gt; EMbedding_Keys: '"Caches"'</code></pre>
+<p><strong>Sources:</strong> <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/data_engine/storage/timescale.py#L80-L130"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/data_engine/storage/timescale.py<span class="lines">#80-130</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/fusion/state_assembler.py#L86-L111"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/fusion/state_assembler.py<span class="lines">#86-111</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/fusion/state_assembler.py#L125-L132"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/fusion/state_assembler.py<span class="lines">#125-132</span></a></p>
 
 
 
