@@ -13,6 +13,8 @@ from loguru import logger
 from prometheus_client import Counter, Histogram
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from backend.config.constants import API_VERSION
+
 HTTP_REQUESTS = Counter(
     "http_requests_total",
     "Total HTTP requests",
@@ -43,6 +45,9 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
         HTTP_LATENCY.labels(request.method, path).observe(duration)
         response.headers["x-request-id"] = request_id
         response.headers["x-response-time-ms"] = f"{duration * 1000:.2f}"
+        # Advertise the contract version so clients can detect drift and
+        # prompt a refresh instead of failing silently on a breaking change.
+        response.headers["x-api-version"] = API_VERSION
         return response
 
 

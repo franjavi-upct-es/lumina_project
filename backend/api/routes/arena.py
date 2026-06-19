@@ -399,10 +399,12 @@ async def live_stream(websocket: WebSocket, run_id: UUID) -> None:
     pubsub = redis.client.pubsub()
     try:
         await pubsub.subscribe(channel_name)
-        async for message in pubsub.listen():
-            if message is None:
-                continue
-            if message.get("type") != "message":
+        # Poll rather than block in ``listen()``: redis-py 8.x defaults
+        # ``socket_timeout`` to 5 s, so a blocking read raises ``TimeoutError``
+        # on an idle channel. ``get_message`` returns ``None`` on timeout.
+        while True:
+            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+            if message is None or message.get("type") != "message":
                 continue
             data = message.get("data")
             if isinstance(data, bytes):

@@ -7,6 +7,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useAgentStream } from "../../hooks/useAgentStream";
 import { usePerceptionHealth } from "../../hooks/usePerceptionHealth";
+import { BackendStatusBanner } from "./BackendStatusBanner";
 
 type View = "dashboard" | "backtest" | "arena" | "settings";
 
@@ -111,6 +112,8 @@ export function AppShell({ active, children, arenaBadge }: AppShellProps) {
           </span>
         </div>
       </header>
+
+      <BackendStatusBanner />
 
       <main style={{ flex: 1, padding: "20px", overflow: "auto" }}>{children}</main>
     </div>

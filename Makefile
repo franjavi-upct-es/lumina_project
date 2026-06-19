@@ -6,7 +6,7 @@ UV_RUN := $(UV) run
 LOCAL_REDIS_URL ?= redis://localhost:6379/0
 LOCAL_TIMESCALE_URL ?= postgresql://lumina:lumina@localhost:5432/lumina
 
-.PHONY: help install dev test test-unit test-integration format lint type \
+.PHONY: help install dev test test-unit test-integration format lint type openapi \
         migrate up up-8gb up-blackwell down restart logs ps clean \
         docker-build docker-build-api docker-build-data \
         docker-build-perception docker-build-brain docker-build-brain-blackwell \
@@ -75,6 +75,13 @@ lint:
 
 type:
 	$(UV_RUN) mypy backend
+
+# Regenerate the TypeScript API client from the backend OpenAPI schema.
+# Run after any change to backend/api/schemas.py or route signatures so the
+# frontend types in frontend/src/types/api.generated.ts stay in sync.
+openapi:
+	$(UV_RUN) python scripts/dump_openapi.py
+	cd frontend && npm run gen:api
 
 migrate:
 	REDIS_URL=$(LOCAL_REDIS_URL) \

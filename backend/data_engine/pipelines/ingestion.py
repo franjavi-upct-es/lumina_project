@@ -125,10 +125,13 @@ class IngestionPipeline:
         pubsub = self._redis.client.pubsub()
         await pubsub.subscribe("channel:news.global")
         try:
-            async for msg in pubsub.listen():
-                if not self._running:
-                    break
-                if msg["type"] != "message":
+            # Poll rather than block in ``listen()``: redis-py 8.x defaults
+            # ``socket_timeout`` to 5 s, so a blocking read raises
+            # ``TimeoutError`` on an idle channel. The 1 s poll also keeps
+            # ``_running`` responsive for graceful shutdown.
+            while self._running:
+                msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                if msg is None or msg["type"] != "message":
                     continue
                 if len(self._news_buffer) >= self._backpressure_threshold:
                     if not self._news_paused:

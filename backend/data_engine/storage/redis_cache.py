@@ -116,8 +116,13 @@ class RedisCache:
         channels = [ch_price(t) for t in tickers]
         await pubsub.subscribe(*channels)
         try:
-            async for msg in pubsub.listen():
-                if msg["type"] != "message":
+            # Poll rather than block in ``listen()``: redis-py 8.x defaults
+            # ``socket_timeout`` to 5 s, so a blocking read raises
+            # ``TimeoutError`` on an idle channel. ``get_message`` returns
+            # ``None`` on timeout, so a quiet channel never crashes the stream.
+            while True:
+                msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                if msg is None or msg["type"] != "message":
                     continue
                 channel = msg["channel"].decode("utf-8")
                 ticker = channel.split(".", 1)[1]

@@ -15,11 +15,11 @@ import {
   YAxis,
 } from "recharts";
 
-export interface EquityPoint {
-  time: string;
-  equity: number;
-  benchmark?: number;
-}
+// Use the shared, backend-derived EquityPoint rather than a local duplicate so
+// the chart stays in lockstep with the /api/portfolio/history contract.
+import type { EquityPoint } from "../../types/market.types";
+
+export type { EquityPoint };
 
 interface Props {
   data: EquityPoint[];

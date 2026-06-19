@@ -38,6 +38,19 @@ responsible for mapping these to broker-level instructions.
 from __future__ import annotations
 
 # ----------------------------------------------------------------------
+# API contract version
+# ----------------------------------------------------------------------
+API_VERSION: str = "3.0.0"
+"""Version of the public HTTP/WS contract.
+
+Surfaced on every response as the ``X-API-Version`` header and used as the
+FastAPI ``version`` (so it also appears in ``/openapi.json``). Bump the MAJOR
+component whenever a breaking change is made to request/response shapes; the
+frontend compares the major against its build-time expectation and shows a
+"refresh required" banner on mismatch instead of failing silently.
+"""
+
+# ----------------------------------------------------------------------
 # Embedding dimensions (DO NOT CHANGE without retraining all encoders)
 # ----------------------------------------------------------------------
 DIM_PRICE: int = 128

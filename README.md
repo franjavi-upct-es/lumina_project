@@ -314,9 +314,9 @@ the free `yfinance` data. The repository supports both transparently:
 2. Run `notebooks/02_tft_prototype.py` to confirm the TFT can learn.
 3. Backfill via:
 
-   ```bash
-   python -m scripts.backfill_historical --source yfinance --start 2018-01-01 --end 2024-12-31
-   ```
+    ```bash
+    python -m scripts.backfill_historical --source yfinance --start 2018-01-01 --end 2024-12-31
+    ```
 
 4. Subscribe to Polygon **only** after the parity check (notebook 05) passes.
 

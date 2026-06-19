@@ -30,7 +30,7 @@ from loguru import logger
 from backend.api.deps import get_broker
 from backend.api.middleware import ObservabilityMiddleware
 from backend.api.routes import agent, arena, backtest, data, monitoring, portfolio, risk
-from backend.config.constants import TARGET_TICKERS
+from backend.config.constants import API_VERSION, TARGET_TICKERS
 from backend.config.logging import configure_logging
 from backend.config.settings import get_settings
 from backend.data_engine.collectors.yfinance_collector import YFinanceCollector
@@ -121,7 +121,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Lumina V3",
         description="Chimera deep-fusion algorithmic trading system",
-        version="3.0.0",
+        version=API_VERSION,
         lifespan=lifespan,
     )
     from backend.api.middleware import CongestionControlMiddleware
@@ -133,6 +133,9 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # Custom response headers are not readable by browser JS under CORS
+        # unless explicitly exposed; the dashboard reads x-api-version.
+        expose_headers=["x-api-version", "x-request-id", "x-response-time-ms"],
     )
     app.add_middleware(ObservabilityMiddleware)
     app.include_router(agent.router)

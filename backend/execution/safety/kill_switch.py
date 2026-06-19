@@ -242,7 +242,7 @@ class LocalKillSwitchListener:
         """Long-running pub/sub loop.
 
         We re-subscribe forever; a transient connection drop will throw
-        out of ``pubsub.listen()`` and we re-enter the outer ``while``.
+        out of ``pubsub.get_message()`` and we re-enter the outer ``while``.
         """
         backoff_s = 0.5
         while not self._stopping:
@@ -251,10 +251,15 @@ class LocalKillSwitchListener:
                 await pubsub.subscribe(_CHANNEL)
                 # Reset backoff once we successfully subscribe.
                 backoff_s = 0.5
-                async for msg in pubsub.listen():
-                    if self._stopping:
-                        break
-                    if msg.get("type") != "message":
+                # Poll instead of blocking in ``listen()``: redis-py 8.x
+                # defaults ``socket_timeout`` to 5 s, so a blocking read on an
+                # idle channel raises ``TimeoutError`` and would needlessly
+                # bounce the subscription. ``get_message`` returns ``None`` on
+                # timeout, letting an idle channel sit quietly, and the 1 s
+                # poll keeps ``_stopping`` responsive.
+                while not self._stopping:
+                    msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                    if msg is None or msg.get("type") != "message":
                         continue
                     raw = msg.get("data")
                     if isinstance(raw, bytes):
