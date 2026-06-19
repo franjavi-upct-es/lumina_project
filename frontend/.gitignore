@@ -1,0 +1,6 @@
+# Build output
+dist/
+
+# Intermediate OpenAPI spec dumped by `make openapi`; the committed artifact
+# is src/types/api.generated.ts, regenerated from this file.
+openapi.json

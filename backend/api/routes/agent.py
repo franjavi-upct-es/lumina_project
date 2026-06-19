@@ -76,23 +76,29 @@ async def stream_agent(ws: WebSocket, redis: RedisCache = Depends(get_redis)):
     await ws.accept()
     pubsub = redis.client.pubsub()
     await pubsub.subscribe("channel:agent.action")
-    heartbeat_task = None
     try:
-
-        async def heartbeat():
-            while True:
-                await asyncio.sleep(15)
-                await ws.send_json({"type": "heartbeat", "ts": datetime.now(UTC).isoformat()})
-
-        heartbeat_task = asyncio.create_task(heartbeat())
-        async for msg in pubsub.listen():
-            if msg["type"] != "message":
-                continue
-            await ws.send_text(msg["data"].decode("utf-8"))
+        # Poll with a short timeout rather than blocking in ``listen()``:
+        # redis-py 8.x defaults ``socket_timeout`` to 5 s, so a blocking
+        # read raises ``TimeoutError`` on an idle channel. ``get_message``
+        # returns ``None`` on timeout instead, so idle never crashes the
+        # stream. The same loop drives the 15 s heartbeat, which doubles as
+        # disconnect detection (the send raises once the client is gone).
+        last_heartbeat = asyncio.get_running_loop().time()
+        while True:
+            msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+            if msg is not None and msg["type"] == "message":
+                await ws.send_text(msg["data"].decode("utf-8"))
+            now = asyncio.get_running_loop().time()
+            if now - last_heartbeat >= 15:
+                # ``payload`` is required by the AgentStreamMessage contract;
+                # send an empty one so the client classifies this as a
+                # heartbeat envelope rather than coercing it into an action.
+                await ws.send_json(
+                    {"type": "heartbeat", "ts": datetime.now(UTC).isoformat(), "payload": {}}
+                )
+                last_heartbeat = now
     except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
-        if heartbeat_task:
-            heartbeat_task.cancel()
         await pubsub.unsubscribe()
         await pubsub.aclose()

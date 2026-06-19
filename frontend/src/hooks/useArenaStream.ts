@@ -6,13 +6,16 @@
 // responsive across long runs.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { withWsToken } from "../api/client";
+import { withWsToken, wsBase } from "../api/client";
+import { useConnectionStore } from "../store/connectionSlice";
 import type { DecisionRecord, DivergencePoint } from "../types/arena.types";
 
-const WS_BASE = import.meta.env.VITE_WS_BASE || "ws://localhost:8000";
 const MAX_DECISIONS = 1000;
 const MAX_DIVERGENCES = 200;
 const MAX_RETRY_ATTEMPTS = 5;
+// RFC 6455 policy-violation code; the backend uses it for auth rejection
+// (bad origin / token). Reconnecting can't fix auth, so we stop and surface it.
+const WS_POLICY_VIOLATION = 1008;
 
 export type ConnectionStatus = "connecting" | "open" | "closed" | "error";
 
@@ -53,11 +56,12 @@ export function useArenaStream(runId: string | null): ArenaStream {
     if (!runId) return;
     cancelledRef.current = false;
     setConnectionStatus("connecting");
-    const ws = new WebSocket(withWsToken(`${WS_BASE}/arena/runs/${runId}/live`));
+    const ws = new WebSocket(withWsToken(`${wsBase()}/arena/runs/${runId}/live`));
     wsRef.current = ws;
 
     ws.onopen = () => {
       retryRef.current = 0;
+      useConnectionStore.getState().setAuthError(false);
       setConnectionStatus("open");
     };
 
@@ -79,9 +83,15 @@ export function useArenaStream(runId: string | null): ArenaStream {
       ws.close();
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       if (cancelledRef.current) {
         setConnectionStatus("closed");
+        return;
+      }
+      if (event.code === WS_POLICY_VIOLATION) {
+        // Auth/origin rejection — retrying is futile and would loop forever.
+        useConnectionStore.getState().setAuthError(true);
+        setConnectionStatus("error");
         return;
       }
       if (retryRef.current >= MAX_RETRY_ATTEMPTS) {

@@ -1,36 +1,15 @@
 // frontend/src/types/market.types.ts
-export interface OHLCV {
-  time: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
+//
+// Market/portfolio wire types. These are ALIASES of the backend-generated
+// OpenAPI schemas (./api.generated.ts) so they cannot drift from
+// backend.api.schemas. Regenerate with `make openapi`.
 
-export interface Position {
-  ticker: string;
-  qty: number;
-  avg_entry_price: number;
-  unrealized_pnl: number;
-  market_value: number;
-}
+import type { components } from "./api.generated";
 
-export interface Portfolio {
-  equity: number;
-  cash: number;
-  buying_power: number;
-  positions: Position[];
-  peak_equity: number;
-  drawdown_pct: number;
-}
+type S = components["schemas"];
 
-export interface EquityPoint {
-  time: string;
-  equity: number;
-  benchmark?: number;
-}
-
-export interface PortfolioHistoryResponse {
-  history: EquityPoint[];
-}
+export type OHLCV = S["OHLCVResponse"];
+export type Position = S["PositionResponse"];
+export type Portfolio = S["PortfolioResponse"];
+export type EquityPoint = S["EquityPoint"];
+export type PortfolioHistoryResponse = S["PortfolioHistoryResponse"];

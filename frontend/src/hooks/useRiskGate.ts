@@ -5,9 +5,10 @@ import type { KillSwitchState } from "../types/risk.types";
 import { usePolling } from "./usePolling";
 
 export function useRiskGate() {
-  const { data } = usePolling(() => riskApi.getKillSwitch(), 3000);
+  const { data } = usePolling((signal) => riskApi.getKillSwitch({ signal }), 3000);
   const setState = useCallback(async (state: KillSwitchState, reason = "") => {
     return await riskApi.setKillSwitch(state, reason);
   }, []);
-  return { state: data?.state ?? "NORMAL", setState };
+  // The response declares `state` as a plain string; narrow to the domain enum.
+  return { state: (data?.state as KillSwitchState | undefined) ?? "NORMAL", setState };
 }

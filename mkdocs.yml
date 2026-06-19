@@ -94,6 +94,9 @@ nav:
           - Ingestion Pipeline and Feature Store: data_engine/ingestion.md
     - Perception Layer (Encoders):
           - perception_layer/index.md
+          - "Temporal Encoder: Temporal Fusion Transformer (TFT)": perception_layer/temporal.md
+          - "Semantic Encoder: Distilled Financial LLM": perception_layer/semantic.md
+          - "Structural Encoder: Graph Attention Network (GATv2)": perception_layer/structural.md
     - "Fusion Layer: Deep Fusion Nexus":
           - fusion_layer/index.md
     - "Cognition Layer: RL Agent and Training":

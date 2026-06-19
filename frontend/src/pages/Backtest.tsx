@@ -38,7 +38,7 @@ function validateForm(form: FormState): string | null {
   return null;
 }
 
-function formatPct(n: number | undefined): string {
+function formatPct(n: number | null | undefined): string {
   if (n === undefined || n === null || Number.isNaN(n)) return "—";
   return `${(n * 100).toFixed(2)}%`;
 }
@@ -46,9 +46,11 @@ function formatPct(n: number | undefined): string {
 interface HistoryRow {
   id: string;
   days?: number;
-  ret?: number;
-  sharpe?: number;
-  drawdown?: number;
+  // null-able to match the backend BacktestResultResponse fields, which are
+  // `null` until the run completes; formatNumber() renders null as "—".
+  ret?: number | null;
+  sharpe?: number | null;
+  drawdown?: number | null;
   status: BacktestResult["status"];
   failureReason?: string | null;
 }
@@ -458,7 +460,7 @@ function Stat({ label, value, tone = "neutral" }: { label: string; value: string
   );
 }
 
-function formatNumber(value: number | undefined, digits = 2): string {
+function formatNumber(value: number | null | undefined, digits = 2): string {
   if (value === undefined || value === null || Number.isNaN(value)) return "—";
   return value.toFixed(digits);
 }

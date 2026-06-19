@@ -1,16 +1,9 @@
 // frontend/src/types/backtest.types.ts
-export interface BacktestRequest {
-  start: string;
-  end: string;
-  tickers: string[];
-  initial_capital: number;
-}
+//
+// Backtest wire types aliased from the backend-generated OpenAPI schemas
+// (./api.generated.ts). Regenerate with `make openapi`.
 
-export interface BacktestResult {
-  run_id: string;
-  status: "pending" | "running" | "completed" | "failed";
-  sharpe?: number;
-  max_drawdown?: number;
-  total_return?: number;
-  failure_reason?: string | null;
-}
+import type { components } from "./api.generated";
+
+export type BacktestRequest = components["schemas"]["BacktestRequest"];
+export type BacktestResult = components["schemas"]["BacktestResultResponse"];
