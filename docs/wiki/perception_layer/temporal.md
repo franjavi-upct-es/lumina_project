@@ -17,7 +17,7 @@ residual networks and variable selection to handle noisy market data.
 ## 1. Architecture Overview
 
 The `TemporalFusionTransformer` class
-[gh:backend/perception/temporal/tft_model.py#L240-L244] implements a multi-stage
+[gh:backend/perception/temporal/tft_model.py#L60-L72] implements a multi-stage
 pipeline designed to extract both long-term dependencies and local patterns from
 market bars.
 
@@ -28,15 +28,15 @@ market bars.
   non-linear processing with a GLU (Gated Linear Unit) to skip unnecessary
   steps, preventing vanishing gradients in deep financial networks.
 - **Variable Selection Network (VSN):** Performs instance-specific feature
-  selection [gh:backend/perception/temporal/tft_model.py#L82-L86] It assign
+  selection [gh:backend/perception/temporal/tft_model.py#L42-L57] It assign
   weights to different OHLCV inputs, allowing the model to ignore features
   (e.g., Volume) if they are currently non-informative.
 - **LSTM Encoder:** Processes the sequence of variable-selected features to
   capture local temporal context
-  [gh:backend/perception/temporal/tft_model.py#L288-L289]
+  [gh:backend/perception/temporal/tft_model.py#L85-L91]
 - **Interpretable Multi-Head Attention:** A specialized attention mechanism that
   allows the model to focus on specific past events (e.g., a flash crash 30
-  minutes ago) [gh:backend/perception/temporal/tft_model.py#L165-L169]
+  minutes ago) [gh:backend/perception/temporal/tft_model.py#L93-L98]
 - **Temporal Embedding Output:** The final state is projected to a
   128-dimensional vector defined by `DIM_PRICE`
-  [gh:backend/config/constants.py#L43-L44]
+  [gh:backend/config/constants.py#L56-L57]

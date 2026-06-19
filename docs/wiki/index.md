@@ -55,7 +55,7 @@ graph TD
 ```
 
 **Sources:** [gh:README.md#L42-L66] [gh:pyproject.toml#L17-L21]
-[gh:backend/config/constants.py#L79-L80]
+[gh:backend/config/constants.py#L92-L93]
 
 ## Key Design Principles
 
@@ -66,14 +66,14 @@ graph TD
 2. **Uncertainty Quantification:** The Fusion Layer utilized MC-Dropout to
    estimate the variance (uncertainty) of its internal state. If uncertainty
    exceeds the `UNCERTAINTY_THRESHOLD`, the **Uncertainty Gate** prevents the
-   agent from executing trades [gh:.env.example#L51-L52] [gh:README.md#L51-L56]
+   agent from executing trades [gh:.env.example#L77] [gh:README.md#L51-L56]
 3. **Adversarial Training (Spartan Curriculum):** The agent is not just trained
    on historical data but is subjected to a three-phase curriculum including
    Behavioral Cloning, Domain Randomization (adversarial warps like "Flash
-   Crashes"), and Sharpe Optimization [gh:README.md#L136-L138]
+   Crashes"), and Sharpe Optimization [gh:README.md#L243-L249]
 4. **Hard-Rule Safety:** A **Safety Arbitrator** acts as a final veto layer,
    enforcing non-negotiable risk rules (e.g., `MAX_DRAWDOWN_LIMIT`) before any
-   order reaches the broker [gh:.env.example#L52] [gh:README.md#L59-L62]
+   order reaches the broker [gh:.env.example#L78] [gh:README.md#L59-L62]
 
 ## System Data Flow
 
@@ -109,7 +109,7 @@ graph LR
 ```
 
 **Sources:** [gh:pyproject.toml#L40-L108] [gh:.env.example#L12-L32]
-[gh:Makefile#L127-L134]
+[gh:Makefile#L138-L148]
 
 ## Subsystem Overviews
 
@@ -120,7 +120,7 @@ Covers environment setup using `uv` for dependency management and
 development and `make up` for the full containerized stack.
 
 - **Key Files:** [gh:Makefile#L1-L56] [gh:pyproject.toml#L23-L36]
-  [gh:.env.example#L1-L75]
+  [gh:.env.example#L1-L102]
 
 ### [System Architecture and Data Flow](overview/system.md)
 
@@ -129,7 +129,7 @@ Detailed breakdown of the "Chimera" architecture, the **Dimensional Contract**
 semantic inference).
 
 - **Key Files:** [gh:README.md#L40-L115]
-  [gh:backend/config/constants.py#L79-L80]
+  [gh:backend/config/constants.py#L92-L93]
 
 ### [Data Engine](data_engine/index.md)
 
@@ -138,7 +138,7 @@ backfills and `Polygon.io` for high-frequency 1-minute bars. Data is stored in
 **TimescaleDB** for persistence and **Redis** for sub-millisecond feature
 serving.
 
-- **Key Files:** [gh:pyproject.toml#L58-L71] [gh:Makefile#L127-L134]
+- **Key Files:** [gh:pyproject.toml#L58-L71] [gh:Makefile#L138-L148]
   [gh:.env.example#L34-L39]
 
 ### [Perception Layer (Encoders)](perception_layer/index.md)
@@ -158,7 +158,7 @@ Explains how the `DeepFusionNexus` uses cross-modal attention to combine
 embeddings into a 256-d latent state and how the `StateAssembler` orchestrates
 this at a 1-Hz cadence.
 
-- **Key Files:** [gh:README.md#L46-L51] [gh:backend/config/constants.py#L76]
+- **Key Files:** [gh:README.md#L46-L51] [gh:backend/config/constants.py#L81]
 
 ### [Cognition Layer: RL Agent and Training](cognition_layer/index.md)
 
@@ -167,7 +167,7 @@ Focuses on the `PPOAgent` and its 4-D action space
 Curriculum** training pipeline.
 
 - **Key Files:** [gh:pyproject.toml#L17-L21] [gh:README.md#L77]
-  [gh:README.md#L136-L138]
+  [gh:README.md#L243-L249]
 
 ### [Execution Engine and Safety System](execution/index.md)
 
@@ -175,7 +175,7 @@ Covers the translation of agent actions into broker orders via the
 `ExecutionOrchestrator` and the multi-state **Kill Switch** (NORMAL, CLOSE_ONLY,
 LIQUIDATE_ALL).
 
-- **Key Files:** [gh:README.md#L59-L65] [gh:.env.example#L25-L32]
+- **Key Files:** [gh:README.md#L59-L65] [gh:.env.example#L37-L44]
 
 ### [Simulation and Spartan Arena](simulation/index.md)
 
@@ -183,7 +183,7 @@ Documents the `LuminaTradingEnv` (Gymnasium-compatible) and the **Spartan
 Arena,** which runs parallel trajectories under adversarial scenarios to
 validate agent robustness.
 
-- **Key Files:** [gh:pyproject.toml#L98] [gh:Makefile#L135-L139]
+- **Key Files:** [gh:pyproject.toml#L98] [gh:Makefile#L150-L153]
   [gh:.env.example#L65-L74]
 
 ### [Backend API](backend/index.md)
@@ -192,14 +192,14 @@ The FastAPI-based gateway. Includes documentation for portfolio tracking, arena
 control, and the Prometheus-based monitoring stack.
 
 - **Key Files:** [gh:docker/Dockerfile.api#L1-L75] [gh:pyproject.toml#L40-L56]
-  [gh:Makefile#L53-L56]
+  [gh:Makefile#L55-L58]
 
 ### [Frontend Dashboard](frontend/index.md)
 
 A React/TypeScript dashboard providing real-time visualization of the agent's
 attention heatmaps, equity curves, and divergence points in the Spartan Arena.
 
-- **Key Files:** [gh:Makefile#L102-L103] [gh:pyproject.toml#L150-L153]
+- **Key Files:** [gh:Makefile#L113-L114] [gh:pyproject.toml#L150-L153]
 
 ### [Infraestructure and Deployment](infra/index.md)
 
@@ -211,5 +211,5 @@ GPUs) and Alembic database migrations.
 
 ---
 
-**Sources:** [gh:README.md#L1-L160] [gh:Makefile#L1-L139]
-[gh:pyproject.toml#L1-L156] [gh:.env.example#L1-L75]
+**Sources:** [gh:README.md#L1-L449] [gh:Makefile#L1-L153]
+[gh:pyproject.toml#L1-L281] [gh:.env.example#L1-L102]

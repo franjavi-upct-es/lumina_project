@@ -111,7 +111,7 @@ classDiagram
 
 Sources: [gh:backend/data_engine/collectors/yfinance_collector.py#L61-L68]
 [gh:backend/data_engine/collectors/yfinance_collector.py#L179-L181]
-[gh:backend/data_engine/storage/timescale.py#L58]
+[gh:backend/data_engine/storage/timescale.py#L47-L56]
 
 ## Rate Limiting and Robustness
 

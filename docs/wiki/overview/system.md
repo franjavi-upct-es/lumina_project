@@ -76,12 +76,12 @@ Lumina V3 enforces a strict **Dimensional Contract**.
 
 | Component            | Symbol             | Value | Code Definition                          |
 | -------------------- | ------------------ | ----- | ---------------------------------------- |
-| Price Embedding      | `DIM_PRICE`        | 128   | [gh:backend/config/constants.py#L43-L44] |
-| Semantic Embedding   | `DIM_SEMANTIC`     | 64    | [gh:backend/config/constants.py#L46-L47] |
-| Structural Embedding | `DIM_GRAPH`        | 32    | [gh:backend/config/constants.py#L49-L50] |
-| Fused Super-Vector   | `DIM_FUSED`        | 224   | [gh:backend/config/constants.py#L52-L53] |
-| Agent Latent State   | `NEXUS_OUTPUT_DIM` | 256   | [gh:backend/config/constants.py#L68-L69] |
-| Action Space         | `ACTION_DIM`       | 4     | [gh:backend/config/constants.py#L58-L65] |
+| Price Embedding      | `DIM_PRICE`        | 128   | [gh:backend/config/constants.py#L56-L57] |
+| Semantic Embedding   | `DIM_SEMANTIC`     | 64    | [gh:backend/config/constants.py#L59-L60] |
+| Structural Embedding | `DIM_GRAPH`        | 32    | [gh:backend/config/constants.py#L62-L63] |
+| Fused Super-Vector   | `DIM_FUSED`        | 224   | [gh:backend/config/constants.py#L65-L66] |
+| Agent Latent State   | `NEXUS_OUTPUT_DIM` | 256   | [gh:backend/config/constants.py#L81-L82] |
+| Action Space         | `ACTION_DIM`       | 4     | [gh:backend/config/constants.py#L71-L78] |
 
 ### Latency Budget
 
@@ -89,7 +89,7 @@ The system is designed for sub-second reflex arcs. The
 `DistilledFinancialEncoder` is specifically optimized to meet a **< 100 ms**
 inference budget on a single CPU core [gh:README.md#L138-L139] The
 `StateAssembler` monitors this via Prometheus histograms with buckets ranging
-from 5ms to 500ms [gh:backend/fusion/state_assembler.py#L72-L76]
+from 5ms to 500ms [gh:backend/fusion/state_assembler.py#L75-L79]
 
 ## 3. End-to-End Data Flow
 
@@ -99,7 +99,7 @@ Redis) and **Arena Mode** (inline for attribution).
 ### 3.1. Live Execution Flow
 
 In live mode, the `StateAssembler` acts as a high-frequency driver (default 1-Hz
-cadence) [gh:backend/fusion/state_assembler.py#L119]
+cadence) [gh:backend/fusion/state_assembler.py#L126]
 
 1. **Ingestion:** `MarketDataCollectors` push raw data to `TimescaleStore`
    (cold) and `RedisCache` (hot)
@@ -108,7 +108,7 @@ cadence) [gh:backend/fusion/state_assembler.py#L119]
    and write them back to Redis via the `FeatureStoreClient`.
 3. **Assembly:** The `StateAssembler` pulls the three latest embeddings from
    Redis, concatenates them into a 224-d super-vector, and passes them to the
-   `DeepFusionNexus` [gh:backend/fusion/state_assembler.py#L230-L245]
+   `DeepFusionNexus` [gh:backend/fusion/state_assembler.py#L326-L337]
 4. **Fusion:** The Nexus applies `CrossModalAttention` and a sigmoid gating
    mechanism to produce the 256-d latent state
    [gh:backend/fusion/nexus.py#L84-L104]
@@ -137,7 +137,7 @@ sequenceDiagram
     end
 ```
 
-**Sources:** [gh:backend/fusion/state_assembler.py#L83-L132]
+**Sources:** [gh:backend/fusion/state_assembler.py#L306-L369]
 [gh:backend/fusion/nexus.py#L110-L133]
 [gh:backend/data_engine/storage/timescale.py#L112-L128]
 
@@ -153,7 +153,7 @@ The `PPOAgent` consumes the market state to produce trade actions.
    [gh:README.md#L59-L62]
 3. **Execution:** If approved, the `ExecutionOrchestrator` maps the continuous
    vector `[direction, urgency, sizing, stop_distance]` to specific broker
-   orders (Alpaca/Paper) [gh:backend/config/constants.py#L58-L65]
+   orders (Alpaca/Paper) [gh:backend/config/constants.py#L71-L78]
 
 ## 4. Feature Store and State Assembly
 
@@ -162,13 +162,13 @@ The `FeatureStoreClient` provides the abstraction layer for both `Online`
 
 ### The StateAssembler Modes
 
-The `StateAssembler` class [gh:backend/fusion/state_assembler.py#L98] is the
+The `StateAssembler` class [gh:backend/fusion/state_assembler.py#L105] is the
 critical junction between Perception and Cognition. It supports two operational
 modes:
 
 - **Standard Mode (`arena_mode=False`):** Used in production. It consumes
   embeddings asynchronously from Redis to minimize coupling between encoders and
-  the agent [gh:backend/fusion/state_assembler.py#L101-L103]
+  the agent [gh:backend/fusion/state_assembler.py#L108-L110]
 - **Arena Mode (`arena_mode=True`):** Used during training and "Spartan Arena"
   simulations. It runs the entire pipeline (Encoders + Nexus) inline via the
   `build()` method to capture `RawAttributionTensors` for XAI
@@ -177,12 +177,12 @@ modes:
 **Raw Attribution Tensors** captured during Arena mode includes:
 
 - `cross_modal_weights`: Softmaxed weights showing importance of Price vs News
-  vs Graph [gh:backend/fusion/state_assembler.py#L50-L51]
+  vs Graph [gh:backend/fusion/state_assembler.py#L53-L54]
 - `vsn_weights_by_feature`: TFT Variable Selection Network weights showing which
-  OHLCV indicators were active [gh:backend/fusion/state_assembler.py#L52-L53]
+  OHLCV indicators were active [gh:backend/fusion/state_assembler.py#L55-L56]
 - `gat_alpha`: Attention coefficients from the Graph Encoder
-  [gh:backend/fusion/state_assembler.py#L56-L57]
+  [gh:backend/fusion/state_assembler.py#L59-L60]
 
 **Sources:** [gh:backend/fusion/state_assembler.py#L39-L68]
 [gh:backend/fusion/state_assembler.py#L140-L170]
-[gh:backend/config/constants.py#L79-L89]
+[gh:backend/config/constants.py#L92-L102]

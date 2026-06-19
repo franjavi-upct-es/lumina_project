@@ -48,7 +48,7 @@ flowchart TB
 ```
 
 Sources: [gh:backend/perception/temporal/inference.py#L18-L31]
-[gh:backend/perception/semantic/inference.py#L18-31]
+[gh:backend/perception/semantic/inference.py#L18-L31]
 [gh:backend/perception/structural/inference.py#L19-L24]
 
 ### 3.1. Temporal Encoder: Temporal Fusion Transformer (TFT)
@@ -61,10 +61,10 @@ long-term dependencies in time-series data.
 - **Model:** `TemporalFusionTransformer`
   [gh:backend/perception/temporal/tft_model.py]
 - **Input:** A window of OHLCV (Open, High, Low, Close, Volume) bars defined by
-  `OHLCV_WINDOW_MINUTES` [gh:backend/perception/temporal/inference.py#L24]
+  `OHLCV_WINDOW_MINUTES` [gh:backend/perception/temporal/inference.py#L26]
 - **Output:** A 128-dimensional "price" embedding.
 - **Service:** The `TFTInferenceService` subscribes to live ticks via Redis
-  [gh:backend/perception/temporal/inference.py#L37] and updates embeddings in
+  [gh:backend/perception/temporal/inference.py#L39] and updates embeddings in
   real-time.
 
 For details, see
@@ -80,11 +80,11 @@ FinBERT teacher.
 - **Model:** `DistilledFinancialEncoder`
   [gh:backend/perception/semantic/distilled_llm.py]
 - **Input:** Tokenized text from `channel:news.global`
-  [gh:backend/perception/semantic/inference.py#L37]
+  [gh:backend/perception/semantic/inference.py#L39]
 - **Output:** A 64-dimensional "semantic" embedding.
 - **Service:** `SemanticInferenceService` handles incoming news events,
   tokenizes them using the `AutoTokenizer`, and generates embeddings for all
-  mentioned tickers [gh:backend/perception/semantic/inference.py#L55-L71]
+  mentioned tickers [gh:backend/perception/semantic/inference.py#L65-L81]
 
 For details, see [Semantic Encoder: Distilled Financial LLM](semantic.md).
 
@@ -101,7 +101,7 @@ information across a global market graph.
   [gh:backend/perception/structural/inference.py#L26-L31]
 - **Service:** `GraphInferenceService` runs on a daily cadence, rebuilding the
   global graph via `build_graph_data` and updating the structural context for
-  the entire universe [gh:backend/perception/structural/inference.py#L91-L95]
+  the entire universe [gh:backend/perception/structural/inference.py#L99-L121]
 
 For details, see
 [Structural Encoder: Graph Attention Network (GATv2)](structural.md)
@@ -126,9 +126,9 @@ sequenceDiagram
     EmbeddingWriter ->> RedisCache: "HSET embeddings:{ticker} {modality} {bytes}"
 ```
 
-Sources: [gh:backend/perception/temporal/inference.py#L66]
-[gh:backend/perception/semantic/inference.py#L71]
-[gh:backend/perception/structural/inference.py#L37]
+Sources: [gh:backend/perception/temporal/inference.py#L71]
+[gh:backend/perception/semantic/inference.py#L81]
+[gh:backend/perception/structural/inference.py#L38]
 [gh:backend/perception/common/embedding_writer.py]
 
 ### Summary Table

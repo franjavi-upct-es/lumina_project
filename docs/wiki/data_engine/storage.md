@@ -50,8 +50,8 @@ retrieval.
   `time_bucket` function to aggregate 1m data into 5m, 1h, or 1d intervals
   on-the-fly.
 
-**Sources:** [gh:backend/data_engine/storage/timescale.py#L1-L227]
-[gh:alembic/versions/003_add_portfolio_and_backtest.py#L17-42]
+**Sources:** [gh:backend/data_engine/storage/timescale.py#L1-L313]
+[gh:alembic/versions/003_add_portfolio_and_backtest.py#L17-L42]
 
 ### 2. Redis: The High-Speed Hot Store
 
@@ -70,7 +70,7 @@ Redis handles four primary data types:
 3. **Deduplication:** Content hashes for news events to prevent redundant
    procesing [gh:backend/data_engine/storage/timescale.py#L168-L188]
 4. **Pub/Sub:** Channels like `channel:state.updates` notify the RL Agent when a
-   new fused state is ready [gh:backend/fusion/state_assembler.py#L83]
+   new fused state is ready [gh:backend/fusion/state_assembler.py#L86]
 
 #### State Assembler Integration
 
@@ -79,14 +79,14 @@ data. It reads individual embeddings and writes the final market state to
 specific keys:
 
 - `state:market:{ticker}`: The 256-d fused vector
-  [gh:backend/fusion/state_assembler.py#L86-L87]
+  [gh:backend/fusion/state_assembler.py#L93-L94]
 - `state:uncertainty:{ticker}`: The MC-Dropout variance estimate
-  [gh:backend/fusion/state_assembler.py#L94-L95]
+  [gh:backend/fusion/state_assembler.py#L101-L102]
 - `state:attention:{ticker}`: Cross-modal attention weights
-  [gh:backend/fusion/state_assembler.py#L90-L91]
+  [gh:backend/fusion/state_assembler.py#L97-L98]
 
 **Sources:** [gh:backend/fusion/state_assembler.py#L1-L142]
-[gh:backend/data_engine/storage/timescale.py#L59-68]
+[gh:backend/data_engine/storage/timescale.py#L59-L68]
 
 ### 3. Dual-Storage Interaction Diagram
 
@@ -136,7 +136,7 @@ graph TD
 
 **Sources:** [gh:backend/fusion/state_assembler.py#L83-L142]
 [gh:backend/data_engine/storage/timescale.py#L112-L128]
-[gh:backend/data_engine/storage/timescale.py#L168-188]
+[gh:backend/data_engine/storage/timescale.py#L168-L188]
 
 ### 4. Database Migrations (Alembic)
 
@@ -156,7 +156,7 @@ indexing for time-series performance.
   - `backtest_runs` includes fields for Sharpe ratio, Max Drawdown, and Total
       Return [gh:alembic/versions/003_add_portfolio_and_backtest.py#L31-L40]
 
-**Sources:** [gh:alembic/versions/003_add_portfolio_and_backtest.py#L1-L46]
+**Sources:** [gh:alembic/versions/003_add_portfolio_and_backtest.py#L1-L45]
 
 ### 5. Implementation Mapping: Code to Storage
 

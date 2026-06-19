@@ -27,7 +27,7 @@ The pipeline consumes data from two primary streams:
 1. **Price Stream:** Tick data subscribed via `_consume_price_stream`
    [gh:backend/data_engine/pipelines/ingestion.py#L100-L122]
 2. **News Stream:** Global news events via `_consume_news_stream`
-   [gh:backend/data_engine/pipelines/ingestion.py#L124-L155]
+   [gh:backend/data_engine/pipelines/ingestion.py#L124-L158]
 
 Incoming data is buggered and periodically flushed to TimescaleDB. News data
 undergoes specific cleaning steps, including text normalization via
@@ -77,7 +77,7 @@ implementation. It is split into **Online** and **Offline** components.
 
 Every feature in the system is registered in a registry using `FeatureDef`. This
 defines the feature's name, its dimensionality (e.g., `DIM_PRICE=128`), and its
-TTL (Time-To-Live) [gh:backend/config/constants.py#L43-L53]
+TTL (Time-To-Live) [gh:backend/config/constants.py#L56-L66]
 
 ### Online vs. Offline Storage
 
@@ -96,7 +96,7 @@ TTL (Time-To-Live) [gh:backend/config/constants.py#L43-L53]
 | Structural       | 32        | `StructuralEncoder` | `feature:graph:{ticker}`    |
 | Fused            | 224       | `DeepFusionNexus`   | `state:fused:{ticker}`      |
 
-**Sources:** [gh:backend/config/constants.py#L41-L74]
+**Sources:** [gh:backend/config/constants.py#L54-L87]
 [gh:backend/data_engine/pipelines/ingestion.py#L31-L32]
 
 ## Embedding Ingestion and Serving
@@ -109,11 +109,11 @@ are immediately available to the `StateAssembler` for the Fusion Layer.
 1. **Ingestion:** `IngestionPipeline` moves raw data to TimescaleDB
    [gh:backend/data_engine/pipelines/ingestion.py#L173-L180]
 2. **Encoding:** Encoders (TFT, FinBERT, GATv2) read windows of data (e.g.,
-   `OHLCV_WINDW_MINUTES = 240`) [gh:backend/config/constants.py#L79-L80]
+   `OHLCV_WINDW_MINUTES = 240`) [gh:backend/config/constants.py#L92-L93]
 3. **Persistence:** The resulting embeddings are written to the
    `OnlineFeatureStore` (Redis).
 4. **Inference:** The `StateAssembler` reads these embeddings to form the 256-d
-   latent state for the RL agent [gh:backend/config/constants.py#L68-L74]
+   latent state for the RL agent [gh:backend/config/constants.py#L81-L87]
 
 #### Natural Language to Code Entity Space: Data Ingestion
 
@@ -141,7 +141,7 @@ flowchart LR
 ```
 
 **Sources:** [gh:backend/data_engine/pipelines/ingestion.py#L114-L142]
-[gh:backend/data_engine/storage/timescale.py#L32]
+[gh:backend/data_engine/storage/timescale.py#L112-L128]
 
 ## Behavioral Cloning (BC) Data Ingestion
 

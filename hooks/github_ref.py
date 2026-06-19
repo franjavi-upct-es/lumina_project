@@ -37,6 +37,9 @@ def on_page_markdown(markdown, page, config, files):
         else:
             label = f":material-github: {path}"
 
-        return f"[{label}]({url}){{ .gh-ref }}"
+        # `target=_blank` opens the GitHub source in a new tab; `rel=noopener`
+        # is the standard safety pairing. Both ride through the `attr_list`
+        # extension already enabled in mkdocs.yml.
+        return f"[{label}]({url}){{ .gh-ref target=_blank rel=noopener }}"
 
     return _PATTERN.sub(replace, markdown)

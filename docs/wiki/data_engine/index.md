@@ -110,7 +110,7 @@ The **Feature Store** abstracts the underlying databases, providing a unified
 
 1. **Online Mode:** Optimized for the `StateAssembler` to retrieve the latest
    embedding from Redis with sub-millisecond latency
-   [gh:backend/fusion/state_assembler.py#L19-L32]
+   [gh:backend/fusion/state_assembler.py#L309-L312]
 2. **Offline Mode:** Used during training to pull massive datasets from
    TimescaleDB hypertables.
 

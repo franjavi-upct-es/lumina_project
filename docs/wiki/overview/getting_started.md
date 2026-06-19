@@ -31,7 +31,7 @@ specifications:
   TimescaleDB and Redis.
 - **NVIDIA GPU (Optional):** Recommended for the Perception and Cognition
   layers. The stack supports CUDA 12.4 (standard) and CUDA 12.8 (Blackwell)
-  [gh:Makefile#L33-L34]
+  [gh:Makefile#L35-L36]
 
 ## 2. Local Installation
 
@@ -48,7 +48,7 @@ install only the necessary sub-packages.
     make install
     ```
 
-    _Source: [gh:Makefile#L50-L51]_
+    _Source: [gh:Makefile#L52-L53]_
 
 2. **Configuration:** Copy the template environment file:
 
@@ -65,13 +65,13 @@ install only the necessary sub-packages.
     make migrate
     ```
 
-    _Source: [gh:Makefile#L50-L51]_
+    _Source: [gh:Makefile#L86-L89]_
 
 ## 3. Configuration & Environment Variables
 
 Lumina V3 uses a centralized configuration system powered by
 `pydantic-settings`. The `Settings` class in
-[gh:backend/config/settings.py#L39-L108] acts a singleton that validates
+[gh:backend/config/settings.py#L43-L158] acts a singleton that validates
 environment variables at runtime.
 
 ### Key Configuration Groups
@@ -85,7 +85,7 @@ environment variables at runtime.
 | Safety  | `UNCERTAINTY_THRESHOLD` | `0.85`                     | MC-Dropout threshold for the Uncertainty Gate     |
 | Arena   | `ARENA_ARTIFACT_DIR`    | `./artifacts/arena`        | Storage for simulation trajectories               |
 
-Sources: [gh:backend/config/settings.py#L14-L108] [gh:.env.example#L7-L75]
+Sources: [gh:backend/config/settings.py#L14-L158] [gh:.env.example#L7-L102]
 
 ## 4. Docker Stack & Profiles
 
@@ -123,17 +123,17 @@ flowchart TD
 ```
 
 Sources: [gh:docker/Dockerfile.api#L44-L45] [gh:Makefile#L83-L104]
-[gh:.env.example#L54-L59]
+[gh:.env.example#L80-L87]
 
 ### Running the Stack
 
 The `Makefile` provides targets for different hardware configurations:
 
-- **Standard:** `make up` (Standard Docker Compose) [gh:Makefile#L104-L107].
+- **Standard:** `make up` (Standard Docker Compose) [gh:Makefile#L117-L118].
 - **Low VRAM (8GB):** `make up-8gb` (Offloads semantic models to CPU)
-  [gh:Makefile#L109-L110].
+  [gh:Makefile#L120-L121].
 - **NVIDIA Blackwell:** `make up-blackwell` (Uses CUDA 12.8 base images)
-  [gh:Makefile#L112-L113].
+  [gh:Makefile#L123-L124].
 
 ## 5. Makefile Workflow Reference
 
@@ -143,24 +143,24 @@ The `Makefile` serves as the primary interface for common development tasks.
 
 - **Backfill yfinance:** `make backfill-yfinance` Runs
   `scripts.backfill_historical` to pull daily bars for the `TARGET_TICKERS`
-  defined in [gh:backend/config/constants.py#L94-L154].
+  defined in [gh:backend/config/constants.py#L107-L171].
 - **Backfill Polygon:** `make backfill-polygon` Pulls 1-minute resolution data
   (requires `POLYGON_API_KEY`).
 
 ### Development & Testing
 
 - **Hot-Reload API:** `make dev` Starts the FastAPI server on port 8000 with
-  environment overrides for local storage [gh:Makefile#L53-L56].
+  environment overrides for local storage [gh:Makefile#L55-L58].
 - **Fast Tests:** `make test-unit` Runs `pytest` excluding integration tests
-  that require live databases [gh:Makefile#L61-L62].
+  that require live databases [gh:Makefile#L63-L64].
 - **Full Suite:** `make test` Runs unit and integration tests (marked with
-  `integration` in [gh:pyproject.toml#L171]).
+  `integration` in [gh:pyproject.toml#L182]).
 
 ### Simulation
 
 - **Run Arena:** `make run-arena` Executes a Spartan Arena simulation run for a
   specific ticker (default AAPL) and generates artifacts in the
-  `ARENA_ARTIFACT_DIR` [gh:Makefile#L135-L139].
+  `ARENA_ARTIFACT_DIR` [gh:Makefile#L150-L153].
 
 ## 6. Project Structure and Data Flow
 
@@ -193,16 +193,16 @@ flowchart LR
     Settings --> |"`TIMESCALE_URL`"| Timescale
 ```
 
-Sources: [gh:backend/config/constants.py#L40-L74]
-[gh:backend/config/settings.py#L39-L65] [gh:pyproject.toml#L17-L21]
+Sources: [gh:backend/config/constants.py#L53-L87]
+[gh:backend/config/settings.py#L43-L81] [gh:pyproject.toml#L17-L21]
 
 ---
 
 Sources:
 
-- [gh:Makefile#L1-L139]
-- [gh:backend/config/settings.py#L1-L108]
-- [gh:backend/config/constants.py#L1-L228]
-- [gh:pyproject.toml#L1-L213]
+- [gh:Makefile#L1-L153]
+- [gh:backend/config/settings.py#L1-L158]
+- [gh:backend/config/constants.py#L1-L303]
+- [gh:pyproject.toml#L1-L281]
 - [gh:docker/Dockerfile.api#L1-L75]
-- [gh:.env.example#L1-L75]
+- [gh:.env.example#L1-L102]

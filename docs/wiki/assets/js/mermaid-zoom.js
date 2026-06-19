@@ -1,11 +1,12 @@
 /*
- * Replicates the claude.ai Mermaid card: each diagram becomes a framed,
- * pan/zoom-able card with hover-revealed controls (zoom in / zoom out /
- * expand) in the top-right corner.
+ * Replicates the claude.ai Mermaid card: each diagram becomes a framed card
+ * with a hover-revealed expand control in the top-right corner.
  *
- * Like the reference, panning and zooming are done by mutating the <svg>'s
- * `viewBox` directly (not a library) — drag to pan, wheel to zoom, double-click
- * to reset, expand for fullscreen.
+ * Inline cards are intentionally static — no wheel/trackpad zoom, no pan — and
+ * clicking anywhere on the diagram opens the augmentation window (same as the
+ * expand button). That window shows a fresh copy with button-driven zoom and
+ * drag-to-pan (still no wheel zoom), done by mutating the <svg>'s `viewBox`
+ * directly (not a library).
  *
  * Material for MkDocs renders each diagram's <svg> inside a shadow root on a
  * `div.mermaid` host (see shadow-open.js, which forces those roots open). Shadow
@@ -63,11 +64,18 @@
         return { x: vb[0], y: vb[1], w: vb[2], h: vb[3] };
     }
 
-    function setup(svg) {
+    // `opts.wheel` enables mouse/trackpad wheel zoom; `opts.pan` enables
+    // drag-to-pan, double-click-to-reset and the grab cursor. Inline cards pass
+    // neither (static, click-to-expand); the augmentation window enables pan.
+    function setup(svg, opts) {
         if (svg.dataset.mzInit) {
             return;
         }
         svg.dataset.mzInit = "1";
+
+        opts = opts || {};
+        var allowWheel = !!opts.wheel;
+        var allowPan = !!opts.pan;
 
         var base = parseViewBox(svg);
         var cur = { x: base.x, y: base.y, w: base.w, h: base.h };
@@ -80,8 +88,10 @@
         svg.style.width = "100%";
         svg.style.height = "auto";
         svg.style.display = "block";
-        svg.style.cursor = "grab";
-        svg.style.touchAction = "none";
+        svg.style.cursor = allowPan ? "grab" : "pointer";
+        if (allowPan) {
+            svg.style.touchAction = "none";
+        }
         svg.style.userSelect = "none";
 
         function apply() {
@@ -123,44 +133,50 @@
             };
         }
 
-        svg.addEventListener(
-            "wheel",
-            function (e) {
-                e.preventDefault();
-                var p = toUser(e.clientX, e.clientY);
-                zoom(e.deltaY > 0 ? 1.1 : 1 / 1.1, p.x, p.y);
-            },
-            { passive: false },
-        );
-
-        var dragging = false;
-        var last = null;
-        svg.addEventListener("pointerdown", function (e) {
-            if (e.button !== 0) {
-                return;
-            }
-            dragging = true;
-            last = { x: e.clientX, y: e.clientY };
-            svg.style.cursor = "grabbing";
-            svg.setPointerCapture(e.pointerId);
-        });
-        svg.addEventListener("pointermove", function (e) {
-            if (!dragging) {
-                return;
-            }
-            var r = svg.getBoundingClientRect();
-            cur.x -= ((e.clientX - last.x) / r.width) * cur.w;
-            cur.y -= ((e.clientY - last.y) / r.height) * cur.h;
-            last = { x: e.clientX, y: e.clientY };
-            apply();
-        });
-        function endDrag() {
-            dragging = false;
-            svg.style.cursor = "grab";
+        // Mouse/trackpad wheel zoom — only when explicitly enabled.
+        if (allowWheel) {
+            svg.addEventListener(
+                "wheel",
+                function (e) {
+                    e.preventDefault();
+                    var p = toUser(e.clientX, e.clientY);
+                    zoom(e.deltaY > 0 ? 1.1 : 1 / 1.1, p.x, p.y);
+                },
+                { passive: false },
+            );
         }
-        svg.addEventListener("pointerup", endDrag);
-        svg.addEventListener("pointercancel", endDrag);
-        svg.addEventListener("dblclick", reset);
+
+        // Drag-to-pan and double-click-to-reset — only when enabled.
+        if (allowPan) {
+            var dragging = false;
+            var last = null;
+            svg.addEventListener("pointerdown", function (e) {
+                if (e.button !== 0) {
+                    return;
+                }
+                dragging = true;
+                last = { x: e.clientX, y: e.clientY };
+                svg.style.cursor = "grabbing";
+                svg.setPointerCapture(e.pointerId);
+            });
+            svg.addEventListener("pointermove", function (e) {
+                if (!dragging) {
+                    return;
+                }
+                var r = svg.getBoundingClientRect();
+                cur.x -= ((e.clientX - last.x) / r.width) * cur.w;
+                cur.y -= ((e.clientY - last.y) / r.height) * cur.h;
+                last = { x: e.clientX, y: e.clientY };
+                apply();
+            });
+            var endDrag = function () {
+                dragging = false;
+                svg.style.cursor = "grab";
+            };
+            svg.addEventListener("pointerup", endDrag);
+            svg.addEventListener("pointercancel", endDrag);
+            svg.addEventListener("dblclick", reset);
+        }
 
         return {
             zoomIn: function () {
@@ -178,6 +194,9 @@
     // The augmentation window: a large centered modal showing a fresh copy of
     // the diagram with its own pan/zoom and a close control.
     function openModal(svg) {
+        if (document.querySelector(".mz-modal")) {
+            return; // one augmentation window at a time
+        }
         var overlay = document.createElement("div");
         overlay.className = "mz-modal";
 
@@ -197,7 +216,9 @@
         }
         viewport.appendChild(clone);
 
-        var api = setup(clone);
+        // Button-driven zoom + drag-to-pan inside the window, but still no
+        // wheel/trackpad zoom.
+        var api = setup(clone, { pan: true });
         clone.style.height = "100%";
 
         var controls = document.createElement("div");
@@ -271,7 +292,7 @@
         }
     }
 
-    function wrap(host, svg, api) {
+    function wrap(host, svg) {
         if (host.closest(".mz-card")) {
             return; // already wrapped
         }
@@ -285,22 +306,24 @@
         var controls = document.createElement("div");
         controls.className = "mz-controls";
 
-        var zin = iconButton("Zoom in", ICONS.zoomIn);
-        var zout = iconButton("Zoom out", ICONS.zoomOut);
+        // Inline cards are static, so they expose only the expand control.
         var expand = iconButton("Expand", ICONS.expand);
-        zin.addEventListener("click", api.zoomIn);
-        zout.addEventListener("click", api.zoomOut);
-        expand.addEventListener("click", function () {
+        expand.addEventListener("click", function (e) {
+            e.stopPropagation();
             openModal(svg);
         });
-        controls.appendChild(zin);
-        controls.appendChild(zout);
         controls.appendChild(expand);
 
         host.replaceWith(card);
         viewport.appendChild(host);
         card.appendChild(viewport);
         card.appendChild(controls);
+
+        // Clicking anywhere on the diagram frame opens the augmentation window,
+        // mirroring the expand button.
+        viewport.addEventListener("click", function () {
+            openModal(svg);
+        });
 
         // Card is now in the document, so the viewport has a real width to
         // measure against — size the diagram to fill it.
@@ -314,9 +337,10 @@
             var root = host.shadowRoot || host;
             var svg = root.querySelector("svg");
             if (svg) {
-                var api = setup(svg);
+                // Inline diagrams are static (no wheel/pan); click to expand.
+                var api = setup(svg, {});
                 if (api) {
-                    wrap(host, svg, api);
+                    wrap(host, svg);
                 }
             } else {
                 pending++;
