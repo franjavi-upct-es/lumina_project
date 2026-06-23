@@ -28,7 +28,7 @@ requires-python = ">=3.11,<3.15"
 dependencies = [
   # ----- Core (used by every service) ---------------------------------
   "pydantic>=2.6",
-  "pydantic-settings>=2.2",
+  "pydantic-settings>=2.14.2",
   "loguru>=0.7",
   "tenacity>=8.2",
   "prometheus-client>=0.20",
