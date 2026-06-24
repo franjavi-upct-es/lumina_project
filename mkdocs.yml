@@ -103,8 +103,12 @@ nav:
           - "Structural Encoder: Graph Attention Network (GATv2)": perception_layer/structural.md
     - "Fusion Layer: Deep Fusion Nexus":
           - fusion_layer/index.md
+          - "Cross-Modal Attention and DeepFusionNexus": fusion_layer/cross_modal.md
+          - "State Assembler": fusion_layer/state_assembler.md
     - "Cognition Layer: RL Agent and Training":
           - cognition_layer/index.md
+          - "PPO Agent and Uncertainty Gate": cognition_layer/ppo_agent.md
+          - "Spartan Curriculum: Training Pipeline": cognition_layer/spartan.md
     - "Execution Engine and Safety System":
           - execution/index.md
     - Simulation and Spartan Arena:

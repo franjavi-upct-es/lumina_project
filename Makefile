@@ -139,13 +139,13 @@ backfill-yfinance:
 	REDIS_URL=$(LOCAL_REDIS_URL) \
 	TIMESCALE_URL=$(LOCAL_TIMESCALE_URL) \
 	$(UV_RUN) python -m scripts.backfill_historical --source yfinance \
-	    --start 1900-01-01 --end 2024-12-31
+	    --start 1900-01-01 --end 2025-12-31
 
 backfill-polygon:
 	REDIS_URL=$(LOCAL_REDIS_URL) \
 	TIMESCALE_URL=$(LOCAL_TIMESCALE_URL) \
 	$(UV_RUN) python -m scripts.backfill_historical --source polygon \
-	    --start 1900-01-01 --end 2024-12-31
+	    --start 1900-01-01 --end 2025-12-31
 
 run-arena:
 	$(UV_RUN) python scripts/run_arena.py \
