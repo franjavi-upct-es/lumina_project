@@ -83,6 +83,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#structural-encoder-graph-attention-network-gatv2" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -700,6 +705,26 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structural Encoder: Graph Attention Network (GATv2)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -717,6 +742,165 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#graph-architecture-and-data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graph Architecture and Data Flow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Graph Architecture and Data Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#system-to-code-entity-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System-to-Code Entity Mapping
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System-to-Code Entity Mapping">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#structural-encoding-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structural Encoding Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#graph-construction-graph_builder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graph Construction (graph_builder)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Graph Construction (graph_builder)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#node-feature-composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Node Feature Composition
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gatv2-model-architecture-graphencoder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GATv2 Model Architecture (GraphEncoder)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="GATv2 Model Architecture (GraphEncoder)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gatv2-information-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GATv2 Information Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inference-and-persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inference and Persistence
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inference and Persistence">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -741,6 +925,10 @@
       
         
           
+        
+      
+        
+      
         
       
     
@@ -779,6 +967,11 @@
 
             </a>
             
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
           </div>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
@@ -792,6 +985,62 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fusion_layer/cross_modal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-Modal Attention and DeepFusionNexus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fusion_layer/state_assembler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State Assembler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
           </ul>
@@ -812,6 +1061,10 @@
       
         
           
+        
+      
+        
+      
         
       
     
@@ -850,6 +1103,11 @@
 
             </a>
             
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
           </div>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
@@ -863,6 +1121,62 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cognition_layer/ppo_agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PPO Agent and Uncertainty Gate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cognition_layer/spartan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spartan Curriculum: Training Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
           </ul>
@@ -1244,6 +1558,156 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#graph-architecture-and-data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graph Architecture and Data Flow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Graph Architecture and Data Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#system-to-code-entity-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System-to-Code Entity Mapping
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System-to-Code Entity Mapping">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#structural-encoding-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structural Encoding Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#graph-construction-graph_builder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graph Construction (graph_builder)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Graph Construction (graph_builder)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#node-feature-composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Node Feature Composition
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gatv2-model-architecture-graphencoder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GATv2 Model Architecture (GraphEncoder)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="GATv2 Model Architecture (GraphEncoder)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gatv2-information-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GATv2 Information Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inference-and-persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inference and Persistence
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inference and Persistence">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -1263,9 +1727,142 @@
   
 
 
-  <h1>Structural Encoder: Graph Attention Network (GATv2)</h1>
-
-
+<h1 id="structural-encoder-graph-attention-network-gatv2">Structural Encoder: Graph Attention Network (GATv2)<a class="headerlink" href="#structural-encoder-graph-attention-network-gatv2" title="Permanent link">&para;</a></h1>
+<details class="note">
+<summary>Relevant source files</summary>
+<ul>
+<li><a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py</a></li>
+<li><a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/notebooks/04_graph_construction.ipynb" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> notebooks/04_graph_construction.ipynb</a></li>
+</ul>
+</details>
+<p>The Structural Encoder is the third modality-specific encoder in the Perception
+Layer. It captures <strong>inter-asset dependencies</strong> and <strong>systemic risk
+propagation</strong> by modelling the market as a heterogeneous graph. Unlike the
+Temporal (TFT) and Semantic (LLM) encoders which process assets in isolation,
+the GATv2 encoder produces a <strong>32-dimensional structural pressure embedding</strong>
+that reflects an asset's position within the broader supply-chain and
+correlation network.</p>
+<h2 id="graph-architecture-and-data-flow">Graph Architecture and Data Flow<a class="headerlink" href="#graph-architecture-and-data-flow" title="Permanent link">&para;</a></h2>
+<p>The structural pipeline operates on a daily cadence, constructing a graph where
+nodes represent tickers and edges represent either static supply-chain
+relationships or dynamic price correlations.</p>
+<h3 id="system-to-code-entity-mapping">System-to-Code Entity Mapping<a class="headerlink" href="#system-to-code-entity-mapping" title="Permanent link">&para;</a></h3>
+<p>The following diagram bridges the high-level structural concepts to the specific
+code implementation responsible for graph construction and inference.</p>
+<h4 id="structural-encoding-pipeline">Structural Encoding Pipeline<a class="headerlink" href="#structural-encoding-pipeline" title="Permanent link">&para;</a></h4>
+<pre class="mermaid"><code>flowchart TD
+    subgraph "Data Engine Space"
+        direction TB
+        TimescaleStore[(TimescaleStore)]
+        RedisCache[(RedisCache)]
+    end
+    subgraph "Graph Construction"
+        BGD["build_graph_data()"]
+        SCE["supply_chain_edges&lt;br/&gt;(DB Table)"]
+        OHLCV["ohlcv_1m (DB Table)"]
+    end
+    subgraph "Inference Service"
+        GraphInferenceService
+        GraphEncoder["GraphEncoder (GATv2)"]
+        EmbeddingWriter
+    end
+    TimescaleStore --&gt; |"fetch edges"| BGD
+    TimescaleStore --&gt; |"fetch daily returns"| BGD
+    BGD --&gt; |"torch_geometric.Data"| GraphInferenceService
+    GraphInferenceService --&gt; |"forward pass"| GraphEncoder
+    GraphEncoder --&gt; |"32-d latent z"| GraphInferenceService
+    GraphInferenceService --&gt; |"write('graph',&lt;br/&gt;ticker, vec)"| EmbeddingWriter
+    EmbeddingWriter --&gt; |"SET graph:TICKER"| RedisCache</code></pre>
+<p><strong>Sources:</strong> <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L18-L38" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#18-38</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L93-L95" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#93-95</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/graph_builder.py#L192" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/graph_builder.py<span class="lines">#192</span></a></p>
+<h2 id="graph-construction-graph_builder">Graph Construction (<code>graph_builder</code>)<a class="headerlink" href="#graph-construction-graph_builder" title="Permanent link">&para;</a></h2>
+<p>The graph is built using <code>torch_geometric.data.Data</code> objects
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/notebooks/04_graph_construction.ipynb" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> notebooks/04_graph_construction.ipynb</a> It incorporates two distinct edge
+types to capture different forms of structural "pressure":</p>
+<ol>
+<li><strong>Static Edges (Supply Chain):</strong> Derived from the <code>supply_chain_edges</code> table.
+   These represent fundamenta dependencies (e.g., NVDA supplying AAPL)
+   <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/notebooks/04_graph_construction.ipynb" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> notebooks/04_graph_construction.ipynb</a></li>
+<li><strong>Dynamic Edges (Correlation):</strong> Generated based on Pearson correlation of
+   log returns over a lookback period. Edges are created when <span class="arithmatex">\(|r|&gt;0.6\)</span>
+   <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/notebooks/04_graph_construction.ipynb" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> notebooks/04_graph_construction.ipynb</a></li>
+</ol>
+<h3 id="node-feature-composition">Node Feature Composition<a class="headerlink" href="#node-feature-composition" title="Permanent link">&para;</a></h3>
+<p>Each node (ticker) is initialized with a 32-dimensional feature vector <code>x</code>
+before being processed by the GATv2 layers:</p>
+<ul>
+<li><strong>Sector One-Hot:</strong> (NUM_SECTORS dims) Identifies the asset class
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/notebooks/04_graph_construction.ipynb" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> notebooks/04_graph_construction.ipynb</a></li>
+<li><strong>Log Market Cap:</strong> (1 dim) Scaled representation of asset size
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/notebooks/04_graph_construction.ipynb" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> notebooks/04_graph_construction.ipynb</a></li>
+<li><strong>Realized Volatility:</strong> (1 dim) 252-day annualized volatility
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/notebooks/04_graph_construction.ipynb" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> notebooks/04_graph_construction.ipynb</a></li>
+<li><strong>Beta vs SPY:</strong> (1 dim) Systematic risk exposure
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/notebooks/04_graph_construction.ipynb" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> notebooks/04_graph_construction.ipynb</a></li>
+<li><strong>Padding:</strong> Reserved zeros to maintain the 32-dim structural interface
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/notebooks/04_graph_construction.ipynb" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> notebooks/04_graph_construction.ipynb</a></li>
+</ul>
+<p><strong>Sources:</strong> <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/notebooks/04_graph_construction.ipynb" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> notebooks/04_graph_construction.ipynb</a></p>
+<h2 id="gatv2-model-architecture-graphencoder">GATv2 Model Architecture (<code>GraphEncoder</code>)<a class="headerlink" href="#gatv2-model-architecture-graphencoder" title="Permanent link">&para;</a></h2>
+<p>The <code>GraphEncoder</code> utilizes the GATv2 (Graph Attention Network v2) operator,
+which improves upon standard GAT by implementing "dynamic attention", allowing
+every node to attend to every other node with a more flexible ranking mechanism.</p>
+<h3 id="gatv2-information-flow">GATv2 Information Flow<a class="headerlink" href="#gatv2-information-flow" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>flowchart LR
+    subgraph "Input Layer"
+        NF["Node Features (32-d)"]
+        EI["Edge Index"]
+        EA["Edge Attr"]
+    end
+    subgraph "GATv2 Stack"
+        GATC1["GATv2Conv (Head 1)"]
+        ELU["ELU Activation"]
+        GATC2["GATv2Conv (Head 2)"]
+    end
+    subgraph "Output"
+        SE["Structural&lt;br/&gt;Embedding (32-d)"]
+    end
+    NF --&gt; GATC1
+    EI --&gt; GATC1
+    EA --&gt; GATC1
+    GATC1 --&gt; ELU --&gt; GATC2 --&gt; SE</code></pre>
+<p><strong>Sources:</strong> <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/gat_model.py#L15" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/gat_model.py<span class="lines">#15</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L31" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#31</span></a></p>
+<p>The model produces a latent representation <span class="arithmatex">\(z \in \mathbb{R}^{32}\)</span> for every
+node in the graph. This embedding encapsulates not just the asset's own state,
+but the state of its neighbors weighted by their attention scores (structural
+pressure).</p>
+<h3 id="inference-and-persistence">Inference and Persistence<a class="headerlink" href="#inference-and-persistence" title="Permanent link">&para;</a></h3>
+<p>The <code>GraphInferenceService</code> runs as a background daemon, typically on a daily
+interval (<code>_DAILY_INTERVAL_S = 86400</code>)
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L43" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#43</span></a></p>
+<h4 id="key-functions">Key Functions<a class="headerlink" href="#key-functions" title="Permanent link">&para;</a></h4>
+<ul>
+<li><code>run_once(data, tickers_order)</code>: Performs the forward pass on the GPU and
+  converts the resulting tensor to a NumPy array
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L26-L39" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#26-39</span></a></li>
+<li><code>EmbeddingWriter.write()</code>: Commits the 32-d vectors to Redis using the key
+  format <code>graph:{ticker}</code>
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L36-L37" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#36-37</span></a></li>
+<li><code>_pick_device()</code>: Handles fallback logic, attempting to use CUDA but reverting
+  to CPU if the probe fails
+  <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L45-L53" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#45-53</span></a></li>
+</ul>
+<h4 id="data-lifecycle">Data Lifecycle<a class="headerlink" href="#data-lifecycle" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>Trigger:</strong> The service wakes up every 24 hours
+   <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L99" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#99</span></a></li>
+<li><strong>Fetch:</strong> <code>build_graph_data</code> queries TimescaleDB for the latest prices and
+   edges <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L101" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#101</span></a></li>
+<li><strong>Compute:</strong> The <code>GraphEncoder</code> processes the full market graph in a single
+   batch <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L32" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#32</span></a></li>
+<li><strong>Store:</strong> Embeddings are written to Redis, where the <code>StateAssembler</code> will
+   later retrieves them for fusion
+   <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L37" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#37</span></a></li>
+</ol>
+<p><strong>Sources:</strong> <a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L18-L38" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#18-38</span></a>
+<a class="gh-ref" href="https://github.com/franjavi-upct-es/lumina_project/blob/main/backend/perception/structural/inference.py#L82-L102" rel="noopener" target="_blank"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> backend/perception/structural/inference.py<span class="lines">#82-102</span></a></p>
 
 
 
